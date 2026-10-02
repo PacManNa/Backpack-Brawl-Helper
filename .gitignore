@@ -1,0 +1,11 @@
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+*.apk
+*.aab
+.DS_Store
+Thumbs.db
+/.codex-remote-attachments/
+/accessibility-settings.xml
