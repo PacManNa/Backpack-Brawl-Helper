@@ -1,6 +1,7 @@
 package ua.borlock.autotap;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 
 /** Pixel-only geometry and progression-chain locator for Merge Madness screenshots. */
@@ -31,6 +32,101 @@ final class MergeMadnessLayout {
 
     private MergeMadnessLayout() { }
 
+    /** Reusable scratch space; gradients are rebuilt from the current frame. */
+    static final class Workspace {
+        private float[] verticalGradients = new float[0];
+        private boolean[] profileColumns = new boolean[0];
+        private boolean[] gradientColumns = new boolean[0];
+        private int[] gradientOffsets = new int[0];
+        private int firstY;
+        private int rowCount;
+        private Progression cachedProgression;
+        private long progressionFingerprint;
+
+        private void resetColumns(int width) {
+            if (gradientColumns.length != width) {
+                profileColumns = new boolean[width];
+                gradientColumns = new boolean[width];
+                gradientOffsets = new int[width];
+            } else {
+                Arrays.fill(profileColumns, false);
+                Arrays.fill(gradientColumns, false);
+            }
+        }
+
+        private void includeColumns(float firstCenterX, float step) {
+            int width = gradientColumns.length;
+            int scoreCenterX = Math.round(firstCenterX + step * 0.029f);
+            // verticalGridScore reads +/-2 smoothed pixels; smoothing reads +/-2
+            // raw pixels. Every raw value that can affect the score is included.
+            for (float offset : VERTICAL_EDGE_OFFSETS) {
+                int center = Math.round(scoreCenterX + offset * step);
+                for (int x = Math.max(1, center - 4); x <= Math.min(width - 2, center + 4); x++) {
+                    profileColumns[x] = true;
+                    gradientColumns[x] = true;
+                }
+            }
+            int radius = Math.max(3, Math.round(step * 0.06f));
+            for (int separator = 1; separator < MergeMadnessBoard.SIDE; separator++) {
+                int center = Math.round(firstCenterX + (separator - 0.5f) * step);
+                for (int x = Math.max(1, center - radius);
+                     x <= Math.min(width - 2, center + radius); x++) {
+                    gradientColumns[x] = true;
+                }
+            }
+        }
+
+        private void prepareGradients(int[] pixels, int width, int first, int end) {
+            firstY = first;
+            rowCount = end - first;
+            int required = 0;
+            for (int x = 1; x < width - 1; x++) {
+                if (!gradientColumns[x]) continue;
+                gradientOffsets[x] = required;
+                required += rowCount;
+            }
+            if (verticalGradients.length < required) verticalGradients = new float[required];
+            for (int x = 1; x < width - 1; x++) {
+                if (!gradientColumns[x]) continue;
+                int output = gradientOffsets[x];
+                for (int y = first; y < end; y++) {
+                    verticalGradients[output++] = Math.abs(pixelLuma(pixels[y * width + x - 1])
+                            - pixelLuma(pixels[y * width + x + 1]));
+                }
+            }
+        }
+
+        private float gradient(int x, int y) {
+            return verticalGradients[gradientOffsets[x] + y - firstY];
+        }
+
+        private Progression progression(int[] pixels, int width, int height,
+                                         BoardVision.Geometry geometry) {
+            long hash = 0xcbf29ce484222325L;
+            hash = mix(mix(hash,width),height);
+            hash = mix(hash,Float.floatToIntBits(geometry.firstCenterX));
+            hash = mix(hash,Float.floatToIntBits(geometry.firstCenterY));
+            hash = mix(hash,Float.floatToIntBits(geometry.cellStepPx));
+            hash = mix(hash,Float.floatToIntBits(geometry.cellStepYpx));
+            // The earliest probe is 0.75 cells below the last cell and extends
+            // 0.14 cells upward. Include interpolation/rounding margins as well.
+            int firstRow = clamp((int) Math.floor(geometry.centerY(3)
+                    + geometry.cellStepYpx * 0.60f) - 2,0,height - 1);
+            for (int y = firstRow; y < height; y++) {
+                for (int x = 0; x < width; x++) hash = mix(hash,pixels[y * width + x]);
+            }
+            if (cachedProgression == null || hash != progressionFingerprint) {
+                cachedProgression = findProgression(pixels,width,height,geometry);
+                progressionFingerprint = hash;
+            }
+            return cachedProgression;
+        }
+
+        private static long mix(long hash, int value) {
+            return (hash ^ value) * 0x100000001b3L;
+        }
+    }
+
     static Result locate(int[] pixels, int width, int height,
                          BoardVision.Geometry previousGeometry) {
         return locate(pixels, width, height, previousGeometry, null);
@@ -39,6 +135,12 @@ final class MergeMadnessLayout {
     static Result locate(int[] pixels, int width, int height,
                          BoardVision.Geometry previousGeometry,
                          BoardVision.Geometry calibratedGeometry) {
+        return locate(pixels,width,height,previousGeometry,calibratedGeometry,new Workspace());
+    }
+
+    static Result locate(int[] pixels, int width, int height,
+                         BoardVision.Geometry previousGeometry,
+                         BoardVision.Geometry calibratedGeometry, Workspace workspace) {
         if (pixels == null || width <= 0 || height <= 0 || pixels.length < width * height) {
             return null;
         }
@@ -46,12 +148,12 @@ final class MergeMadnessLayout {
         // original flower bot; only the board's vertical position can move in-game.
         float nominalStep = width * CELL_STEP_RATIO;
         if (nominalStep < 8f || height < nominalStep * MergeMadnessBoard.SIDE) return null;
-        float[] horizontalEdges = horizontalEdgeProfile(pixels, width, height);
+        float[] horizontalEdges = horizontalEdgeProfile(pixels, width, height, nominalStep);
         // Re-scan the full allowed vertical band on every frame. Previously an old
         // anchor/calibration could restrict this pass to a stale Y or cell step.
         Candidate best = search(pixels, width, height, horizontalEdges, nominalStep,
                 3, height - Math.round(nominalStep * 4.32f),
-                Float.NaN);
+                Float.NaN, workspace);
         if (best == null && calibratedGeometry != null) {
             // A manually drawn rectangle remains a fallback for weak grid contrast,
             // but it cannot replace this phone's known horizontal position or scale.
@@ -64,23 +166,23 @@ final class MergeMadnessLayout {
             BoardVision.Geometry fallback = new BoardVision.Geometry(defaultCenterX,
                     calibratedGeometry.firstCenterY, nominalStep, nominalStep);
             return resultForGeometry(pixels, width, height, fallback,
-                    previousGeometry, 0.55f);
+                    previousGeometry, 0.55f, workspace);
         }
         if (best == null || best.confidence < 1.0f) return null;
 
         BoardVision.Geometry geometry = new BoardVision.Geometry(best.firstCenterX,
                 best.top + best.step * CENTER_FROM_GRID_TOP_RATIO, best.step, best.step);
         return resultForGeometry(pixels, width, height, geometry,
-                previousGeometry, Math.min(1.0f, best.confidence));
+                previousGeometry, Math.min(1.0f, best.confidence), workspace);
     }
 
     private static Result resultForGeometry(int[] pixels, int width, int height,
                                             BoardVision.Geometry geometry,
                                             BoardVision.Geometry previousGeometry,
-                                            float confidence) {
+                                            float confidence, Workspace workspace) {
         if (geometry.firstCenterY < height * MIN_FIELD_CENTER_Y_RATIO
                 || geometry.firstCenterY > height * MAX_FIELD_CENTER_Y_RATIO) return null;
-        Progression progression = findProgression(pixels, width, height, geometry);
+        Progression progression = workspace.progression(pixels,width,height,geometry);
         float baselineY = height * FIRST_CENTER_Y_RATIO;
         float frameShift = previousGeometry == null ? 0f
                 : geometry.firstCenterY - previousGeometry.firstCenterY;
@@ -100,7 +202,7 @@ final class MergeMadnessLayout {
     private static Candidate search(int[] pixels, int width, int height,
                                     float[] horizontalEdges, float nominalStep,
                                     int requestedMinimumTop, int requestedMaximumTop,
-                                    float previousCenterY) {
+                                    float previousCenterY, Workspace workspace) {
         ArrayList<Candidate> candidates = new ArrayList<>();
         for (float scale : CELL_SIZE_SCALES) {
             float step = nominalStep * scale;
@@ -122,13 +224,24 @@ final class MergeMadnessLayout {
 
         candidates.sort(Comparator.comparingDouble((Candidate candidate) -> candidate.horizontalScore)
                 .reversed());
+        int firstY = height - 2, endY = 1;
+        float fixedFirstCenterX = width * FIRST_CENTER_X_RATIO;
+        workspace.resetColumns(width);
+        for (int index = 0; index < Math.min(MAX_TOP_CANDIDATES,candidates.size()); index++) {
+            Candidate candidate = candidates.get(index);
+            workspace.includeColumns(fixedFirstCenterX, candidate.step);
+            int top = clamp(candidate.top - 8,1,height - 2);
+            firstY = Math.min(firstY,top);
+            endY = Math.max(endY,clamp(Math.round(candidate.top
+                    + candidate.step * 4f + 12f),top + 1,height - 1));
+        }
+        workspace.prepareGradients(pixels,width,firstY,endY);
         Candidate best = null;
         int checked = 0;
-        float fixedFirstCenterX = width * FIRST_CENTER_X_RATIO;
         for (Candidate candidate : candidates) {
             if (checked++ >= MAX_TOP_CANDIDATES) break;
-            float[] verticalEdges = verticalEdgeProfile(pixels, width, height,
-                    candidate.top, candidate.step);
+            float[] verticalEdges = verticalEdgeProfile(width, height,
+                    candidate.top, candidate.step,workspace);
             BoardVision.Geometry geometry = new BoardVision.Geometry(fixedFirstCenterX,
                     candidate.top + candidate.step * CENTER_FROM_GRID_TOP_RATIO,
                     candidate.step, candidate.step);
@@ -136,7 +249,7 @@ final class MergeMadnessLayout {
             float verticalScore = verticalGridScore(verticalEdges,
                     Math.round(scoreCenterX), candidate.step);
             if (verticalScore < MIN_VERTICAL_SCORE
-                    || !hasColumnSeparators(pixels, width, height, geometry)) continue;
+                    || !hasColumnSeparators(width,height,geometry,workspace)) continue;
 
             candidate.firstCenterX = fixedFirstCenterX;
             candidate.verticalScore = verticalScore;
@@ -156,8 +269,8 @@ final class MergeMadnessLayout {
         return best;
     }
 
-    private static boolean hasColumnSeparators(int[] pixels, int width, int height,
-                                               BoardVision.Geometry geometry) {
+    private static boolean hasColumnSeparators(int width, int height,
+                                               BoardVision.Geometry geometry, Workspace workspace) {
         int sampleRadius = Math.max(4, Math.round(geometry.cellStepPx * 0.32f));
         int xRadius = Math.max(3, Math.round(geometry.cellStepPx * 0.06f));
         for (int row = 0; row < MergeMadnessBoard.SIDE; row++) {
@@ -174,8 +287,7 @@ final class MergeMadnessLayout {
                     for (int offset = -xRadius; offset <= xRadius; offset++) {
                         int x = boundaryX + offset;
                         if (x < 1 || x >= width - 1) continue;
-                        float edge = Math.abs(pixelLuma(pixels[y * width + x - 1])
-                                - pixelLuma(pixels[y * width + x + 1]));
+                        float edge = workspace.gradient(x,y);
                         strongest = Math.max(strongest, edge);
                     }
                     edgeTotal += strongest;
@@ -214,11 +326,17 @@ final class MergeMadnessLayout {
         return score;
     }
 
-    private static float[] horizontalEdgeProfile(int[] pixels, int width, int height) {
+    private static float[] horizontalEdgeProfile(int[] pixels, int width, int height,float step) {
         int left = clamp(Math.round(width * 0.25f), 1, width - 2);
         int right = clamp(Math.round(width * 0.94f), left + 1, width - 1);
         float[] edges = new float[height];
-        for (int y = 1; y < height - 1; y++) {
+        // Search only reads profiles in this band; preserve the four-pixel
+        // neighborhood needed by smoothing and strongestNearby().
+        int firstY = Math.max(1,(int) Math.ceil(height * MIN_FIELD_CENTER_Y_RATIO
+                - step * CENTER_FROM_GRID_TOP_RATIO) - 5);
+        int endY = Math.min(height - 1,(int) Math.ceil(height * MAX_FIELD_CENTER_Y_RATIO
+                - step * CENTER_FROM_GRID_TOP_RATIO + step * 4f) + 6);
+        for (int y = firstY; y < endY; y++) {
             float total = 0f;
             int count = 0;
             for (int x = left; x < right; x++) {
@@ -231,17 +349,18 @@ final class MergeMadnessLayout {
         return smoothProfile(edges);
     }
 
-    private static float[] verticalEdgeProfile(int[] pixels, int width, int height,
-                                               int gridTop, float step) {
+    private static float[] verticalEdgeProfile(int width, int height,
+                                               int gridTop, float step, Workspace workspace) {
         int top = clamp(gridTop - 8, 1, height - 2);
         int bottom = clamp(Math.round(gridTop + step * 4f + 12f), top + 1, height - 1);
         float[] edges = new float[width];
         for (int x = 1; x < width - 1; x++) {
+            if (!workspace.profileColumns[x]) continue;
             float total = 0f;
             int count = 0;
-            for (int y = top; y < bottom; y++) {
-                total += Math.abs(pixelLuma(pixels[y * width + x - 1])
-                        - pixelLuma(pixels[y * width + x + 1]));
+            int first = workspace.gradientOffsets[x] + top - workspace.firstY;
+            for (int y = first; y < first + bottom - top; y++) {
+                total += workspace.verticalGradients[y];
                 count++;
             }
             edges[x] = total / Math.max(1, count);

@@ -31,6 +31,7 @@ final class MergeMadnessVision {
     private static final double HIGH_RANK_MIN_TEMPLATE_MARGIN = 0.08;
     private static final double CUSTOM_TEMPLATE_MIN_SCORE = 0.42;
     private static final double CUSTOM_TEMPLATE_MIN_MARGIN = 0.035;
+    private static final double DECISIVE_CHAIN_SCORE = 0.92;
     private static final String CUSTOM_TEMPLATE_PREFIX = "merge_mouse_sample_";
     // Gameplay samples recover tile art when the detected cell center is slightly off.
     private static final int FIRST_SAMPLED_RANK_INDEX = 0;
@@ -58,38 +59,13 @@ final class MergeMadnessVision {
     private static final int[][] SAMPLE_GAMEPLAY_TEMPLATE_CELLS = {
             {0, 2}, {3, 0}, {2, 0}, {1, 1}
     };
-    // The chain layout is measured in cell steps so it follows the detected board.
-    private static final int PROGRESSION_SLOTS_PER_ROW = 5;
-    private static final float PROGRESSION_FIRST_SLOT_X_OFFSET = -0.05f;
-    private static final float PROGRESSION_SLOT_STEP_X_RATIO = 0.66f;
-    private static final float[] PROGRESSION_ROW_OFFSET_FROM_LAST_CELL = {1.70f, 2.24f};
-    private static final float PROGRESSION_SLOT_WIDTH_RATIO = 0.46f;
-    private static final float PROGRESSION_SLOT_HEIGHT_RATIO = 0.28f;
-    private static final float VISIBLE_PROGRESSION_LUMA_P90 = 54f;
-    private static final float PROGRESSION_ARROW_X_OFFSET = 0.32f;
-    private static final float PROGRESSION_ARROW_MIN_LUMA = 90f;
-    private static final int PROGRESSION_COLOR_PATCHES = 3;
-    private static final int PROGRESSION_COLOR_HUE_BINS = 8;
-    private static final int PROGRESSION_COLOR_VALUE_BINS = 4;
-    private static final int PROGRESSION_COLOR_SAMPLES_X = 16;
-    private static final int PROGRESSION_COLOR_SAMPLES_Y = 10;
-    private static final double[] PROGRESSION_MIN_SCORE = {
-             0.25, 0.30, 0.21, 0.20, 0.40, 0.55, 0.60,
-             Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
-             Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
-             Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
-             Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY
-    };
-    private static final double[] PROGRESSION_MIN_MARGIN = {
-            0.035, 0.035, 0.025, 0.025, 0.08, 0.15, 0.10, 0.10, 0.10, 0.10,
-            0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10
-    };
-
     private final float[][] templates = new float[TEMPLATE_REGIONS.length][];
     private final float[][] gameplayTemplates = new float[GAMEPLAY_TEMPLATE_CELLS.length][];
     private final float[][] sampleGameplayTemplates = new float[TEMPLATE_REGIONS.length][];
     private final float[][] customTemplates = new float[TEMPLATE_REGIONS.length][];
     private final Context appContext;
+    private final MergeMadnessObjects.Cache progressionCache = new MergeMadnessObjects.Cache();
+    private final MergeMadnessLayout.Workspace layoutWorkspace = new MergeMadnessLayout.Workspace();
     private int[] screenshotPixels = new int[0];
 
     private MergeMadnessVision() {
@@ -142,7 +118,7 @@ final class MergeMadnessVision {
         }
         int[][] extraRanks = {
                 {4, 1, 1}, {5, 1, 0}, {6, 2, 0},
-                {7, 3, 0}, {8, 0, 1}, {9, 3, 1}
+                {7, 3, 0}, {8, 3, 3}, {9, 3, 1}
         };
         if (higherRankSamples != null) {
             for (int index = 0; index < Math.min(extraRanks.length, higherRankSamples.length);
@@ -227,7 +203,7 @@ final class MergeMadnessVision {
         loadGameplayTemplate(context, R.raw.merge_madness_rank6_sample, 5, 1, 0);
         loadGameplayTemplate(context, R.raw.merge_madness_rank7_sample, 6, 2, 0);
         loadGameplayTemplate(context, R.raw.merge_madness_rank8_sample, 7, 3, 0);
-        loadGameplayTemplate(context, R.raw.merge_madness_rank9_sample, 8, 0, 1);
+        loadGameplayTemplate(context, R.raw.merge_madness_rank9_sample, 8, 3, 3);
         loadGameplayTemplate(context, R.raw.merge_madness_rank10_sample, 9, 3, 1);
     }
 
@@ -293,7 +269,7 @@ final class MergeMadnessVision {
                                            BoardVision.Geometry previousGeometry,
                                            BoardVision.Geometry calibratedGeometry) {
         MergeMadnessLayout.Result layout = MergeMadnessLayout.locate(
-                screenshotPixels, width, height, previousGeometry, calibratedGeometry);
+                screenshotPixels, width, height, previousGeometry, calibratedGeometry, layoutWorkspace);
         if (layout == null) {
             return Result.error("Не знайшов межі поля 4×4. Відкрий «Злиття Божевілля» й дочекайся завершення анімації.");
         }
@@ -302,7 +278,7 @@ final class MergeMadnessVision {
         if (layout.progressionRanks == 0) {
             return Result.error("Не бачу списку злиття мишей унизу екрана.");
         }
-        float[][] visibleProgressionTemplates = readVisibleProgressionTemplates(
+        MergeMadnessObjects.Progression progression = progressionCache.read(
                 screenshotPixels, width, height, layout);
         // The chain may be scrolled or partially obscured. It confirms the game mode,
         // but must not cap ranks already present on the board.
@@ -334,18 +310,19 @@ final class MergeMadnessVision {
                 }
 
                 occupied++;
-                float cropWidth = geometry.cellStepPx * 0.74f;
-                float cropHeight = geometry.cellStepYpx * 0.46f;
-                float cropCenterY = centerY + geometry.cellStepYpx * 0.015f;
-                TileMatch match = matchTile(screenshotPixels, width, height,
-                        centerX - cropWidth * 0.5f, cropCenterY - cropHeight * 0.5f,
-                        cropWidth, cropHeight, maximumRank);
-                if (visibleProgressionTemplates != null) {
-                    TileMatch progressionMatch = matchVisibleProgression(
-                            screenshotPixels, width, height,
+                TileMatch progressionMatch = progression.matchCell(
+                        screenshotPixels, width, height, geometry, row, column);
+                TileMatch match = progressionMatch;
+                // chooseTileMatch() always keeps a decisive chain match. Avoid
+                // the scale/offset searches whose result would be discarded.
+                if (!isDecisiveProgressionMatch(progressionMatch)) {
+                    float cropWidth = geometry.cellStepPx * 0.74f;
+                    float cropHeight = geometry.cellStepYpx * 0.46f;
+                    float cropCenterY = centerY + geometry.cellStepYpx * 0.015f;
+                    TileMatch direct = matchTile(screenshotPixels, width, height,
                             centerX - cropWidth * 0.5f, cropCenterY - cropHeight * 0.5f,
-                            cropWidth, cropHeight, visibleProgressionTemplates);
-                    match = chooseTileMatch(match, progressionMatch);
+                            cropWidth, cropHeight, maximumRank);
+                    match = chooseTileMatch(direct, progressionMatch);
                 }
                 if (match.rank == 0) {
                     if (firstCellError == null) {
@@ -361,13 +338,13 @@ final class MergeMadnessVision {
         }
         if (firstCellError != null) {
             return Result.error(firstCellError, ranks, recognizedCells,
-                    weakestConfidence, layout);
+                    weakestConfidence, layout, progression);
         }
         if (occupied == 0) {
             return Result.error("Не знайшов плиток на полі «Злиття Божевілля».",
-                    ranks, recognizedCells, weakestConfidence, layout);
+                    ranks, recognizedCells, weakestConfidence, layout, progression);
         }
-        return Result.success(new MergeMadnessBoard(ranks), weakestConfidence, layout);
+        return Result.success(new MergeMadnessBoard(ranks), weakestConfidence, layout, progression);
     }
 
     boolean saveMouseSample(int rank, int[] pixels, int width, int height, RectF sampleBounds) {
@@ -544,101 +521,6 @@ final class MergeMadnessVision {
         return red(color) * 0.299f + green(color) * 0.587f + blue(color) * 0.114f;
     }
 
-    private int visibleProgressionRankCount(int[] pixels, int width, int height,
-                                            BoardVision.Geometry geometry) {
-        int firstRowCount = visibleProgressionRowCount(pixels, width, height, geometry, 0);
-        if (firstRowCount < PROGRESSION_SLOTS_PER_ROW) return firstRowCount;
-
-        float secondRowY = progressionRowCenterY(geometry, 1);
-        float firstArrowX = progressionFirstSlotCenterX(geometry)
-                + geometry.cellStepPx * PROGRESSION_ARROW_X_OFFSET;
-        if (averageLuma(pixels, width, height, firstArrowX, secondRowY)
-                < PROGRESSION_ARROW_MIN_LUMA) {
-            return firstRowCount;
-        }
-        return firstRowCount + visibleProgressionRowCount(pixels, width, height, geometry, 1);
-    }
-
-    private float[][] readVisibleProgressionTemplates(int[] pixels, int width, int height,
-                                                       MergeMadnessLayout.Result layout) {
-        if (layout.progressionRanks == 0) return null;
-        BoardVision.Geometry geometry = layout.geometry;
-        float[][] result = new float[PROGRESSION_SLOTS_PER_ROW * 4][];
-        float sampleWidth = geometry.cellStepPx * PROGRESSION_SLOT_WIDTH_RATIO;
-        float sampleHeight = geometry.cellStepYpx * PROGRESSION_SLOT_HEIGHT_RATIO;
-        float firstCenterX = geometry.centerX(0) + geometry.cellStepPx * PROGRESSION_FIRST_SLOT_X_OFFSET;
-        for (int row = 0; row < layout.progressionRows; row++) {
-            float centerY = layout.progressionRowCentersY[row];
-            for (int slot = 0; slot < layout.progressionSlotsByRow[row]; slot++) {
-                int rankIndex = row * PROGRESSION_SLOTS_PER_ROW + slot;
-                if (rankIndex >= 17) break;
-                float centerX = firstCenterX + slot * geometry.cellStepPx
-                        * PROGRESSION_SLOT_STEP_X_RATIO;
-                result[rankIndex] = progressionSignature(pixels, width, height,
-                        centerX - sampleWidth * 0.5f, centerY - sampleHeight * 0.5f,
-                        sampleWidth, sampleHeight);
-            }
-        }
-        return result;
-    }
-
-    private int visibleProgressionRowCount(int[] pixels, int width, int height,
-                                           BoardVision.Geometry geometry, int row) {
-        float centerY = progressionRowCenterY(geometry, row);
-        float sampleWidth = geometry.cellStepPx * PROGRESSION_SLOT_WIDTH_RATIO;
-        float sampleHeight = geometry.cellStepYpx * PROGRESSION_SLOT_HEIGHT_RATIO;
-        int count = 0;
-        float firstCenterX = progressionFirstSlotCenterX(geometry);
-        for (int slot = 0; slot < PROGRESSION_SLOTS_PER_ROW; slot++) {
-            float centerX = firstCenterX
-                    + slot * geometry.cellStepPx * PROGRESSION_SLOT_STEP_X_RATIO;
-            if (lumaPercentile90(pixels, width, height, centerX, centerY,
-                    sampleWidth, sampleHeight) < VISIBLE_PROGRESSION_LUMA_P90) {
-                break;
-            }
-            count++;
-        }
-        return count;
-    }
-
-    private float progressionFirstSlotCenterX(BoardVision.Geometry geometry) {
-        return geometry.centerX(0) + geometry.cellStepPx * PROGRESSION_FIRST_SLOT_X_OFFSET;
-    }
-
-    private float progressionRowCenterY(BoardVision.Geometry geometry, int row) {
-        return geometry.centerY(MergeMadnessBoard.SIDE - 1)
-                + geometry.cellStepYpx * PROGRESSION_ROW_OFFSET_FROM_LAST_CELL[row];
-    }
-
-    private float lumaPercentile90(int[] pixels, int width, int height,
-                                   float centerX, float centerY,
-                                   float sampleWidth, float sampleHeight) {
-        int left = Math.round(centerX - sampleWidth * 0.5f);
-        int top = Math.round(centerY - sampleHeight * 0.5f);
-        int right = Math.round(centerX + sampleWidth * 0.5f);
-        int bottom = Math.round(centerY + sampleHeight * 0.5f);
-        int[] histogram = new int[256];
-        int count = 0;
-        for (int y = top; y <= bottom; y++) {
-            int sampleY = clamp(y, 0, height - 1);
-            for (int x = left; x <= right; x++) {
-                int sampleX = clamp(x, 0, width - 1);
-                int color = pixels[sampleY * width + sampleX];
-                float luma = red(color) * 0.299f
-                        + green(color) * 0.587f + blue(color) * 0.114f;
-                histogram[clamp(Math.round(luma), 0, 255)]++;
-                count++;
-            }
-        }
-        int percentileIndex = Math.round(count * 0.90f);
-        int accumulated = 0;
-        for (int luma = 0; luma < histogram.length; luma++) {
-            accumulated += histogram[luma];
-            if (accumulated > percentileIndex) return luma;
-        }
-        return 0f;
-    }
-
     private TileMatch matchTile(int[] pixels, int width, int height,
                                 float left, float top, float cropWidth, float cropHeight,
                                 int maximumRank) {
@@ -783,140 +665,49 @@ final class MergeMadnessVision {
     }
 
     static TileMatch chooseTileMatch(TileMatch direct, TileMatch progression) {
-        if (isConfidentProgressionMatch(progression)) return progression;
-        if (isConfidentTemplateMatch(direct)) return direct;
-        double score = direct == null ? 0.0 : direct.score;
-        double margin = direct == null ? 0.0 : direct.margin;
-        return new TileMatch(0, score, margin);
-    }
-
-    private TileMatch matchVisibleProgression(int[] pixels, int width, int height,
-                                              float left, float top,
-                                              float cropWidth, float cropHeight,
-                                              float[][] progressionTemplates) {
-        double[] rankScores = new double[progressionTemplates.length];
-        for (float scale : MATCH_SCALES) {
-            float scaledWidth = cropWidth * scale;
-            float scaledHeight = cropHeight * scale;
-            float scaledLeft = left + (cropWidth - scaledWidth) * 0.5f;
-            float scaledTop = top + (cropHeight - scaledHeight) * 0.5f;
-            float[] candidate = progressionSignature(pixels, width, height,
-                    scaledLeft, scaledTop, scaledWidth, scaledHeight);
-            for (int rank = 0; rank < progressionTemplates.length; rank++) {
-                if (progressionTemplates[rank] != null) {
-                    rankScores[rank] = Math.max(rankScores[rank],
-                            dot(candidate, progressionTemplates[rank]));
-                }
-            }
-        }
-
-        boolean[] visible = new boolean[rankScores.length];
-        for (int rank = 0; rank < visible.length; rank++) {
-            visible[rank] = progressionTemplates[rank] != null;
-        }
-        return bestVisibleProgressionMatch(rankScores, visible);
+        boolean confidentDirect = isConfidentTemplateMatch(direct);
+        boolean confidentChain = isConfidentProgressionMatch(progression);
+        // Preserve an almost exact board sample when a weaker hint conflicts.
+        // A clear match to a newly unlocked hint remains the source of its rank.
+        if (confidentDirect && direct.score >= 0.90 && direct.margin >= 0.12
+                && (!confidentChain || (progression.rank != direct.rank
+                && progression.score < DECISIVE_CHAIN_SCORE))) return direct;
+        if (confidentChain) return progression;
+        if (confidentDirect) return direct;
+        double score = Math.max(direct == null ? 0.0 : direct.score,
+                progression == null ? 0.0 : progression.score);
+        return new TileMatch(0, score, 0.0);
     }
 
     static TileMatch bestVisibleProgressionMatch(double[] rankScores, boolean[] visible) {
         if (rankScores == null || visible == null) return new TileMatch(0, 0.0, 0.0);
-        int count = Math.min(rankScores.length, Math.min(visible.length,
-                PROGRESSION_MIN_SCORE.length));
-        int bestIndex = -1;
-        int visibleTemplateCount = 0;
-        double bestScore = Double.NEGATIVE_INFINITY;
-        double secondScore = Double.NEGATIVE_INFINITY;
+        int count = Math.min(MergeMadnessBoard.MAX_RANK,
+                Math.min(rankScores.length, visible.length));
+        int bestIndex = -1, visibleCount = 0;
+        double best = Double.NEGATIVE_INFINITY, second = Double.NEGATIVE_INFINITY;
         for (int rank = 0; rank < count; rank++) {
-            if (!visible[rank] || !Double.isFinite(PROGRESSION_MIN_SCORE[rank])) continue;
+            if (!visible[rank] || !Double.isFinite(rankScores[rank])) continue;
+            visibleCount++;
             double score = rankScores[rank];
-            if (!Double.isFinite(score)) continue;
-            visibleTemplateCount++;
-            if (score > bestScore) {
-                secondScore = bestScore;
-                bestScore = score;
-                bestIndex = rank;
-            } else if (score > secondScore) {
-                secondScore = score;
-            }
+            if (score > best) {
+                second = best; best = score; bestIndex = rank;
+            } else if (score > second) second = score;
         }
         if (bestIndex < 0) return new TileMatch(0, 0.0, 0.0);
-
-        double margin = Math.max(0.0, bestScore - secondScore);
-        if (visibleTemplateCount < 2) return new TileMatch(0, bestScore, margin);
-        TileMatch candidate = new TileMatch(bestIndex + 1, bestScore, margin);
-        return isConfidentProgressionMatch(candidate)
-                ? candidate : new TileMatch(0, bestScore, margin);
+        double margin = Math.max(0.0, best - second);
+        TileMatch candidate = new TileMatch(bestIndex + 1, best, margin);
+        return visibleCount >= 2 && isConfidentProgressionMatch(candidate)
+                ? candidate : new TileMatch(0, best, margin);
     }
 
     private static boolean isConfidentProgressionMatch(TileMatch match) {
-        if (match.rank <= 0 || match.rank > PROGRESSION_MIN_SCORE.length) return false;
-        int rankIndex = match.rank - 1;
-        return match.score >= PROGRESSION_MIN_SCORE[rankIndex]
-                && match.margin >= PROGRESSION_MIN_MARGIN[rankIndex];
+        return match != null && match.rank > 0 && match.rank <= MergeMadnessBoard.MAX_RANK
+                && match.score >= MergeMadnessObjects.MIN_SCORE
+                && match.margin >= MergeMadnessObjects.MIN_MARGIN;
     }
 
-    private float[] progressionSignature(int[] pixels, int imageWidth, int imageHeight,
-                                         float left, float top, float width, float height) {
-        int binsPerPatch = PROGRESSION_COLOR_HUE_BINS + PROGRESSION_COLOR_VALUE_BINS;
-        float[] result = new float[PROGRESSION_COLOR_PATCHES
-                * PROGRESSION_COLOR_PATCHES * binsPerPatch];
-        float[] hsv = new float[3];
-        int output = 0;
-        for (int patchY = 0; patchY < PROGRESSION_COLOR_PATCHES; patchY++) {
-            for (int patchX = 0; patchX < PROGRESSION_COLOR_PATCHES; patchX++) {
-                float[] hueHistogram = new float[PROGRESSION_COLOR_HUE_BINS];
-                int[] valueHistogram = new int[PROGRESSION_COLOR_VALUE_BINS];
-                float hueWeight = 0f;
-                for (int sampleY = 0; sampleY < PROGRESSION_COLOR_SAMPLES_Y; sampleY++) {
-                    int sampleRow = patchY * PROGRESSION_COLOR_SAMPLES_Y + sampleY;
-                    int sourceY = clamp(Math.round(top
-                                    + (sampleRow + 0.5f) * height
-                                    / (PROGRESSION_COLOR_PATCHES * PROGRESSION_COLOR_SAMPLES_Y)),
-                            0, imageHeight - 1);
-                    for (int sampleX = 0; sampleX < PROGRESSION_COLOR_SAMPLES_X; sampleX++) {
-                        int sampleColumn = patchX * PROGRESSION_COLOR_SAMPLES_X + sampleX;
-                        int sourceX = clamp(Math.round(left
-                                        + (sampleColumn + 0.5f) * width
-                                        / (PROGRESSION_COLOR_PATCHES * PROGRESSION_COLOR_SAMPLES_X)),
-                                0, imageWidth - 1);
-                        rgbToHsv(pixels[sourceY * imageWidth + sourceX], hsv);
-                        int valueBin = clamp((int) (hsv[2] * PROGRESSION_COLOR_VALUE_BINS),
-                                0, PROGRESSION_COLOR_VALUE_BINS - 1);
-                        valueHistogram[valueBin]++;
-                        if (hsv[1] > 0.18f && hsv[2] > 0.16f) {
-                            int hueBin = clamp((int) (hsv[0] / 360f
-                                            * PROGRESSION_COLOR_HUE_BINS),
-                                    0, PROGRESSION_COLOR_HUE_BINS - 1);
-                            hueHistogram[hueBin] += hsv[1];
-                            hueWeight += hsv[1];
-                        }
-                    }
-                }
-
-                for (int bin = 0; bin < hueHistogram.length; bin++) {
-                    result[output++] = hueWeight > 0f
-                            ? hueHistogram[bin] / hueWeight : 0f;
-                }
-                float sampleCount = PROGRESSION_COLOR_SAMPLES_X
-                        * PROGRESSION_COLOR_SAMPLES_Y;
-                for (int bin = 0; bin < valueHistogram.length; bin++) {
-                    result[output++] = valueHistogram[bin] / sampleCount;
-                }
-            }
-        }
-
-        float mean = 0f;
-        for (float value : result) mean += value;
-        mean /= result.length;
-        double magnitudeSquared = 0.0;
-        for (int index = 0; index < result.length; index++) {
-            result[index] -= mean;
-            magnitudeSquared += result[index] * result[index];
-        }
-        double magnitude = Math.sqrt(magnitudeSquared);
-        if (magnitude > 0.0) {
-            for (int index = 0; index < result.length; index++) result[index] /= magnitude;
-        }
-        return result;
+    static boolean isDecisiveProgressionMatch(TileMatch match) {
+        return isConfidentProgressionMatch(match) && match.score >= DECISIVE_CHAIN_SCORE;
     }
 
     private static float[] signature(int[] pixels, int imageWidth, int imageHeight,
@@ -1005,25 +796,6 @@ final class MergeMadnessVision {
         return color & 0xFF;
     }
 
-    private static void rgbToHsv(int color, float[] hsv) {
-        float red = red(color) / 255f;
-        float green = green(color) / 255f;
-        float blue = blue(color) / 255f;
-        float maximum = Math.max(red, Math.max(green, blue));
-        float minimum = Math.min(red, Math.min(green, blue));
-        float delta = maximum - minimum;
-        float hue;
-        if (delta == 0f) hue = 0f;
-        else if (maximum == red) hue = ((green - blue) / delta) % 6f;
-        else if (maximum == green) hue = (blue - red) / delta + 2f;
-        else hue = (red - green) / delta + 4f;
-        hue *= 60f;
-        if (hue < 0f) hue += 360f;
-        hsv[0] = hue;
-        hsv[1] = maximum == 0f ? 0f : delta / maximum;
-        hsv[2] = maximum;
-    }
-
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
     }
@@ -1056,6 +828,8 @@ final class MergeMadnessVision {
 
         final int progressionRows;
         final int progressionRanks;
+        final int unlockedProgressionRanks;
+        final int nextLockedRank;
         final float fieldOffsetY;
         final float frameShiftY;
         final float geometryConfidence;
@@ -1064,7 +838,8 @@ final class MergeMadnessVision {
 
         private Result(MergeMadnessBoard board, BoardVision.Geometry geometry,
                        String error, double similarity, int progressionRows,
-                       int progressionRanks, float fieldOffsetY, float frameShiftY,
+                       int progressionRanks, int unlockedProgressionRanks, int nextLockedRank,
+                       float fieldOffsetY, float frameShiftY,
                        float geometryConfidence, int[] partialRanks,
                        boolean[] recognizedCells) {
             this.board = board;
@@ -1073,6 +848,8 @@ final class MergeMadnessVision {
             this.similarity = similarity;
             this.progressionRows = progressionRows;
             this.progressionRanks = progressionRanks;
+            this.unlockedProgressionRanks = unlockedProgressionRanks;
+            this.nextLockedRank = nextLockedRank;
             this.fieldOffsetY = fieldOffsetY;
             this.frameShiftY = frameShiftY;
             this.geometryConfidence = geometryConfidence;
@@ -1081,22 +858,26 @@ final class MergeMadnessVision {
         }
 
         static Result success(MergeMadnessBoard board, double similarity,
-                              MergeMadnessLayout.Result layout) {
+                              MergeMadnessLayout.Result layout,
+                              MergeMadnessObjects.Progression progression) {
             return new Result(board, layout.geometry, null, similarity,
                     layout.progressionRows, layout.progressionRanks,
+                    progression.unlockedRanks, progression.lockedRank,
                     layout.fieldOffsetY, layout.frameShiftY, layout.geometryConfidence,
                     null, null);
         }
 
         static Result error(String error) {
-            return new Result(null, null, error, 0.0, 0, 0, 0f, 0f, 0f,
+            return new Result(null, null, error, 0.0, 0, 0, 0, 0, 0f, 0f, 0f,
                     null, null);
         }
 
         static Result error(String error, int[] partialRanks, boolean[] recognizedCells,
-                            double similarity, MergeMadnessLayout.Result layout) {
+                            double similarity, MergeMadnessLayout.Result layout,
+                            MergeMadnessObjects.Progression progression) {
             return new Result(null, layout.geometry, error, similarity,
                     layout.progressionRows, layout.progressionRanks,
+                    progression.unlockedRanks, progression.lockedRank,
                     layout.fieldOffsetY, layout.frameShiftY, layout.geometryConfidence,
                     partialRanks, recognizedCells);
         }

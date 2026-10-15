@@ -185,6 +185,40 @@ public final class MergeMadnessLayoutTest {
         assertNull(MergeMadnessLayout.locate(pixels, width, height, null, misaligned));
     }
 
+    @Test public void reusedWorkspaceTracksMovingGridAndNewHintRows() {
+        int width = 576, height = 1280;
+        MergeMadnessLayout.Workspace workspace = new MergeMadnessLayout.Workspace();
+        MergeMadnessLayout.Result previous = null;
+        for (int[] scene : new int[][]{{350, 2}, {350, 3}, {442, 3}, {350, 4}, {486, 1}}) {
+            int[] pixels = syntheticFrame(width, height, scene[0], scene[1]);
+            MergeMadnessLayout.Result expected = MergeMadnessLayout.locate(
+                    pixels, width, height, null);
+            MergeMadnessLayout.Result actual = MergeMadnessLayout.locate(pixels,
+                    width, height, previous == null ? null : previous.geometry, null, workspace);
+            assertNotNull(actual);
+            assertEquals(expected.geometry.firstCenterY, actual.geometry.firstCenterY, 0f);
+            assertEquals(expected.progressionRows, actual.progressionRows);
+            assertEquals(expected.progressionRanks, actual.progressionRanks);
+            org.junit.Assert.assertArrayEquals(expected.progressionRowCentersY,
+                    actual.progressionRowCentersY, 0f);
+            previous = actual;
+        }
+    }
+
+    @Test public void reusedWorkspaceStillRejectsAFrameCoveredByAnOverlay() {
+        int width = 576, height = 1280;
+        MergeMadnessLayout.Workspace workspace = new MergeMadnessLayout.Workspace();
+        int[] pixels = syntheticFrame(width, height, 350, 3);
+        MergeMadnessLayout.Result previous = MergeMadnessLayout.locate(
+                pixels, width, height, null, null, workspace);
+        assertNotNull(previous);
+        for (int y = 490; y < 690; y++) {
+            java.util.Arrays.fill(pixels, y * width, (y + 1) * width, 0xFF392D30);
+        }
+        assertNull(MergeMadnessLayout.locate(pixels, width, height,
+                previous.geometry, null, workspace));
+    }
+
     private int[] syntheticFrame(int width, int height, int gridTop, int chainRows) {
         int[] pixels = new int[width * height];
         java.util.Arrays.fill(pixels, 0xFF303030);

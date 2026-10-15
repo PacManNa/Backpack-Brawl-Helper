@@ -1,15 +1,43 @@
 plugins { id 'com.android.application' }
 
+def localSigningPropertiesFile = rootProject.file('local-signing.properties')
+if (!localSigningPropertiesFile.exists()) {
+    throw new GradleException('Missing local-signing.properties; refusing to use another signing key.')
+}
+def localSigningProperties = new java.util.Properties()
+localSigningPropertiesFile.withInputStream { localSigningProperties.load(it) }
+
 android {
     namespace 'ua.borlock.autotap'
     compileSdk 35
+
+    signingConfigs {
+        persistent {
+            storeFile rootProject.file(localSigningProperties.getProperty('storeFile'))
+            storePassword localSigningProperties.getProperty('storePassword')
+            keyAlias localSigningProperties.getProperty('keyAlias')
+            keyPassword localSigningProperties.getProperty('keyPassword')
+            storeType localSigningProperties.getProperty('storeType', 'JKS')
+        }
+    }
 
     defaultConfig {
         applicationId 'ua.borlock.autotap'
         minSdk 24
         targetSdk 35
-        versionCode 60
-        versionName '1.9.29'
+        versionCode 67
+        versionName '1.9.36'
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.persistent
+            applicationIdSuffix '.newkey'
+            resValue 'string', 'app_name', 'Пелюстка — Рюкзак-Бліц (нова)'
+        }
+        release {
+            signingConfig signingConfigs.persistent
+        }
     }
 
     compileOptions {

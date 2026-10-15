@@ -7,8 +7,6 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
-import android.graphics.Point;
-import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.hardware.HardwareBuffer;
 import android.os.Build;
@@ -37,8 +35,9 @@ public final class TapAccessibilityService extends AccessibilityService {
     static final String KEY_SWIPE_CELLS_TENTHS = "swipe_cells_tenths";
     static final String KEY_SWIPE_DURATION_MS = "swipe_duration_ms";
     private static final long DEFAULT_NO_CHANGE_TIMEOUT_MS = 900L;
-    private static final long MIN_NO_CHANGE_TIMEOUT_MS = 700L;
-    private static final long MAX_NO_CHANGE_TIMEOUT_MS = 4_000L;
+    static final long MIN_NO_CHANGE_TIMEOUT_MS = 400L;
+    static final long MAX_NO_CHANGE_TIMEOUT_MS = 4_000L;
+    static final long NO_CHANGE_TIMEOUT_STEP_MS = 100L;
     private static final long DEFAULT_SWIPE_DURATION_MS = 120L;
     private static final long MIN_SWIPE_DURATION_MS = 100L;
     private static final long MAX_SWIPE_DURATION_MS = 350L;
@@ -77,19 +76,11 @@ public final class TapAccessibilityService extends AccessibilityService {
     private TextView messageView;
     private TextView scoreView;
     private TextView mergeDetailsView;
-    private TextView calibrationToggleButton;
-    private TextView calibrationStatusView;
-    private TextView calibrationRankView;
     private TextView[][] boardCells;
     private TextView[][] mergeBoardCells;
     private LinearLayout blitzBoardGrid;
     private LinearLayout mergeBoardGrid;
     private LinearLayout diagnosticsPanel;
-    private LinearLayout calibrationPanel;
-    private CalibrationOverlay calibrationOverlay;
-    private int calibrationScreenWidth;
-    private int calibrationScreenHeight;
-    private int selectedMouseSampleRank = 11;
     private LinearLayout timerPanel;
     private LinearLayout timerRowsContainer;
     private LinearLayout compactTimerPreview;
@@ -100,7 +91,6 @@ public final class TapAccessibilityService extends AccessibilityService {
     private final ArrayList<TimerRow> timerRows = new ArrayList<>();
     private long renderedTimerRevision = -1L;
     private boolean diagnosticsExpanded;
-    private boolean calibrationExpanded;
     private boolean timerMode;
     private boolean autoPlaying;
     private volatile BotMode activeMode = BotMode.BACKPACK_BLITZ;
@@ -222,7 +212,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (autoPlaying && activeMode != mode) stopAutoPlay("Зупинено");
         activeMode = mode;
         timerMode = false;
-        calibrationExpanded = false;
         diagnosticsExpanded = true;
         updateBotModeViews();
         updatePanelContentVisibility();
@@ -238,15 +227,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
         if (mergeDetailsView != null) {
             mergeDetailsView.setVisibility(activeMode == BotMode.MERGE_MADNESS
-                    ? View.VISIBLE : View.GONE);
-        }
-        if (calibrationToggleButton != null) {
-            calibrationToggleButton.setVisibility(activeMode == BotMode.MERGE_MADNESS
-                    ? View.VISIBLE : View.GONE);
-        }
-        if (calibrationPanel != null) {
-            calibrationPanel.setVisibility(activeMode == BotMode.MERGE_MADNESS
-                    && diagnosticsExpanded && !timerMode && calibrationExpanded
                     ? View.VISIBLE : View.GONE);
         }
         if (playButton != null) {
@@ -377,26 +357,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         LinearLayout.LayoutParams scoreParams = new LinearLayout.LayoutParams(-1, -2);
         scoreParams.setMargins(dp(2), dp(1), dp(2), dp(1));
         diagnosticsPanel.addView(scoreView, scoreParams);
-        calibrationToggleButton = button("⚙ Калібрування", 0xFFFFD99B, 8);
-        calibrationToggleButton.setBackground(round(0xFF49353C, 8));
-        calibrationToggleButton.setContentDescription("Відкрити калібрування поля та зразків мишей");
-        calibrationToggleButton.setOnClickListener(view -> {
-            calibrationExpanded = !calibrationExpanded;
-            calibrationToggleButton.setText(calibrationExpanded
-                    ? "⌃ Калібрування" : "⚙ Калібрування");
-            updatePanelContentVisibility();
-            updateCalibrationStatus();
-        });
-        LinearLayout.LayoutParams calibrationToggleParams = new LinearLayout.LayoutParams(-1, dp(24));
-        calibrationToggleParams.setMargins(dp(1), dp(1), dp(1), 0);
-        diagnosticsPanel.addView(calibrationToggleButton, calibrationToggleParams);
-
-        calibrationPanel = createCalibrationPanel();
-        calibrationPanel.setVisibility(View.GONE);
-        LinearLayout.LayoutParams calibrationPanelParams = new LinearLayout.LayoutParams(-1, -2);
-        calibrationPanelParams.setMargins(dp(1), dp(2), dp(1), dp(2));
-        diagnosticsPanel.addView(calibrationPanel, calibrationPanelParams);
-
         timerPanel = createTimerPanel();
 
         compactTimerPreview = createCompactTimerPreview();
@@ -438,238 +398,9 @@ public final class TapAccessibilityService extends AccessibilityService {
         controls.addView(closeButton, stackedControlParams());
 
         root.addView(contentRow, new LinearLayout.LayoutParams(-1, -2));
-        updateCalibrationStatus();
         updateBotModeViews();
         updatePanelContentVisibility();
         return root;
-    }
-
-    private LinearLayout createCalibrationPanel() {
-        LinearLayout tools = new LinearLayout(this);
-        tools.setOrientation(LinearLayout.VERTICAL);
-        tools.setPadding(dp(4), dp(4), dp(4), dp(4));
-        tools.setBackground(round(0xFF38292F, 8));
-
-        calibrationStatusView = smallInfoText("");
-        calibrationStatusView.setMinLines(2);
-        calibrationStatusView.setMaxLines(2);
-        tools.addView(calibrationStatusView, new LinearLayout.LayoutParams(-1, -2));
-
-        LinearLayout fieldActions = new LinearLayout(this);
-        fieldActions.setGravity(Gravity.CENTER_VERTICAL);
-        TextView markField = button("Обвести поле", CREAM, 8);
-        markField.setBackground(round(0xFF526A4D, 8));
-        markField.setContentDescription("Намалювати рамку навколо всього поля 4 на 4");
-        markField.setOnClickListener(view -> beginBoardCalibration());
-        LinearLayout.LayoutParams fieldParams = new LinearLayout.LayoutParams(0, dp(30), 1f);
-        fieldParams.setMargins(0, 0, dp(3), 0);
-        fieldActions.addView(markField, fieldParams);
-
-        TextView automaticField = button("Автопошук", CREAM, 8);
-        automaticField.setBackground(round(0xFF49353C, 8));
-        automaticField.setContentDescription("Скинути рамку та повернути автоматичний пошук поля");
-        automaticField.setOnClickListener(view -> {
-            MergeMadnessCalibration.clearBoardGeometry(this);
-            updateCalibrationStatus();
-            Toast.makeText(this, "Ручну рамку поля скинуто", Toast.LENGTH_SHORT).show();
-        });
-        LinearLayout.LayoutParams automaticParams = new LinearLayout.LayoutParams(0, dp(30), 1f);
-        automaticParams.setMargins(dp(3), 0, 0, 0);
-        fieldActions.addView(automaticField, automaticParams);
-        LinearLayout.LayoutParams fieldActionsParams = new LinearLayout.LayoutParams(-1, dp(30));
-        fieldActionsParams.topMargin = dp(3);
-        tools.addView(fieldActions, fieldActionsParams);
-
-        LinearLayout sampleRow = new LinearLayout(this);
-        sampleRow.setGravity(Gravity.CENTER_VERTICAL);
-        TextView previousRank = button("−", CREAM, 15);
-        previousRank.setBackground(round(0xFF49353C, 8));
-        previousRank.setContentDescription("Попередній рівень миші для зразка");
-        previousRank.setOnClickListener(view -> setSelectedMouseSampleRank(selectedMouseSampleRank - 1));
-        sampleRow.addView(previousRank, new LinearLayout.LayoutParams(dp(33), dp(29)));
-
-        calibrationRankView = button("Рівень 11", CREAM, 8);
-        calibrationRankView.setContentDescription("Рівень, якому відповідає вибрана іконка нижнього ланцюжка");
-        sampleRow.addView(calibrationRankView,
-                new LinearLayout.LayoutParams(0, dp(29), 1f));
-
-        TextView nextRank = button("+", CREAM, 15);
-        nextRank.setBackground(round(0xFF49353C, 8));
-        nextRank.setContentDescription("Наступний рівень миші для зразка");
-        nextRank.setOnClickListener(view -> setSelectedMouseSampleRank(selectedMouseSampleRank + 1));
-        sampleRow.addView(nextRank, new LinearLayout.LayoutParams(dp(33), dp(29)));
-        LinearLayout.LayoutParams sampleRowParams = new LinearLayout.LayoutParams(-1, dp(29));
-        sampleRowParams.topMargin = dp(4);
-        tools.addView(sampleRow, sampleRowParams);
-
-        TextView learnMouse = button("Навчити за нижньою іконкою", CREAM, 8);
-        learnMouse.setBackground(round(0xFF59445B, 8));
-        learnMouse.setContentDescription("Обвести іконку вибраного рівня в ланцюжку злиття");
-        learnMouse.setOnClickListener(view -> beginMouseSampleCalibration());
-        LinearLayout.LayoutParams learnParams = new LinearLayout.LayoutParams(-1, dp(30));
-        learnParams.topMargin = dp(4);
-        tools.addView(learnMouse, learnParams);
-        return tools;
-    }
-
-    private void setSelectedMouseSampleRank(int rank) {
-        selectedMouseSampleRank = Math.max(1, Math.min(MergeMadnessBoard.MAX_RANK, rank));
-        if (calibrationRankView != null) calibrationRankView.setText("Рівень " + selectedMouseSampleRank);
-        updateCalibrationStatus();
-    }
-
-    private void updateCalibrationStatus() {
-        if (calibrationStatusView == null) return;
-        String field = MergeMadnessCalibration.hasBoardGeometry(this)
-                ? "рамка поля збережена" : "поле: автоматичний пошук";
-        calibrationStatusView.setText(field + "\n" + "Зразок рівня "
-                + selectedMouseSampleRank + " можна перезаписати знизу");
-    }
-
-    private void beginBoardCalibration() {
-        beginCalibration(CalibrationMode.BOARD,
-                "Обведи всю зовнішню рамку поля 4×4 одним рухом.", GREEN);
-    }
-
-    private void beginMouseSampleCalibration() {
-        beginCalibration(CalibrationMode.MOUSE_SAMPLE,
-                "Обведи тільки іконку миші рівня " + selectedMouseSampleRank
-                        + " у нижньому ланцюжку, без стрілок.", 0xFFFFD16F);
-    }
-
-    private void beginCalibration(CalibrationMode mode, String instructions, int accentColor) {
-        if (autoPlaying) stopAutoPlay("Зупинено для калібрування");
-        if (timerMode) setTimerMode(false);
-        removeCalibrationOverlay();
-        Point displaySize = screenSize();
-        calibrationScreenWidth = displaySize.x;
-        calibrationScreenHeight = displaySize.y;
-        if (calibrationScreenWidth <= 0 || calibrationScreenHeight <= 0) {
-            Toast.makeText(this, "Не вдалося визначити розмір екрана", Toast.LENGTH_LONG).show();
-            return;
-        }
-        calibrationOverlay = new CalibrationOverlay(this, windowManager, instructions,
-                accentColor, new CalibrationOverlay.Listener() {
-                    @Override public boolean isValid(RectF selection) {
-                        return isValidCalibrationSelection(mode, selection);
-                    }
-
-                    @Override public void onSave(RectF selection) {
-                        calibrationOverlay = null;
-                        saveCalibrationSelection(mode, selection);
-                    }
-
-                    @Override public void onCancel() {
-                        calibrationOverlay = null;
-                    }
-                });
-        try {
-            calibrationOverlay.show();
-            updateDiagnosticMessage("Калібрування увімкнено · намалюй рамку пальцем");
-        } catch (WindowManager.BadTokenException | IllegalStateException error) {
-            calibrationOverlay.dismiss();
-            calibrationOverlay = null;
-            Toast.makeText(this, "Не вдалося відкрити режим калібрування", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private Point screenSize() {
-        Point size = new Point();
-        windowManager.getDefaultDisplay().getRealSize(size);
-        return size;
-    }
-
-    private boolean isValidCalibrationSelection(CalibrationMode mode, RectF selection) {
-        if (selection == null || calibrationScreenWidth <= 0 || calibrationScreenHeight <= 0) {
-            return false;
-        }
-        if (mode == CalibrationMode.BOARD) {
-            return MergeMadnessCalibration.isValidBoardRectangle(selection,
-                    calibrationScreenWidth, calibrationScreenHeight);
-        }
-        return selection.width() >= dp(18) && selection.height() >= dp(10)
-                && selection.width() / selection.height() >= 0.35f
-                && selection.width() / selection.height() <= 4.0f
-                && selection.bottom < calibrationScreenHeight - dp(48);
-    }
-
-    private void saveCalibrationSelection(CalibrationMode mode, RectF selection) {
-        int sampleRank = selectedMouseSampleRank;
-        if (mode == CalibrationMode.BOARD) {
-            boolean saved = MergeMadnessCalibration.saveBoardRectangle(this,
-                    calibrationScreenWidth, calibrationScreenHeight, selection);
-            removeCalibrationOverlay();
-            if (saved) {
-                lastMergeGeometry = null;
-                updateCalibrationStatus();
-                updateDiagnosticMessage("Рамку поля збережено · автоматичний пошук стежитиме за зсувом");
-                Toast.makeText(this, "Поле 4×4 відкалібровано", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Не вдалося зберегти рамку поля", Toast.LENGTH_LONG).show();
-            }
-            return;
-        }
-
-        int screenWidth = calibrationScreenWidth;
-        int screenHeight = calibrationScreenHeight;
-        removeCalibrationOverlay();
-        handler.postDelayed(() -> captureMouseSample(sampleRank, selection,
-                screenWidth, screenHeight), 250L);
-    }
-
-    private void captureMouseSample(int rank, RectF screenBounds,
-                                    int sourceScreenWidth, int sourceScreenHeight) {
-        if (mergeMadnessVision == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            Toast.makeText(this, "Розпізнавач зразків мишей не готовий", Toast.LENGTH_LONG).show();
-            return;
-        }
-        takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new TakeScreenshotCallback() {
-            @Override public void onSuccess(ScreenshotResult screenshot) {
-                Bitmap bitmap = copyScreenshot(screenshot);
-                if (bitmap == null) {
-                    Toast.makeText(TapAccessibilityService.this,
-                            "Не вдалося зняти іконку з екрана", Toast.LENGTH_LONG).show();
-                    return;
-                }
-                int width = bitmap.getWidth();
-                int height = bitmap.getHeight();
-                RectF imageBounds = new RectF(
-                        screenBounds.left * width / Math.max(1f, sourceScreenWidth),
-                        screenBounds.top * height / Math.max(1f, sourceScreenHeight),
-                        screenBounds.right * width / Math.max(1f, sourceScreenWidth),
-                        screenBounds.bottom * height / Math.max(1f, sourceScreenHeight));
-                int[] pixels = new int[width * height];
-                bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
-                bitmap.recycle();
-                MergeMadnessVision vision = mergeMadnessVision;
-                solverExecutor.execute(() -> {
-                    boolean saved = vision.saveMouseSample(rank, pixels, width, height, imageBounds);
-                    handler.post(() -> showMouseSampleSaveResult(rank, saved));
-                });
-            }
-
-            @Override public void onFailure(int errorCode) {
-                Toast.makeText(TapAccessibilityService.this,
-                        "Android не дозволив зняти зразок (" + errorCode + ")",
-                        Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
-    private void showMouseSampleSaveResult(int rank, boolean saved) {
-        if (saved) {
-            updateCalibrationStatus();
-            updateDiagnosticMessage("Зразок миші рівня " + rank + " збережено");
-            Toast.makeText(this, "Зразок рівня " + rank + " збережено", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        Toast.makeText(this, "Не вдалося зберегти зразок. Обведи лише іконку чіткіше.",
-                Toast.LENGTH_LONG).show();
-    }
-
-    private void removeCalibrationOverlay() {
-        if (calibrationOverlay != null) calibrationOverlay.dismiss();
-        calibrationOverlay = null;
     }
 
     private LinearLayout createTimerPanel() {
@@ -753,11 +484,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
         if (compactTimerPreview != null) {
             compactTimerPreview.setVisibility(timerMode && !diagnosticsExpanded ? View.VISIBLE : View.GONE);
-        }
-        if (calibrationPanel != null) {
-            calibrationPanel.setVisibility(activeMode == BotMode.MERGE_MADNESS
-                    && diagnosticsExpanded && !timerMode && calibrationExpanded
-                    ? View.VISIBLE : View.GONE);
         }
         if (panel != null && panelParams != null && windowManager != null) {
             try { windowManager.updateViewLayout(panel, panelParams); }
@@ -895,7 +621,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
     }
 
-    private enum CalibrationMode { BOARD, MOUSE_SAMPLE }
 
     private View.OnTouchListener createDragListener() {
         return createDragListener(false);
@@ -1096,6 +821,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         } catch (RuntimeException error) {
             return null;
         } finally {
+            if (hardwareBitmap != null) hardwareBitmap.recycle();
             buffer.close();
         }
     }
@@ -1156,7 +882,20 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
 
         lastRecognitionError = null;
-        if (result.board.equals(stableCandidateMergeBoard)
+        MergeMadnessTransition transition = null;
+        if (awaitingMergeTransition && previousMergeBoard != null && lastMergeMove != null
+                && !result.board.equals(previousMergeBoard)) {
+            transition = MergeMadnessTransition.analyze(previousMergeBoard,
+                    lastMergeMove.direction, result.board);
+        }
+        boolean verifiedMove = MergeMadnessTurnPolicy.canAdvance(transition,
+                result.similarity, lastMergeGeometry, result.geometry,
+                SystemClock.uptimeMillis() - lastSwipeCompletedAtMs);
+        if (verifiedMove) {
+            stableCandidateMergeBoard = result.board;
+            stableCandidateMergeGeometry = result.geometry;
+            stableCandidateReads = STABLE_FRAME_COUNT;
+        } else if (result.board.equals(stableCandidateMergeBoard)
                 && MergeMadnessLayout.isStable(stableCandidateMergeGeometry, result.geometry)) {
             stableCandidateReads++;
         } else {
@@ -1164,17 +903,15 @@ public final class TapAccessibilityService extends AccessibilityService {
             stableCandidateMergeGeometry = result.geometry;
             stableCandidateReads = 1;
         }
-        String phase = stableCandidateReads >= STABLE_FRAME_COUNT ? "СТАБІЛЬНЕ" : "ПЕРЕВІРКА";
+        String phase = verifiedMove ? "ХІД ПІДТВЕРДЖЕНО"
+                : stableCandidateReads >= STABLE_FRAME_COUNT ? "СТАБІЛЬНЕ" : "ПЕРЕВІРКА";
         updateMergeDiagnostic(result, phase);
         if (stableCandidateReads < STABLE_FRAME_COUNT) {
             scheduleStabilityRead(currentRun);
             return;
         }
 
-        if (awaitingMergeTransition && previousMergeBoard != null
-                && !result.board.equals(previousMergeBoard) && lastMergeMove != null) {
-            MergeMadnessTransition transition = MergeMadnessTransition.analyze(
-                    previousMergeBoard, lastMergeMove.direction, result.board);
+        if (transition != null) {
             if (!transition.expected) {
                 lastRecognitionError = "Зміна поля не відповідає свайпу й одній новій плитці";
                 updateMergeDiagnostic(result, "ПЕРЕВІРЯЮ ПЕРЕХІД");
@@ -1457,7 +1194,9 @@ public final class TapAccessibilityService extends AccessibilityService {
                 lastRecognitionError = null;
                 if (activeMode == BotMode.MERGE_MADNESS) awaitingMergeTransition = true;
                 updatePanel("ЧЕКАЮ НА КАДР");
-                long scanDelay = Math.max(MIN_POST_SWIPE_SETTLE_MS,
+                long settleDelay = activeMode == BotMode.MERGE_MADNESS
+                        ? MergeMadnessTurnPolicy.MIN_SETTLE_MS : MIN_POST_SWIPE_SETTLE_MS;
+                long scanDelay = Math.max(settleDelay,
                         timeUntilNextScreenshotMs());
                 handler.postDelayed(() -> readBoardAndMove(currentRun), scanDelay);
             }
@@ -1528,12 +1267,10 @@ public final class TapAccessibilityService extends AccessibilityService {
                     + " · " + Math.round(result.similarity * 100) + "%");
         }
         if (mergeDetailsView != null) {
-            mergeDetailsView.setText("Поле Y=" + Math.round(result.geometry.firstCenterY)
-                    + " px · крок " + Math.round(result.geometry.cellStepPx)
-                    + " px · ланцюжок "
-                    + result.progressionRows + " ряди, " + result.progressionRanks
-                    + " рівнів\nВпевненість плиток " + Math.round(result.similarity * 100)
-                    + "% · геометрія " + Math.round(result.geometryConfidence * 100) + "%");
+            mergeDetailsView.setText("Підказки: " + result.unlockedProgressionRanks + " відкрито"
+                    + (result.nextLockedRank > 0 ? " · наступний " + result.nextLockedRank : "")
+                    + "\nПоле Y=" + Math.round(result.geometry.firstCenterY)
+                    + " px · крок " + Math.round(result.geometry.cellStepPx) + " px");
         }
         if (messageView != null) messageView.setText(phase);
     }
@@ -1638,7 +1375,6 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void closePanel() {
         handler.removeCallbacks(timerTicker);
-        removeCalibrationOverlay();
         stopAutoPlay("Зупинено");
         if (panel != null && windowManager != null) {
             try { windowManager.removeView(panel); } catch (IllegalArgumentException ignored) { }
@@ -1652,16 +1388,11 @@ public final class TapAccessibilityService extends AccessibilityService {
         messageView = null;
         scoreView = null;
         mergeDetailsView = null;
-        calibrationToggleButton = null;
-        calibrationStatusView = null;
-        calibrationRankView = null;
         boardCells = null;
         mergeBoardCells = null;
         blitzBoardGrid = null;
         mergeBoardGrid = null;
         diagnosticsPanel = null;
-        calibrationPanel = null;
-        calibrationExpanded = false;
         timerPanel = null;
         timerRowsContainer = null;
         compactTimerPreview = null;

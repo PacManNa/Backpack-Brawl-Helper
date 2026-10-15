@@ -28,7 +28,21 @@ app/build/outputs/apk/debug/app-debug.apk
 adb install -r .\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-Debug APK підписується debug-ключем Gradle. Налаштування підпису release-збірки в цьому репозиторії не задане.
+Обидві збірки підписуються одним збереженим ключем із локального файла
+`local-signing.properties`. Ключ не генерується під час збірки. Якщо конфігурації
+немає, Gradle зупиняється, щоб випадково не підписати оновлення іншим ключем.
+Файл конфігурації та keystore ігноруються Git. Поля конфігурації:
+
+```properties
+storeFile=/absolute/path/to/persistent-signing.jks
+storePassword=YOUR_EXISTING_PASSWORD
+keyAlias=YOUR_EXISTING_ALIAS
+keyPassword=YOUR_EXISTING_PASSWORD
+storeType=JKS
+```
+
+Для оновлення потрібні та сама пара package ID / ключ. Debug має package ID
+`ua.borlock.autotap.newkey` і назву з позначкою «нова»; release — `ua.borlock.autotap`.
 
 ## Структура
 
@@ -44,8 +58,23 @@ gradle/wrapper/                         версія Gradle Wrapper
 ## Поточна конфігурація
 
 - `applicationId`: `ua.borlock.autotap`.
-- Версія застосунку: `1.9.16` (`versionCode` 47).
+- Версія застосунку: `1.9.36` (`versionCode` 67).
 - `minSdk`: 24; для знімків екрана AccessibilityService потрібен Android 11 / API 30 або новіший.
 - `targetSdk` / `compileSdk`: 35.
 
-Автоматизований набір тестів у репозиторії не налаштований. Команда вище збирає debug APK, але сама збірка не перевіряє роботу розпізнавання на конкретному телефоні чи версії гри.
+## Перевірки
+
+```bash
+./gradlew testDebugUnitTest --no-daemon --max-workers=1
+bash tools/check-merge-madness.sh
+```
+
+Другій команді потрібні `JAVA_HOME` і `ANDROID_HOME` або `ANDROID_SDK_ROOT`.
+Вона запускає код розпізнавача, скомпільований для APK: звіряє всі клітинки
+з вручну перевіреними матрицями скриншотів, відхиляє перекриті/обрізані кадри,
+перевіряє масштабування й навчання об'єктів із підказок без статичних зразків.
+Окремі сценарії перевіряють відкриття нового силуету та позиції 1–17 у чотирьох
+рядках. Тести JVM не виконують фізичний жест на Android; його перевіряють на телефоні.
+
+Заміри прискорення та порівняння з попереднім рушієм описані в
+[VERIFICATION-1.9.35.md](VERIFICATION-1.9.35.md).

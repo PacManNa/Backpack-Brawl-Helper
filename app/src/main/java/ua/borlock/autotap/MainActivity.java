@@ -17,6 +17,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -25,6 +26,7 @@ import android.widget.Toast;
 
 import java.util.Locale;
 import java.util.ArrayList;
+import java.util.EnumSet;
 
 public final class MainActivity extends Activity {
     private static final int BG = Color.rgb(25, 21, 25);
@@ -44,16 +46,32 @@ public final class MainActivity extends Activity {
     private TextView helpToggle;
     private TextView appSettingsButton;
     private final ArrayList<TextView> botLaunchButtons = new ArrayList<>();
-    private TextView intervalValue;
+    private final ArrayList<TextView> intervalValues = new ArrayList<>();
+    private final ArrayList<SeekBar> intervalSliders = new ArrayList<>();
+    private final EnumSet<BotMode> expandedBots = EnumSet.noneOf(BotMode.class);
     private View permissionCard;
     private boolean serviceHelpExpanded;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) {
+            for (BotMode mode : BotMode.values()) {
+                if (savedInstanceState.getBoolean("bot_expanded_" + mode.name(), false)) {
+                    expandedBots.add(mode);
+                }
+            }
+        }
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         getWindow().getDecorView().setSystemUiVisibility(0);
         setContentView(buildScreen());
+    }
+
+    @Override protected void onSaveInstanceState(Bundle state) {
+        for (BotMode mode : BotMode.values()) {
+            state.putBoolean("bot_expanded_" + mode.name(), expandedBots.contains(mode));
+        }
+        super.onSaveInstanceState(state);
     }
 
     @Override protected void onResume() {
@@ -86,7 +104,6 @@ public final class MainActivity extends Activity {
         content.addView(buildBotsSection(), margin(-1, -2, 0, 0, 0, 12));
         content.addView(buildTimerCard(), margin(-1, -2, 0, 0, 0, 12));
         content.addView(buildPermissionCard(), margin(-1, -2, 0, 0, 0, 12));
-        content.addView(buildIntervalCard(), margin(-1, -2, 0, 0, 0, 12));
         content.addView(buildStepsCard(), margin(-1, -2, 0, 0, 0, 14));
         TextView footer = text("◈  Обробка на телефоні · кадри не зберігаються", 12, MUTED, false);
         footer.setGravity(Gravity.CENTER);
@@ -123,7 +140,7 @@ public final class MainActivity extends Activity {
         TextView heading = text("ОБЕРИ БОТА", 11, GOLD, true);
         heading.setLetterSpacing(0.08f);
         section.addView(heading, margin(-1, -2, 0, 0, 0, 4));
-        section.addView(text("Для кожної мінігри — своя кнопка запуску.", 13, MUTED, false),
+        section.addView(text("Натисни назву, щоб відкрити керування.", 13, MUTED, false),
                 margin(-1, -2, 0, 0, 0, 10));
         section.addView(buildBotCard(BotMode.BACKPACK_BLITZ), margin(-1, -2, 0, 0, 0, 9));
         section.addView(buildBotCard(BotMode.MERGE_MADNESS), new LinearLayout.LayoutParams(-1, -2));
@@ -145,30 +162,82 @@ public final class MainActivity extends Activity {
         heading.setGravity(Gravity.CENTER_VERTICAL);
         TextView icon = text(mode.icon, merge ? 25 : 27, accent, true);
         icon.setGravity(Gravity.CENTER);
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         icon.setBackground(shape(merge ? 0xFF4A3930 : CARD_SOFT, border, 15));
         heading.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
-        LinearLayout labels = column();
-        labels.setPadding(dp(11), 0, 0, 0);
-        labels.addView(text(mode.displayName, 17, CREAM, true));
-        labels.addView(text(mode.boardLabel.toUpperCase(Locale.ROOT), 10, accent, true),
-                margin(-1, -2, 0, 4, 0, 0));
-        heading.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
-        card.addView(heading);
+        TextView name = text(mode.displayName, 17, CREAM, true);
+        name.setPadding(dp(11), 0, 0, 0);
+        name.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        heading.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
+        heading.setClickable(true);
+        heading.setFocusable(true);
+        heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        heading.setForeground(new RippleDrawable(ColorStateList.valueOf(0x33FFFFFF),
+                null, shape(Color.WHITE, 0, 12)));
+        card.addView(heading, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout details = column();
+        details.setVisibility(View.GONE);
+        details.setPadding(0, dp(12), 0, 0);
+        View divider = new View(this);
+        divider.setBackgroundColor(border);
+        details.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+        details.addView(text(mode.boardLabel.toUpperCase(Locale.ROOT), 10, accent, true),
+                margin(-1, -2, 0, 12, 0, 0));
 
         String description = merge
                 ? "Зливай однакових щурів свайпом і піднімай їхній рівень."
                 : "Розпізнає самоцвіти, шукає збіги й активує спецфішки.";
         TextView summary = text(description, 13, MUTED, false);
         summary.setLineSpacing(dp(2), 1f);
-        card.addView(summary, margin(-1, -2, 0, 10, 0, 12));
+        details.addView(summary, margin(-1, -2, 0, 8, 0, 12));
 
         TextView launch = actionText("Відкрити панель  →", merge ? 0xFF5B4935 : 0xFF493339,
                 CREAM, accent, 13);
         launch.setOnClickListener(view -> openFloatingPanel(mode));
         botLaunchButtons.add(launch);
-        card.addView(launch, new LinearLayout.LayoutParams(-1, dp(46)));
+        details.addView(launch, new LinearLayout.LayoutParams(-1, dp(46)));
+        details.addView(buildIntervalCard(), margin(-1, -2, 0, 12, 0, 0));
+        card.addView(details, new LinearLayout.LayoutParams(-1, -2));
+
+        heading.setOnClickListener(view -> setBotExpanded(mode, heading, details,
+                !expandedBots.contains(mode)));
+        heading.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override public void onInitializeAccessibilityNodeInfo(View host,
+                                                                    AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setClassName(android.widget.Button.class.getName());
+                info.addAction(expandedBots.contains(mode)
+                        ? AccessibilityNodeInfo.AccessibilityAction.ACTION_COLLAPSE
+                        : AccessibilityNodeInfo.AccessibilityAction.ACTION_EXPAND);
+            }
+
+            @Override public boolean performAccessibilityAction(View host, int action, Bundle args) {
+                if (action == AccessibilityNodeInfo.ACTION_EXPAND
+                        || action == AccessibilityNodeInfo.ACTION_COLLAPSE) {
+                    setBotExpanded(mode, heading, details,
+                            action == AccessibilityNodeInfo.ACTION_EXPAND);
+                    return true;
+                }
+                return super.performAccessibilityAction(host, action, args);
+            }
+        });
+        setBotExpanded(mode, heading, details, expandedBots.contains(mode));
         return card;
+    }
+
+    private void setBotExpanded(BotMode mode, View heading, View details, boolean expanded) {
+        if (expanded) expandedBots.add(mode);
+        else expandedBots.remove(mode);
+        details.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        String state = expanded ? "Розгорнуто" : "Згорнуто";
+        if (Build.VERSION.SDK_INT >= 30) {
+            heading.setContentDescription(mode.displayName);
+            heading.setStateDescription(state);
+        } else {
+            heading.setContentDescription(mode.displayName + ". " + state);
+        }
     }
 
     private View buildTimerCard() {
@@ -234,17 +303,18 @@ public final class MainActivity extends Activity {
 
     private View buildIntervalCard() {
         LinearLayout card = column();
-        card.setPadding(dp(16), dp(15), dp(16), dp(13));
-        card.setBackground(shape(CARD, BORDER, 20));
+        card.setPadding(dp(12), dp(12), dp(12), dp(12));
+        card.setBackground(shape(CARD_SOFT, 0, 12));
 
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout labels = column();
-        labels.addView(text("Пауза між ходами", 16, CREAM, true));
-        labels.addView(text("Очікування після свайпу без змін поля", 12, MUTED, false), margin(-1, -2, 0, 3, 0, 0));
+        labels.addView(text("Очікування зміни поля", 14, CREAM, true));
+        labels.addView(text("Час до повтору свайпу без змін поля", 12, MUTED, false), margin(-1, -2, 0, 3, 0, 0));
         titleRow.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
 
-        intervalValue = text("0,9 с", 14, GOLD, true);
+        TextView intervalValue = text("0,9 с", 14, GOLD, true);
+        intervalValues.add(intervalValue);
         intervalValue.setGravity(Gravity.CENTER);
         intervalValue.setPadding(dp(9), dp(6), dp(9), dp(6));
         intervalValue.setBackground(shape(0x334A3540, 0, 12));
@@ -252,22 +322,34 @@ public final class MainActivity extends Activity {
         card.addView(titleRow);
 
         SeekBar intervalSlider = new SeekBar(this);
-        intervalSlider.setMax(33);
-        intervalSlider.setProgress(5);
+        int timeoutSteps = (int) ((TapAccessibilityService.MAX_NO_CHANGE_TIMEOUT_MS
+                - TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS)
+                / TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS);
+        intervalSlider.setMax(timeoutSteps);
         if (Build.VERSION.SDK_INT >= 21) {
             intervalSlider.setProgressTintList(ColorStateList.valueOf(ROSE));
             intervalSlider.setThumbTintList(ColorStateList.valueOf(GOLD));
             intervalSlider.setProgressBackgroundTintList(ColorStateList.valueOf(BORDER));
         }
         long initial = TapAccessibilityService.getNoChangeTimeoutMs(this);
-        int progress = (int) Math.max(0, Math.min(33, Math.round((initial - 700L) / 100f)));
+        int progress = Math.max(0, Math.min(timeoutSteps, Math.round(
+                (initial - TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS)
+                / (float) TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS)));
         intervalSlider.setProgress(progress);
+        intervalSlider.setContentDescription("Спільний час очікування зміни поля для обох ботів");
+        intervalSliders.add(intervalSlider);
         updateIntervalLabel(progress);
         intervalSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
+                if (!fromUser) return;
                 updateIntervalLabel(value);
-                if (fromUser) getSharedPreferences(TapAccessibilityService.PREFS, MODE_PRIVATE)
-                        .edit().putLong(TapAccessibilityService.KEY_NO_CHANGE_TIMEOUT, 700L + value * 100L).apply();
+                getSharedPreferences(TapAccessibilityService.PREFS, MODE_PRIVATE)
+                        .edit().putLong(TapAccessibilityService.KEY_NO_CHANGE_TIMEOUT,
+                                TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS
+                                        + value * TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS).apply();
+                for (SeekBar slider : intervalSliders) {
+                    if (slider != seekBar) slider.setProgress(value);
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) { }
             @Override public void onStopTrackingTouch(SeekBar seekBar) { }
@@ -275,13 +357,13 @@ public final class MainActivity extends Activity {
         card.addView(intervalSlider, margin(-1, -2, -8, 4, -8, 0));
 
         LinearLayout range = new LinearLayout(this);
-        TextView fast = text("ШВИДШЕ · 0,7 с", 10, MUTED, true);
-        TextView slow = text("4 с · НАДІЙНІШЕ", 10, MUTED, true);
+        TextView fast = text("0,4 с", 10, MUTED, true);
+        TextView slow = text("4,0 с", 10, MUTED, true);
         range.addView(fast, new LinearLayout.LayoutParams(0, -2, 1));
         slow.setGravity(Gravity.RIGHT);
         range.addView(slow, new LinearLayout.LayoutParams(0, -2, 1));
         card.addView(range);
-        card.addView(text("Якщо поле не змінилося, бот зачекає й повторить свайп один раз.", 11, MUTED, false),
+        card.addView(text("Спільне налаштування для обох ботів. Якщо поле не змінилося, бот зачекає й повторить свайп один раз. Після успішного ходу це очікування не додається.", 11, MUTED, false),
                 margin(-1, -2, 0, 7, 0, 0));
         return card;
     }
@@ -293,7 +375,7 @@ public final class MainActivity extends Activity {
         card.addView(text("Перший запуск", 16, CREAM, true));
         card.addView(stepRow("01", "Увімкни дозвіл", "Дозволь сервіс у налаштуваннях доступності."),
                 margin(-1, -2, 0, 12, 0, 0));
-        card.addView(stepRow("02", "Обери потрібного бота", "На головному екрані в кожного режиму своя кнопка."),
+        card.addView(stepRow("02", "Обери потрібного бота", "Натисни назву, потім «Відкрити панель»."),
                 margin(-1, -2, 0, 10, 0, 0));
         card.addView(stepRow("03", "Натисни ▶ Старт", "Відкрий відповідну мінігру й дочекайся стабільного поля."),
                 margin(-1, -2, 0, 10, 0, 0));
@@ -372,8 +454,10 @@ public final class MainActivity extends Activity {
     }
 
     private void updateIntervalLabel(int progress) {
-        long ms = 700L + progress * 100L;
-        if (intervalValue != null) intervalValue.setText(String.format(Locale.getDefault(), "%.1f с", ms / 1000f));
+        long ms = TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS
+                + progress * TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS;
+        String label = String.format(Locale.getDefault(), "%.1f с", ms / 1000f);
+        for (TextView value : intervalValues) value.setText(label);
     }
 
     private LinearLayout column() {

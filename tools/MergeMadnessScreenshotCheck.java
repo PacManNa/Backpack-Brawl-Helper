@@ -20,6 +20,12 @@ public final class MergeMadnessScreenshotCheck {
             2, 0, 1, 0,
             4, 3, 1, 0
     };
+    private static final int[] RANK_NINE_BOARD = {
+            0, 0, 0, 1,
+            0, 1, 2, 3,
+            0, 0, 4, 6,
+            1, 5, 7, 9
+    };
 
     public static void main(String[] args) throws Exception {
         File fixtures = new File(args[0]);
@@ -105,6 +111,9 @@ public final class MergeMadnessScreenshotCheck {
                 throw new AssertionError("The newly wrapped chain row was missed.");
             }
             int[] expectedBoard = expectedBoardFor(file.getName());
+            if (expectedBoard == null) {
+                throw new AssertionError("Missing manually reviewed board: " + file.getName());
+            }
             if (expectedBoard != null) {
                 int[] actual = recognizedScreenshot.board == null
                         ? recognizedScreenshot.partialRanks : recognizedScreenshot.board.copyRanks();
@@ -122,10 +131,10 @@ public final class MergeMadnessScreenshotCheck {
                             + result.fieldOffsetY);
                 }
             }
-            if (file.getName().equals("1000011183.jpg")) {
-                checkScaledRecognition(image, screenshotRecognizer, SINGLE_RAT_AND_CHAIN_BOARD,
+            if (file.getName().equals("1000011183.jpg") || file.getName().equals("1000011196.jpg")) {
+                checkScaledRecognition(file.getName(), image, screenshotRecognizer, expectedBoard,
                         1080, 2340);
-                checkScaledRecognition(image, screenshotRecognizer, SINGLE_RAT_AND_CHAIN_BOARD,
+                checkScaledRecognition(file.getName(), image, screenshotRecognizer, expectedBoard,
                         1080, 2400);
             }
 
@@ -147,7 +156,9 @@ public final class MergeMadnessScreenshotCheck {
             throw new AssertionError("The corpus did not exercise board movement.");
         }
         if (maximumRows < 3) throw new AssertionError("Later chain rows were not detected.");
-        System.out.println("PASS: " + files.length + " screenshots; vertical span="
+        System.out.println("PASS: " + files.length + " screenshots; exact boards=" + fullScreenCount
+                + "; cells=" + (fullScreenCount * 16) + "; rejected=" + (files.length - fullScreenCount)
+                + "; vertical span="
                 + Math.round(maximumY - minimumY) + " px; max chain rows=" + maximumRows);
     }
 
@@ -162,6 +173,44 @@ public final class MergeMadnessScreenshotCheck {
     }
 
     private static int[] expectedBoardFor(String name) {
+        switch (name) {
+            case "1000011111.jpg":
+                return new int[]{0,0,0,0, 1,0,0,0, 0,0,2,0, 0,0,0,0};
+            case "1000011115.jpg":
+                return new int[]{1,0,0,0, 0,0,0,2, 0,0,0,2, 0,2,3,2};
+            case "1000011121.jpg":
+                return new int[]{0,0,1,0, 1,4,1,0, 3,4,0,0, 2,2,0,0};
+            case "1000011123.jpg":
+                return new int[]{0,0,1,0, 2,5,1,0, 4,2,2,2, 1,1,1,1};
+            case "1000011126.jpg":
+            case "1000011128.jpg":
+                return new int[]{4,3,0,0, 6,2,1,0, 3,1,0,0, 1,0,0,0};
+            case "1000011130.jpg":
+                return new int[]{0,0,0,0, 0,1,2,1, 7,3,2,1, 0,5,3,2};
+            case "1000011134.jpg":
+                return new int[]{0,1,0,0, 2,2,0,0, 4,4,1,0, 8,5,3,1};
+            case "1000011136.jpg":
+                return new int[]{3,6,4,5, 2,5,8,4, 0,2,4,2, 0,1,2,1};
+            case "1000011138.jpg":
+                return new int[]{4,9,1,2, 3,4,0,0, 1,0,0,0, 0,0,0,0};
+            case "1000011140.jpg":
+                return new int[]{7,1,2,0, 5,1,0,0, 4,2,0,0, 2,10,2,0};
+            case "1000011142.jpg":
+                return new int[]{0,0,0,2, 1,4,5,1, 0,2,6,10, 0,1,2,7};
+            case "1000011145.jpg":
+            case "1000011146.jpg":
+                return new int[]{1,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0};
+            case "1000011148.jpg":
+            case "1000011150.jpg":
+                return new int[]{0,0,0,0, 0,1,0,0, 0,0,0,2, 1,0,3,3};
+            case "1000011152.jpg":
+                return new int[]{1,1,5,4, 5,6,3,1, 7,5,1,2, 9,4,0,1};
+            case "1000011156.jpg":
+                return new int[]{0,0,0,0, 0,1,0,0, 0,2,0,0, 0,0,0,0};
+            default:
+                break;
+        }
+        if (name.equals("1000011196.jpg")) return RANK_NINE_BOARD;
         if (name.equals("1000011181.jpg") || name.equals("1000011183.jpg")) {
             return SINGLE_RAT_AND_CHAIN_BOARD;
         }
@@ -173,7 +222,7 @@ public final class MergeMadnessScreenshotCheck {
         return null;
     }
 
-    private static void checkScaledRecognition(BufferedImage source,
+    private static void checkScaledRecognition(String name, BufferedImage source,
                                                MergeMadnessVision recognizer,
                                                int[] expected, int width, int height) {
         BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
@@ -195,14 +244,20 @@ public final class MergeMadnessScreenshotCheck {
                         + " step=" + (geometry == null ? "none"
                         : Math.round(geometry.geometry.cellStepPx)));
             }
+            int[] sourcePixels = source.getRGB(0, 0, source.getWidth(), source.getHeight(),
+                    null, 0, source.getWidth());
+            MergeMadnessLayout.Result sourceLayout = MergeMadnessLayout.locate(sourcePixels,
+                    source.getWidth(), source.getHeight(), null);
+            float expectedCenterY = sourceLayout.geometry.firstCenterY
+                    * height / source.getHeight();
             if (width == 1080 && height == 2400
                     && (Math.abs(geometry.geometry.cellStepPx - 225f) > 1f
-                    || Math.abs(geometry.geometry.firstCenterY - 930f) > 3f)) {
+                    || Math.abs(geometry.geometry.firstCenterY - expectedCenterY) > 3f)) {
                 throw new AssertionError("1080x2400 geometry drifted: centerY="
                         + Math.round(geometry.geometry.firstCenterY) + " step="
                         + Math.round(geometry.geometry.cellStepPx));
             }
-            System.out.println("1000011183.jpg scaled=" + width + "x" + height
+            System.out.println(name + " scaled=" + width + "x" + height
                     + " centerY=" + Math.round(geometry.geometry.firstCenterY)
                     + " step=" + Math.round(geometry.geometry.cellStepPx)
                     + " exactBoard=PASS");

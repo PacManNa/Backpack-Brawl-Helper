@@ -42,7 +42,7 @@ public final class MergeMadnessVisionConfidenceTest {
         visible[0] = true;
         visible[1] = true;
         visible[6] = true;
-        scores[0] = 0.62;
+        scores[0] = 0.94;
         scores[1] = 0.31;
         scores[6] = 0.28;
 
@@ -68,7 +68,7 @@ public final class MergeMadnessVisionConfidenceTest {
         MergeMadnessVision.TileMatch direct =
                 new MergeMadnessVision.TileMatch(7, 0.80, 0.16);
         MergeMadnessVision.TileMatch chain =
-                new MergeMadnessVision.TileMatch(1, 0.42, 0.09);
+                new MergeMadnessVision.TileMatch(1, 0.94, 0.09);
 
         assertEquals(1, MergeMadnessVision.chooseTileMatch(direct, chain).rank);
     }
@@ -104,8 +104,45 @@ public final class MergeMadnessVisionConfidenceTest {
         MergeMadnessVision.TileMatch direct =
                 new MergeMadnessVision.TileMatch(6, 0.82, 0.30, true);
         MergeMadnessVision.TileMatch chain =
-                new MergeMadnessVision.TileMatch(1, 0.62, 0.25);
+                new MergeMadnessVision.TileMatch(1, 0.94, 0.25);
 
         assertEquals(1, MergeMadnessVision.chooseTileMatch(direct, chain).rank);
+    }
+
+    @Test public void almostExactRankNineSampleSurvivesAWeakerRankSevenHint() {
+        assertEquals(9, MergeMadnessVision.chooseTileMatch(
+                new MergeMadnessVision.TileMatch(9, 0.97, 0.30),
+                new MergeMadnessVision.TileMatch(7, 0.86, 0.12)).rank);
+    }
+
+    @Test public void allUnlockedRanksCanWinIncludingTheFourthHintRow() {
+        for (int rank = 1; rank <= MergeMadnessBoard.MAX_RANK; rank++) {
+            double[] scores = new double[17];
+            boolean[] visible = new boolean[17];
+            java.util.Arrays.fill(visible, true);
+            scores[rank - 1] = 0.94;
+            assertEquals(rank, MergeMadnessVision.bestVisibleProgressionMatch(
+                    scores, visible).rank);
+        }
+    }
+
+    @Test public void includesHigherRanksWhenCheckingAChainWinnersMargin() {
+        double[] scores = new double[17];
+        boolean[] visible = new boolean[17];
+        visible[6] = visible[8] = true;
+        scores[6] = 0.92;
+        scores[8] = 0.91;
+        assertEquals(0, MergeMadnessVision.bestVisibleProgressionMatch(scores, visible).rank);
+    }
+
+    @Test public void skipsBuiltinSearchOnlyWhenItsResultCannotChangeTheWinner() {
+        MergeMadnessVision.TileMatch exactBuiltin = new MergeMadnessVision.TileMatch(7,1.0,0.5);
+        MergeMadnessVision.TileMatch decisiveChain = new MergeMadnessVision.TileMatch(9,0.94,0.12);
+        assertTrue(MergeMadnessVision.isDecisiveProgressionMatch(decisiveChain));
+        assertEquals(9,MergeMadnessVision.chooseTileMatch(exactBuiltin,decisiveChain).rank);
+        assertFalse(MergeMadnessVision.isDecisiveProgressionMatch(
+                new MergeMadnessVision.TileMatch(9,0.91,0.12)));
+        assertFalse(MergeMadnessVision.isDecisiveProgressionMatch(
+                new MergeMadnessVision.TileMatch(9,0.99,0.01)));
     }
 }

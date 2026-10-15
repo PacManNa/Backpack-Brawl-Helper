@@ -203,11 +203,7 @@ final class MergeMadnessSolver {
     }
 
     private int countLegalDirections(MergeMadnessBoard board) {
-        int count = 0;
-        for (Direction direction : DIRECTIONS) {
-            if (board.slide(direction).changed) count++;
-        }
-        return count;
+        return Integer.bitCount(board.legalMovesMask());
     }
 
     private boolean isCorner(int row, int column) {
@@ -309,10 +305,10 @@ final class MergeMadnessSolver {
             MergeMadnessBoard.SlideResult[] cached = slideCache.get(board);
             if (cached == null) {
                 cached = new MergeMadnessBoard.SlideResult[DIRECTIONS.length];
-                for (int index = 0; index < DIRECTIONS.length; index++) {
-                    cached[index] = board.slide(DIRECTIONS[index]);
-                }
                 slideCache.put(board, cached);
+            }
+            if (cached[direction.ordinal()] == null) {
+                cached[direction.ordinal()] = board.slide(direction);
             }
             return cached[direction.ordinal()];
         }
