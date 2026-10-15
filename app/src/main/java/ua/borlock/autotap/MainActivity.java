@@ -24,6 +24,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.Locale;
+import java.util.ArrayList;
 
 public final class MainActivity extends Activity {
     private static final int BG = Color.rgb(25, 21, 25);
@@ -42,9 +43,7 @@ public final class MainActivity extends Activity {
     private TextView serviceHelp;
     private TextView helpToggle;
     private TextView appSettingsButton;
-    private TextView panelButton;
-    private TextView panelStatus;
-    private TextView panelStatusDot;
+    private final ArrayList<TextView> botLaunchButtons = new ArrayList<>();
     private TextView intervalValue;
     private View permissionCard;
     private boolean serviceHelpExpanded;
@@ -59,6 +58,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        TimerStore.rescheduleAll(this);
         refreshStatus();
     }
 
@@ -83,7 +83,8 @@ public final class MainActivity extends Activity {
         }
 
         content.addView(buildHeader(), margin(-1, -2, 0, 4, 0, 14));
-        content.addView(buildHeroCard(), margin(-1, -2, 0, 0, 0, 12));
+        content.addView(buildBotsSection(), margin(-1, -2, 0, 0, 0, 12));
+        content.addView(buildTimerCard(), margin(-1, -2, 0, 0, 0, 12));
         content.addView(buildPermissionCard(), margin(-1, -2, 0, 0, 0, 12));
         content.addView(buildIntervalCard(), margin(-1, -2, 0, 0, 0, 12));
         content.addView(buildStepsCard(), margin(-1, -2, 0, 0, 0, 14));
@@ -106,10 +107,10 @@ public final class MainActivity extends Activity {
         LinearLayout labels = column();
         labels.setPadding(dp(12), 0, 0, 0);
         labels.addView(text("Пелюстка", 22, CREAM, true));
-        labels.addView(text("БОТ ДЛЯ РЮКЗАК-БЛІЦ", 10, MUTED, true), margin(-1, -2, 0, 3, 0, 0));
+        labels.addView(text("БОТИ ДЛЯ BACKPACK BRAWL", 10, MUTED, true), margin(-1, -2, 0, 3, 0, 0));
         row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView badge = text("БОТ", 10, GOLD, true);
+        TextView badge = text("2 РЕЖИМИ", 10, GOLD, true);
         badge.setGravity(Gravity.CENTER);
         badge.setPadding(dp(11), dp(7), dp(11), dp(7));
         badge.setBackground(shape(CARD_SOFT, BORDER, 14));
@@ -117,46 +118,69 @@ public final class MainActivity extends Activity {
         return row;
     }
 
-    private View buildHeroCard() {
+    private View buildBotsSection() {
+        LinearLayout section = column();
+        TextView heading = text("ОБЕРИ БОТА", 11, GOLD, true);
+        heading.setLetterSpacing(0.08f);
+        section.addView(heading, margin(-1, -2, 0, 0, 0, 4));
+        section.addView(text("Для кожної мінігри — своя кнопка запуску.", 13, MUTED, false),
+                margin(-1, -2, 0, 0, 0, 10));
+        section.addView(buildBotCard(BotMode.BACKPACK_BLITZ), margin(-1, -2, 0, 0, 0, 9));
+        section.addView(buildBotCard(BotMode.MERGE_MADNESS), new LinearLayout.LayoutParams(-1, -2));
+        return section;
+    }
+
+    private View buildBotCard(BotMode mode) {
+        boolean merge = mode == BotMode.MERGE_MADNESS;
+        int accent = merge ? GOLD : ROSE;
+        int border = merge ? 0xFF695842 : 0xFF70505D;
         LinearLayout card = column();
-        card.setPadding(dp(18), dp(17), dp(18), dp(17));
-        card.setBackground(gradient(new int[]{0xFF48323F, 0xFF30252D}, 0xFF70505D, 22));
+        card.setPadding(dp(15), dp(14), dp(15), dp(13));
+        card.setBackground(gradient(merge
+                        ? new int[]{0xFF3C3029, 0xFF2B2527}
+                        : new int[]{0xFF48323F, 0xFF30252D},
+                border, 20));
 
-        LinearLayout top = new LinearLayout(this);
-        top.setGravity(Gravity.CENTER_VERTICAL);
-        panelStatusDot = text("●", 9, GREEN, true);
-        panelStatusDot.setGravity(Gravity.CENTER);
-        LinearLayout statusPill = new LinearLayout(this);
-        statusPill.setGravity(Gravity.CENTER_VERTICAL);
-        statusPill.setPadding(dp(10), dp(6), dp(10), dp(6));
-        statusPill.setBackground(shape(0x33241E24, 0, 20));
-        statusPill.addView(panelStatusDot, margin(-2, -2, 0, 0, 6, 0));
-        panelStatus = text("ПІДГОТОВКА", 10, GREEN, true);
-        panelStatus.setLetterSpacing(0.06f);
-        statusPill.addView(panelStatus);
-        top.addView(statusPill, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        TextView icon = text(mode.icon, merge ? 25 : 27, accent, true);
+        icon.setGravity(Gravity.CENTER);
+        icon.setBackground(shape(merge ? 0xFF4A3930 : CARD_SOFT, border, 15));
+        heading.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
-        TextView gridBadge = text("ПОЛЕ  8×8", 10, GOLD, true);
-        gridBadge.setGravity(Gravity.CENTER);
-        gridBadge.setPadding(dp(9), dp(6), dp(9), dp(6));
-        gridBadge.setBackground(shape(0x33241E24, 0, 14));
-        top.addView(gridBadge);
-        card.addView(top);
+        LinearLayout labels = column();
+        labels.setPadding(dp(11), 0, 0, 0);
+        labels.addView(text(mode.displayName, 17, CREAM, true));
+        labels.addView(text(mode.boardLabel.toUpperCase(Locale.ROOT), 10, accent, true),
+                margin(-1, -2, 0, 4, 0, 0));
+        heading.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
+        card.addView(heading);
 
-        card.addView(text("Автоматичні ходи", 21, CREAM, true), margin(-1, -2, 0, 14, 0, 0));
-        TextView summary = text("Розпізнає самоцвіти, шукає збіги та активує спецфішки.",
-                14, MUTED, false);
+        String description = merge
+                ? "Зливай однакових щурів свайпом і піднімай їхній рівень."
+                : "Розпізнає самоцвіти, шукає збіги й активує спецфішки.";
+        TextView summary = text(description, 13, MUTED, false);
         summary.setLineSpacing(dp(2), 1f);
-        card.addView(summary, margin(-1, -2, 0, 6, 0, 0));
+        card.addView(summary, margin(-1, -2, 0, 10, 0, 12));
 
-        panelButton = actionText("Відкрити панель бота  →", ROSE, BG, ROSE, 14);
-        panelButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        panelButton.setLetterSpacing(0.01f);
-        panelButton.setOnClickListener(v -> openFloatingPanel());
-        card.addView(panelButton, margin(-1, 50, 0, 15, 0, 0));
-        TextView hint = text("Панель з’явиться поверх гри", 12, MUTED, false);
-        hint.setGravity(Gravity.CENTER);
-        card.addView(hint, margin(-1, -2, 0, 8, 0, 0));
+        TextView launch = actionText("Відкрити панель  →", merge ? 0xFF5B4935 : 0xFF493339,
+                CREAM, accent, 13);
+        launch.setOnClickListener(view -> openFloatingPanel(mode));
+        botLaunchButtons.add(launch);
+        card.addView(launch, new LinearLayout.LayoutParams(-1, dp(46)));
+        return card;
+    }
+
+    private View buildTimerCard() {
+        LinearLayout card = column();
+        card.setPadding(dp(16), dp(15), dp(16), dp(15));
+        card.setBackground(shape(CARD, BORDER, 20));
+        card.addView(text("Нагадування про дію", 17, CREAM, true));
+        TextView details = text("Сад, скрині та безкоштовні нагороди", 13, MUTED, false);
+        card.addView(details, margin(-1, -2, 0, 5, 0, 12));
+        TextView open = actionText("Налаштувати таймери  →", GOLD, BG, GOLD, 13);
+        open.setOnClickListener(v -> startActivity(new Intent(this, TimerActivity.class)));
+        card.addView(open, new LinearLayout.LayoutParams(-1, dp(44)));
         return card;
     }
 
@@ -216,8 +240,8 @@ public final class MainActivity extends Activity {
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout labels = column();
-        labels.addView(text("Повтор обміну", 16, CREAM, true));
-        labels.addView(text("Час очікування без змін поля", 12, MUTED, false), margin(-1, -2, 0, 3, 0, 0));
+        labels.addView(text("Пауза між ходами", 16, CREAM, true));
+        labels.addView(text("Очікування після свайпу без змін поля", 12, MUTED, false), margin(-1, -2, 0, 3, 0, 0));
         titleRow.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
 
         intervalValue = text("0,9 с", 14, GOLD, true);
@@ -257,7 +281,7 @@ public final class MainActivity extends Activity {
         slow.setGravity(Gravity.RIGHT);
         range.addView(slow, new LinearLayout.LayoutParams(0, -2, 1));
         card.addView(range);
-        card.addView(text("Після невдалого свайпу бот повторить його, якщо поле не змінилося.", 11, MUTED, false),
+        card.addView(text("Якщо поле не змінилося, бот зачекає й повторить свайп один раз.", 11, MUTED, false),
                 margin(-1, -2, 0, 7, 0, 0));
         return card;
     }
@@ -269,9 +293,9 @@ public final class MainActivity extends Activity {
         card.addView(text("Перший запуск", 16, CREAM, true));
         card.addView(stepRow("01", "Увімкни дозвіл", "Дозволь сервіс у налаштуваннях доступності."),
                 margin(-1, -2, 0, 12, 0, 0));
-        card.addView(stepRow("02", "Відкрий панель", "Плаваючу панель можна перемістити поверх гри."),
+        card.addView(stepRow("02", "Обери потрібного бота", "На головному екрані в кожного режиму своя кнопка."),
                 margin(-1, -2, 0, 10, 0, 0));
-        card.addView(stepRow("03", "Натисни ▶ Старт", "Запускай, коли відкрите поле Рюкзак-Бліц."),
+        card.addView(stepRow("03", "Натисни ▶ Старт", "Відкрий відповідну мінігру й дочекайся стабільного поля."),
                 margin(-1, -2, 0, 10, 0, 0));
         return card;
     }
@@ -287,10 +311,9 @@ public final class MainActivity extends Activity {
         permissionButton.setText(enabled ? "Керувати дозволом" : "Увімкнути доступ");
         if (appSettingsButton != null) appSettingsButton.setVisibility(enabled ? View.GONE : View.VISIBLE);
         helpToggle.setVisibility(enabled ? View.GONE : View.VISIBLE);
-        panelStatus.setText(enabled ? "ГОТОВИЙ ДО ЗАПУСКУ" : "ПОТРІБЕН ДОСТУП");
-        panelStatus.setTextColor(enabled ? GREEN : GOLD);
-        panelStatusDot.setTextColor(enabled ? GREEN : GOLD);
-        panelButton.setText(enabled ? "Відкрити панель бота  →" : "Налаштувати доступ  →");
+        for (TextView button : botLaunchButtons) {
+            button.setText(enabled ? "Відкрити панель  →" : "Налаштувати доступ  →");
+        }
         permissionCard.setBackground(shape(enabled ? 0xFF252D28 : CARD,
                 enabled ? 0xFF526850 : BORDER, 20));
         updateHelpVisibility();
@@ -336,12 +359,12 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void openFloatingPanel() {
+    private void openFloatingPanel(BotMode mode) {
         if (!isAccessibilityServiceEnabled()) {
             openAccessibilitySettings();
             return;
         }
-        if (!TapAccessibilityService.showControlPanel()) {
+        if (!TapAccessibilityService.showControlPanel(mode)) {
             Toast.makeText(this, "Повернись сюди після ввімкнення сервісу й відкрий панель ще раз", Toast.LENGTH_LONG).show();
             return;
         }

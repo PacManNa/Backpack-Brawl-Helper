@@ -7,6 +7,8 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
+import android.graphics.Point;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.hardware.HardwareBuffer;
 import android.os.Build;
@@ -25,8 +27,10 @@ import android.graphics.drawable.GradientDrawable;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.ArrayList;
+import java.util.List;
 
-/** Reads the jewel grid and plays one scored adjacent swap at a time. */
+/** Runs the selected board bot and the shared local timer overlay. */
 public final class TapAccessibilityService extends AccessibilityService {
     static final String PREFS = "pelyustka_settings";
     static final String KEY_NO_CHANGE_TIMEOUT = "move_delay_ms";
@@ -60,24 +64,55 @@ public final class TapAccessibilityService extends AccessibilityService {
     private final ExecutorService solverExecutor = Executors.newSingleThreadExecutor();
     private final BoardVision boardVision = new BoardVision();
     private final GameSolver gameSolver = new GameSolver();
+    private final MergeMadnessSolver mergeMadnessSolver = new MergeMadnessSolver();
+    private final MergeMadnessSpawnModel mergeSpawnModel = new MergeMadnessSpawnModel();
+    private MergeMadnessVision mergeMadnessVision;
     private WindowManager windowManager;
     private LinearLayout panel;
     private WindowManager.LayoutParams panelParams;
+    private TextView panelTitle;
     private TextView stateChip;
     private TextView playButton;
     private TextView boardInfoView;
     private TextView messageView;
     private TextView scoreView;
+    private TextView mergeDetailsView;
+    private TextView calibrationToggleButton;
+    private TextView calibrationStatusView;
+    private TextView calibrationRankView;
     private TextView[][] boardCells;
+    private TextView[][] mergeBoardCells;
+    private LinearLayout blitzBoardGrid;
+    private LinearLayout mergeBoardGrid;
     private LinearLayout diagnosticsPanel;
+    private LinearLayout calibrationPanel;
+    private CalibrationOverlay calibrationOverlay;
+    private int calibrationScreenWidth;
+    private int calibrationScreenHeight;
+    private int selectedMouseSampleRank = 11;
+    private LinearLayout timerPanel;
+    private LinearLayout timerRowsContainer;
+    private LinearLayout compactTimerPreview;
+    private TextView compactTimerTitle;
+    private TextView compactTimerCountdown;
+    private TextView compactTimerRestart;
+    private String compactTimerSelectedId;
+    private final ArrayList<TimerRow> timerRows = new ArrayList<>();
+    private long renderedTimerRevision = -1L;
     private boolean diagnosticsExpanded;
+    private boolean calibrationExpanded;
+    private boolean timerMode;
     private boolean autoPlaying;
+    private volatile BotMode activeMode = BotMode.BACKPACK_BLITZ;
     private boolean screenshotPending;
     private long lastSuccessfulScreenshotAtMs;
     private int moveCount;
     private int runGeneration;
     private GameBoard previousBoard;
     private GameBoard stableCandidateBoard;
+    private MergeMadnessBoard previousMergeBoard;
+    private MergeMadnessBoard stableCandidateMergeBoard;
+    private BoardVision.Geometry stableCandidateMergeGeometry;
     private int stableCandidateReads;
     private int stabilizationReads;
     private int unchangedSwipeRetries;
@@ -85,12 +120,24 @@ public final class TapAccessibilityService extends AccessibilityService {
     private String lastRecognitionError;
     private GameSolver.Choice lastChoice;
     private BoardVision.Geometry lastGeometry;
+    private MergeMadnessSolver.Move lastMergeMove;
+    private BoardVision.Geometry lastMergeGeometry;
+    private boolean awaitingMergeTransition;
     private int noMoveReads;
+    private final Runnable timerTicker = new Runnable() {
+        @Override public void run() {
+            if (panel == null || panel.getVisibility() != View.VISIBLE) return;
+            refreshTimerPanel();
+            handler.postDelayed(this, 1_000L);
+        }
+    };
 
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        mergeMadnessVision = new MergeMadnessVision(this);
+        TimerStore.rescheduleAll(this);
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
@@ -111,7 +158,18 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
     static boolean showControlPanel() {
-        return instance != null && instance.showPanel();
+        return instance != null && instance.showPanel(instance.activeMode);
+    }
+
+    static boolean showControlPanel(BotMode mode) {
+        return instance != null && instance.showPanel(mode);
+    }
+
+    static boolean showTimerPanel() {
+        if (instance == null || instance.panel == null) return false;
+        instance.diagnosticsExpanded = true;
+        instance.setTimerMode(true);
+        return true;
     }
 
     static long getNoChangeTimeoutMs(Context context) {
@@ -126,16 +184,19 @@ public final class TapAccessibilityService extends AccessibilityService {
         return Math.max(MIN_SWIPE_DURATION_MS, Math.min(MAX_SWIPE_DURATION_MS, value));
     }
 
-    private boolean showPanel() {
+    private boolean showPanel(BotMode mode) {
         if (windowManager == null) return false;
+        selectBot(mode);
         if (panel != null) {
             panel.setVisibility(View.VISIBLE);
             updatePanel();
+            refreshTimerPanel();
+            startTimerTicker();
             return true;
         }
         panel = createPanel();
         panelParams = new WindowManager.LayoutParams(
-                dp(210),
+                dp(272),
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
@@ -147,10 +208,57 @@ public final class TapAccessibilityService extends AccessibilityService {
         panelParams.y = dp(4);
         try {
             windowManager.addView(panel, panelParams);
+            refreshTimerPanel();
+            startTimerTicker();
             return true;
         } catch (WindowManager.BadTokenException | IllegalStateException error) {
             panel = null;
             return false;
+        }
+    }
+
+    private void selectBot(BotMode mode) {
+        if (mode == null) mode = BotMode.BACKPACK_BLITZ;
+        if (autoPlaying && activeMode != mode) stopAutoPlay("Зупинено");
+        activeMode = mode;
+        timerMode = false;
+        calibrationExpanded = false;
+        diagnosticsExpanded = true;
+        updateBotModeViews();
+        updatePanelContentVisibility();
+    }
+
+    private void updateBotModeViews() {
+        if (panelTitle != null) panelTitle.setText(activeMode.panelTitle);
+        if (blitzBoardGrid != null) {
+            blitzBoardGrid.setVisibility(activeMode == BotMode.BACKPACK_BLITZ ? View.VISIBLE : View.GONE);
+        }
+        if (mergeBoardGrid != null) {
+            mergeBoardGrid.setVisibility(activeMode == BotMode.MERGE_MADNESS ? View.VISIBLE : View.GONE);
+        }
+        if (mergeDetailsView != null) {
+            mergeDetailsView.setVisibility(activeMode == BotMode.MERGE_MADNESS
+                    ? View.VISIBLE : View.GONE);
+        }
+        if (calibrationToggleButton != null) {
+            calibrationToggleButton.setVisibility(activeMode == BotMode.MERGE_MADNESS
+                    ? View.VISIBLE : View.GONE);
+        }
+        if (calibrationPanel != null) {
+            calibrationPanel.setVisibility(activeMode == BotMode.MERGE_MADNESS
+                    && diagnosticsExpanded && !timerMode && calibrationExpanded
+                    ? View.VISIBLE : View.GONE);
+        }
+        if (playButton != null) {
+            playButton.setContentDescription("Запустити бота «" + activeMode.displayName + "»");
+        }
+        if (boardInfoView != null && !autoPlaying) {
+            boardInfoView.setText(activeMode == BotMode.BACKPACK_BLITZ
+                    ? "Поле ще не прочитане · 8×8" : "Поле ще не прочитане · 4×4");
+        }
+        if (scoreView != null && !autoPlaying) {
+            scoreView.setText(activeMode == BotMode.BACKPACK_BLITZ
+                    ? "Шукаю сусідні заміни" : "Шукаю найкращий напрямок");
         }
     }
 
@@ -167,11 +275,11 @@ public final class TapAccessibilityService extends AccessibilityService {
 
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = button("РЮКЗАК-БЛІЦ", CREAM, 10);
-        title.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        title.setPadding(dp(4), 0, dp(4), 0);
-        title.setOnTouchListener(createDragListener());
-        titleRow.addView(title, new LinearLayout.LayoutParams(0, dp(22), 1f));
+        panelTitle = button(activeMode.panelTitle, CREAM, 10);
+        panelTitle.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+        panelTitle.setPadding(dp(4), 0, dp(4), 0);
+        panelTitle.setOnTouchListener(createDragListener());
+        titleRow.addView(panelTitle, new LinearLayout.LayoutParams(0, dp(22), 1f));
         TextView versionView = button(readVersionName(), ROSE, 9);
         versionView.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
         versionView.setContentDescription("Версія застосунку " + readVersionName());
@@ -195,10 +303,10 @@ public final class TapAccessibilityService extends AccessibilityService {
         diagnosticsExpanded = true;
 
         boardCells = new TextView[GameBoard.SIDE][GameBoard.SIDE];
-        LinearLayout boardGrid = new LinearLayout(this);
-        boardGrid.setOrientation(LinearLayout.VERTICAL);
-        boardGrid.setPadding(dp(2), dp(1), dp(2), dp(1));
-        boardGrid.setBackground(round(0xFF21171B, 9));
+        blitzBoardGrid = new LinearLayout(this);
+        blitzBoardGrid.setOrientation(LinearLayout.VERTICAL);
+        blitzBoardGrid.setPadding(dp(2), dp(1), dp(2), dp(1));
+        blitzBoardGrid.setBackground(round(0xFF21171B, 9));
         for (int row = 0; row < GameBoard.SIDE; row++) {
             LinearLayout boardRow = new LinearLayout(this);
             boardRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -211,21 +319,52 @@ public final class TapAccessibilityService extends AccessibilityService {
                 cellParams.setMargins(dp(1), dp(1), dp(1), dp(1));
                 boardRow.addView(cell, cellParams);
             }
-            boardGrid.addView(boardRow, new LinearLayout.LayoutParams(-1, -2));
+            blitzBoardGrid.addView(boardRow, new LinearLayout.LayoutParams(-1, -2));
         }
-        diagnosticsPanel.addView(boardGrid, new LinearLayout.LayoutParams(-1, -2));
+        diagnosticsPanel.addView(blitzBoardGrid, new LinearLayout.LayoutParams(-1, -2));
+
+        mergeBoardCells = new TextView[MergeMadnessBoard.SIDE][MergeMadnessBoard.SIDE];
+        mergeBoardGrid = new LinearLayout(this);
+        mergeBoardGrid.setOrientation(LinearLayout.VERTICAL);
+        mergeBoardGrid.setPadding(dp(2), dp(1), dp(2), dp(1));
+        mergeBoardGrid.setBackground(round(0xFF21171B, 9));
+        for (int row = 0; row < MergeMadnessBoard.SIDE; row++) {
+            LinearLayout boardRow = new LinearLayout(this);
+            boardRow.setOrientation(LinearLayout.HORIZONTAL);
+            for (int column = 0; column < MergeMadnessBoard.SIDE; column++) {
+                TextView cell = button("·", 0xFF937D80, 10);
+                cell.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+                cell.setBackground(round(EMPTY_CELL, 4));
+                mergeBoardCells[row][column] = cell;
+                LinearLayout.LayoutParams cellParams = new LinearLayout.LayoutParams(0, dp(18), 1f);
+                cellParams.setMargins(dp(1), dp(1), dp(1), dp(1));
+                boardRow.addView(cell, cellParams);
+            }
+            mergeBoardGrid.addView(boardRow, new LinearLayout.LayoutParams(-1, -2));
+        }
+        diagnosticsPanel.addView(mergeBoardGrid, new LinearLayout.LayoutParams(-1, -2));
 
         boardInfoView = smallInfoText("Поле ще не прочитане");
         boardInfoView.setSingleLine(true);
         boardInfoView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(-1, -2);
-        infoParams.setMargins(dp(2), dp(3), dp(2), 0);
+        infoParams.setMargins(dp(2), dp(2), dp(2), 0);
         diagnosticsPanel.addView(boardInfoView, infoParams);
+
+        mergeDetailsView = smallInfoText("Зсув поля · ланцюжок · впевненість");
+        mergeDetailsView.setMinLines(2);
+        mergeDetailsView.setMaxLines(2);
+        mergeDetailsView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        mergeDetailsView.setVisibility(activeMode == BotMode.MERGE_MADNESS
+                ? View.VISIBLE : View.GONE);
+        LinearLayout.LayoutParams mergeDetailsParams = new LinearLayout.LayoutParams(-1, -2);
+        mergeDetailsParams.setMargins(dp(2), dp(1), dp(2), 0);
+        diagnosticsPanel.addView(mergeDetailsView, mergeDetailsParams);
 
         messageView = smallInfoText("Відкрий гру й натисни «Старт»");
         messageView.setTextColor(CREAM);
-        messageView.setMinLines(2);
-        messageView.setMaxLines(2);
+        messageView.setMinLines(1);
+        messageView.setMaxLines(1);
         messageView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams messageParams = new LinearLayout.LayoutParams(-1, -2);
         messageParams.setMargins(dp(2), dp(1), dp(2), 0);
@@ -236,34 +375,527 @@ public final class TapAccessibilityService extends AccessibilityService {
         scoreView.setSingleLine(true);
         scoreView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams scoreParams = new LinearLayout.LayoutParams(-1, -2);
-        scoreParams.setMargins(dp(2), dp(2), dp(2), dp(3));
+        scoreParams.setMargins(dp(2), dp(1), dp(2), dp(1));
         diagnosticsPanel.addView(scoreView, scoreParams);
-        root.addView(diagnosticsPanel, new LinearLayout.LayoutParams(-1, -2));
+        calibrationToggleButton = button("⚙ Калібрування", 0xFFFFD99B, 8);
+        calibrationToggleButton.setBackground(round(0xFF49353C, 8));
+        calibrationToggleButton.setContentDescription("Відкрити калібрування поля та зразків мишей");
+        calibrationToggleButton.setOnClickListener(view -> {
+            calibrationExpanded = !calibrationExpanded;
+            calibrationToggleButton.setText(calibrationExpanded
+                    ? "⌃ Калібрування" : "⚙ Калібрування");
+            updatePanelContentVisibility();
+            updateCalibrationStatus();
+        });
+        LinearLayout.LayoutParams calibrationToggleParams = new LinearLayout.LayoutParams(-1, dp(24));
+        calibrationToggleParams.setMargins(dp(1), dp(1), dp(1), 0);
+        diagnosticsPanel.addView(calibrationToggleButton, calibrationToggleParams);
+
+        calibrationPanel = createCalibrationPanel();
+        calibrationPanel.setVisibility(View.GONE);
+        LinearLayout.LayoutParams calibrationPanelParams = new LinearLayout.LayoutParams(-1, -2);
+        calibrationPanelParams.setMargins(dp(1), dp(2), dp(1), dp(2));
+        diagnosticsPanel.addView(calibrationPanel, calibrationPanelParams);
+
+        timerPanel = createTimerPanel();
+
+        compactTimerPreview = createCompactTimerPreview();
+        compactTimerPreview.setVisibility(View.GONE);
+
+        LinearLayout contentRow = new LinearLayout(this);
+        contentRow.setGravity(Gravity.TOP);
+
+        LinearLayout panelContent = new LinearLayout(this);
+        panelContent.setOrientation(LinearLayout.VERTICAL);
+        panelContent.addView(diagnosticsPanel, new LinearLayout.LayoutParams(-1, -2));
+        panelContent.addView(timerPanel, new LinearLayout.LayoutParams(-1, -2));
+        panelContent.addView(compactTimerPreview, new LinearLayout.LayoutParams(-1, dp(38)));
+        contentRow.addView(panelContent, new LinearLayout.LayoutParams(0, -2, 1f));
 
         LinearLayout controls = new LinearLayout(this);
-        controls.setGravity(Gravity.CENTER);
+        controls.setOrientation(LinearLayout.VERTICAL);
+        controls.setGravity(Gravity.TOP);
+        LinearLayout.LayoutParams controlsColumnParams = new LinearLayout.LayoutParams(dp(52), -2);
+        controlsColumnParams.setMargins(dp(4), 0, 0, 0);
+        contentRow.addView(controls, controlsColumnParams);
 
         playButton = button("▶\nСтарт", CREAM, 9);
         playButton.setBackground(round(0xFF526A4D, 10));
         playButton.setOnClickListener(view -> startAutoPlay());
         playButton.setContentDescription("Запустити бота Рюкзак-Бліц");
-        controls.addView(playButton, controlWeight());
+        controls.addView(playButton, stackedControlParams());
 
         TextView stopButton = button("■\nСтоп", CREAM, 9);
         stopButton.setBackground(round(0xFF78504E, 10));
         stopButton.setOnClickListener(view -> stopAutoPlay("Зупинено"));
         stopButton.setContentDescription("Зупинити бота");
-        controls.addView(stopButton, controlWeight());
+        controls.addView(stopButton, stackedControlParams());
 
         TextView closeButton = button("×\nСховати", CREAM, 9);
         closeButton.setBackground(round(0xFF493339, 10));
         closeButton.setOnClickListener(view -> closePanel());
         closeButton.setContentDescription("Сховати плаваючу панель");
-        controls.addView(closeButton, controlWeight());
+        controls.addView(closeButton, stackedControlParams());
 
-        root.addView(controls, new LinearLayout.LayoutParams(-1, dp(36)));
+        root.addView(contentRow, new LinearLayout.LayoutParams(-1, -2));
+        updateCalibrationStatus();
+        updateBotModeViews();
+        updatePanelContentVisibility();
         return root;
     }
+
+    private LinearLayout createCalibrationPanel() {
+        LinearLayout tools = new LinearLayout(this);
+        tools.setOrientation(LinearLayout.VERTICAL);
+        tools.setPadding(dp(4), dp(4), dp(4), dp(4));
+        tools.setBackground(round(0xFF38292F, 8));
+
+        calibrationStatusView = smallInfoText("");
+        calibrationStatusView.setMinLines(2);
+        calibrationStatusView.setMaxLines(2);
+        tools.addView(calibrationStatusView, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout fieldActions = new LinearLayout(this);
+        fieldActions.setGravity(Gravity.CENTER_VERTICAL);
+        TextView markField = button("Обвести поле", CREAM, 8);
+        markField.setBackground(round(0xFF526A4D, 8));
+        markField.setContentDescription("Намалювати рамку навколо всього поля 4 на 4");
+        markField.setOnClickListener(view -> beginBoardCalibration());
+        LinearLayout.LayoutParams fieldParams = new LinearLayout.LayoutParams(0, dp(30), 1f);
+        fieldParams.setMargins(0, 0, dp(3), 0);
+        fieldActions.addView(markField, fieldParams);
+
+        TextView automaticField = button("Автопошук", CREAM, 8);
+        automaticField.setBackground(round(0xFF49353C, 8));
+        automaticField.setContentDescription("Скинути рамку та повернути автоматичний пошук поля");
+        automaticField.setOnClickListener(view -> {
+            MergeMadnessCalibration.clearBoardGeometry(this);
+            updateCalibrationStatus();
+            Toast.makeText(this, "Ручну рамку поля скинуто", Toast.LENGTH_SHORT).show();
+        });
+        LinearLayout.LayoutParams automaticParams = new LinearLayout.LayoutParams(0, dp(30), 1f);
+        automaticParams.setMargins(dp(3), 0, 0, 0);
+        fieldActions.addView(automaticField, automaticParams);
+        LinearLayout.LayoutParams fieldActionsParams = new LinearLayout.LayoutParams(-1, dp(30));
+        fieldActionsParams.topMargin = dp(3);
+        tools.addView(fieldActions, fieldActionsParams);
+
+        LinearLayout sampleRow = new LinearLayout(this);
+        sampleRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView previousRank = button("−", CREAM, 15);
+        previousRank.setBackground(round(0xFF49353C, 8));
+        previousRank.setContentDescription("Попередній рівень миші для зразка");
+        previousRank.setOnClickListener(view -> setSelectedMouseSampleRank(selectedMouseSampleRank - 1));
+        sampleRow.addView(previousRank, new LinearLayout.LayoutParams(dp(33), dp(29)));
+
+        calibrationRankView = button("Рівень 11", CREAM, 8);
+        calibrationRankView.setContentDescription("Рівень, якому відповідає вибрана іконка нижнього ланцюжка");
+        sampleRow.addView(calibrationRankView,
+                new LinearLayout.LayoutParams(0, dp(29), 1f));
+
+        TextView nextRank = button("+", CREAM, 15);
+        nextRank.setBackground(round(0xFF49353C, 8));
+        nextRank.setContentDescription("Наступний рівень миші для зразка");
+        nextRank.setOnClickListener(view -> setSelectedMouseSampleRank(selectedMouseSampleRank + 1));
+        sampleRow.addView(nextRank, new LinearLayout.LayoutParams(dp(33), dp(29)));
+        LinearLayout.LayoutParams sampleRowParams = new LinearLayout.LayoutParams(-1, dp(29));
+        sampleRowParams.topMargin = dp(4);
+        tools.addView(sampleRow, sampleRowParams);
+
+        TextView learnMouse = button("Навчити за нижньою іконкою", CREAM, 8);
+        learnMouse.setBackground(round(0xFF59445B, 8));
+        learnMouse.setContentDescription("Обвести іконку вибраного рівня в ланцюжку злиття");
+        learnMouse.setOnClickListener(view -> beginMouseSampleCalibration());
+        LinearLayout.LayoutParams learnParams = new LinearLayout.LayoutParams(-1, dp(30));
+        learnParams.topMargin = dp(4);
+        tools.addView(learnMouse, learnParams);
+        return tools;
+    }
+
+    private void setSelectedMouseSampleRank(int rank) {
+        selectedMouseSampleRank = Math.max(1, Math.min(MergeMadnessBoard.MAX_RANK, rank));
+        if (calibrationRankView != null) calibrationRankView.setText("Рівень " + selectedMouseSampleRank);
+        updateCalibrationStatus();
+    }
+
+    private void updateCalibrationStatus() {
+        if (calibrationStatusView == null) return;
+        String field = MergeMadnessCalibration.hasBoardGeometry(this)
+                ? "рамка поля збережена" : "поле: автоматичний пошук";
+        calibrationStatusView.setText(field + "\n" + "Зразок рівня "
+                + selectedMouseSampleRank + " можна перезаписати знизу");
+    }
+
+    private void beginBoardCalibration() {
+        beginCalibration(CalibrationMode.BOARD,
+                "Обведи всю зовнішню рамку поля 4×4 одним рухом.", GREEN);
+    }
+
+    private void beginMouseSampleCalibration() {
+        beginCalibration(CalibrationMode.MOUSE_SAMPLE,
+                "Обведи тільки іконку миші рівня " + selectedMouseSampleRank
+                        + " у нижньому ланцюжку, без стрілок.", 0xFFFFD16F);
+    }
+
+    private void beginCalibration(CalibrationMode mode, String instructions, int accentColor) {
+        if (autoPlaying) stopAutoPlay("Зупинено для калібрування");
+        if (timerMode) setTimerMode(false);
+        removeCalibrationOverlay();
+        Point displaySize = screenSize();
+        calibrationScreenWidth = displaySize.x;
+        calibrationScreenHeight = displaySize.y;
+        if (calibrationScreenWidth <= 0 || calibrationScreenHeight <= 0) {
+            Toast.makeText(this, "Не вдалося визначити розмір екрана", Toast.LENGTH_LONG).show();
+            return;
+        }
+        calibrationOverlay = new CalibrationOverlay(this, windowManager, instructions,
+                accentColor, new CalibrationOverlay.Listener() {
+                    @Override public boolean isValid(RectF selection) {
+                        return isValidCalibrationSelection(mode, selection);
+                    }
+
+                    @Override public void onSave(RectF selection) {
+                        calibrationOverlay = null;
+                        saveCalibrationSelection(mode, selection);
+                    }
+
+                    @Override public void onCancel() {
+                        calibrationOverlay = null;
+                    }
+                });
+        try {
+            calibrationOverlay.show();
+            updateDiagnosticMessage("Калібрування увімкнено · намалюй рамку пальцем");
+        } catch (WindowManager.BadTokenException | IllegalStateException error) {
+            calibrationOverlay.dismiss();
+            calibrationOverlay = null;
+            Toast.makeText(this, "Не вдалося відкрити режим калібрування", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private Point screenSize() {
+        Point size = new Point();
+        windowManager.getDefaultDisplay().getRealSize(size);
+        return size;
+    }
+
+    private boolean isValidCalibrationSelection(CalibrationMode mode, RectF selection) {
+        if (selection == null || calibrationScreenWidth <= 0 || calibrationScreenHeight <= 0) {
+            return false;
+        }
+        if (mode == CalibrationMode.BOARD) {
+            return MergeMadnessCalibration.isValidBoardRectangle(selection,
+                    calibrationScreenWidth, calibrationScreenHeight);
+        }
+        return selection.width() >= dp(18) && selection.height() >= dp(10)
+                && selection.width() / selection.height() >= 0.35f
+                && selection.width() / selection.height() <= 4.0f
+                && selection.bottom < calibrationScreenHeight - dp(48);
+    }
+
+    private void saveCalibrationSelection(CalibrationMode mode, RectF selection) {
+        int sampleRank = selectedMouseSampleRank;
+        if (mode == CalibrationMode.BOARD) {
+            boolean saved = MergeMadnessCalibration.saveBoardRectangle(this,
+                    calibrationScreenWidth, calibrationScreenHeight, selection);
+            removeCalibrationOverlay();
+            if (saved) {
+                lastMergeGeometry = null;
+                updateCalibrationStatus();
+                updateDiagnosticMessage("Рамку поля збережено · автоматичний пошук стежитиме за зсувом");
+                Toast.makeText(this, "Поле 4×4 відкалібровано", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Не вдалося зберегти рамку поля", Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+
+        int screenWidth = calibrationScreenWidth;
+        int screenHeight = calibrationScreenHeight;
+        removeCalibrationOverlay();
+        handler.postDelayed(() -> captureMouseSample(sampleRank, selection,
+                screenWidth, screenHeight), 250L);
+    }
+
+    private void captureMouseSample(int rank, RectF screenBounds,
+                                    int sourceScreenWidth, int sourceScreenHeight) {
+        if (mergeMadnessVision == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            Toast.makeText(this, "Розпізнавач зразків мишей не готовий", Toast.LENGTH_LONG).show();
+            return;
+        }
+        takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(), new TakeScreenshotCallback() {
+            @Override public void onSuccess(ScreenshotResult screenshot) {
+                Bitmap bitmap = copyScreenshot(screenshot);
+                if (bitmap == null) {
+                    Toast.makeText(TapAccessibilityService.this,
+                            "Не вдалося зняти іконку з екрана", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                int width = bitmap.getWidth();
+                int height = bitmap.getHeight();
+                RectF imageBounds = new RectF(
+                        screenBounds.left * width / Math.max(1f, sourceScreenWidth),
+                        screenBounds.top * height / Math.max(1f, sourceScreenHeight),
+                        screenBounds.right * width / Math.max(1f, sourceScreenWidth),
+                        screenBounds.bottom * height / Math.max(1f, sourceScreenHeight));
+                int[] pixels = new int[width * height];
+                bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+                bitmap.recycle();
+                MergeMadnessVision vision = mergeMadnessVision;
+                solverExecutor.execute(() -> {
+                    boolean saved = vision.saveMouseSample(rank, pixels, width, height, imageBounds);
+                    handler.post(() -> showMouseSampleSaveResult(rank, saved));
+                });
+            }
+
+            @Override public void onFailure(int errorCode) {
+                Toast.makeText(TapAccessibilityService.this,
+                        "Android не дозволив зняти зразок (" + errorCode + ")",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void showMouseSampleSaveResult(int rank, boolean saved) {
+        if (saved) {
+            updateCalibrationStatus();
+            updateDiagnosticMessage("Зразок миші рівня " + rank + " збережено");
+            Toast.makeText(this, "Зразок рівня " + rank + " збережено", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(this, "Не вдалося зберегти зразок. Обведи лише іконку чіткіше.",
+                Toast.LENGTH_LONG).show();
+    }
+
+    private void removeCalibrationOverlay() {
+        if (calibrationOverlay != null) calibrationOverlay.dismiss();
+        calibrationOverlay = null;
+    }
+
+    private LinearLayout createTimerPanel() {
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(2), dp(1), dp(2), dp(2));
+
+        TextView heading = smallInfoText("ТАЙМЕРИ · НАГАДУВАННЯ");
+        heading.setTextColor(0xFFFFD99B);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        LinearLayout.LayoutParams headingParams = new LinearLayout.LayoutParams(-1, dp(20));
+        headingParams.bottomMargin = dp(3);
+        body.addView(heading, headingParams);
+
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.setClipToPadding(false);
+        scroll.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        timerRowsContainer = new LinearLayout(this);
+        timerRowsContainer.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(timerRowsContainer, new android.widget.ScrollView.LayoutParams(-1, -2));
+        body.addView(scroll, new LinearLayout.LayoutParams(-1, dp(55)));
+
+        TextView manage = button("＋ Налаштувати таймери", 0xFFE8D6C7, 8);
+        manage.setBackground(round(0xFF48343B, 8));
+        manage.setOnClickListener(view -> {
+            android.content.Intent intent = new android.content.Intent(this, TimerActivity.class)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        });
+        LinearLayout.LayoutParams manageParams = new LinearLayout.LayoutParams(-1, dp(27));
+        manageParams.topMargin = dp(4);
+        body.addView(manage, manageParams);
+        return body;
+    }
+
+    private LinearLayout createCompactTimerPreview() {
+        LinearLayout preview = new LinearLayout(this);
+        preview.setGravity(Gravity.CENTER_VERTICAL);
+        preview.setPadding(dp(6), dp(3), dp(4), dp(3));
+        preview.setBackground(round(0xFF35272D, 9));
+        preview.setOnClickListener(view -> setDiagnosticsExpanded(true));
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        compactTimerTitle = button("Немає таймерів", 0xFFF4E7D8, 9);
+        compactTimerTitle.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+        compactTimerTitle.setSingleLine(true);
+        compactTimerTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        compactTimerCountdown = button("Додай таймер у застосунку", 0xFFD4B7BF, 8);
+        compactTimerCountdown.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+        compactTimerCountdown.setSingleLine(true);
+        View.OnClickListener expandTimers = view -> setDiagnosticsExpanded(true);
+        compactTimerTitle.setOnClickListener(expandTimers);
+        compactTimerCountdown.setOnClickListener(expandTimers);
+        labels.addView(compactTimerTitle, new LinearLayout.LayoutParams(-1, dp(15)));
+        labels.addView(compactTimerCountdown, new LinearLayout.LayoutParams(-1, dp(14)));
+        preview.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        compactTimerRestart = button("↻", CREAM, 14);
+        compactTimerRestart.setBackground(round(0xFF526A4D, 8));
+        compactTimerRestart.setVisibility(View.GONE);
+        compactTimerRestart.setContentDescription("Перезапустити готовий таймер");
+        compactTimerRestart.setOnClickListener(view -> restartCompactTimer());
+        preview.addView(compactTimerRestart, new LinearLayout.LayoutParams(dp(34), dp(30)));
+        return preview;
+    }
+
+    private void setTimerMode(boolean enabled) {
+        timerMode = enabled;
+        refreshTimerPanel();
+        updatePanelContentVisibility();
+    }
+
+    private void updatePanelContentVisibility() {
+        if (diagnosticsPanel != null) {
+            diagnosticsPanel.setVisibility(!timerMode && diagnosticsExpanded ? View.VISIBLE : View.GONE);
+        }
+        if (timerPanel != null) {
+            timerPanel.setVisibility(timerMode && diagnosticsExpanded ? View.VISIBLE : View.GONE);
+        }
+        if (compactTimerPreview != null) {
+            compactTimerPreview.setVisibility(timerMode && !diagnosticsExpanded ? View.VISIBLE : View.GONE);
+        }
+        if (calibrationPanel != null) {
+            calibrationPanel.setVisibility(activeMode == BotMode.MERGE_MADNESS
+                    && diagnosticsExpanded && !timerMode && calibrationExpanded
+                    ? View.VISIBLE : View.GONE);
+        }
+        if (panel != null && panelParams != null && windowManager != null) {
+            try { windowManager.updateViewLayout(panel, panelParams); }
+            catch (IllegalArgumentException ignored) { }
+        }
+    }
+
+    private void startTimerTicker() {
+        handler.removeCallbacks(timerTicker);
+        if (panel != null && panel.getVisibility() == View.VISIBLE) handler.post(timerTicker);
+    }
+
+    private void refreshTimerPanel() {
+        if (panel == null || timerRowsContainer == null) return;
+        long revision = TimerStore.getRevision(this);
+        if (revision != renderedTimerRevision) rebuildTimerRows();
+
+        long now = SystemClock.elapsedRealtime();
+        for (TimerRow row : timerRows) {
+            boolean ready = row.item.isReady(now);
+            row.countdown.setText(ready ? "ГОТОВО" : formatTimerDuration(row.item.deadlineElapsedMs - now));
+            row.countdown.setTextColor(ready ? 0xFF9DD09E : 0xFFFFD99B);
+            row.restart.setVisibility(ready ? View.VISIBLE : View.GONE);
+        }
+        updateCompactTimerPreview(now);
+    }
+
+    private void rebuildTimerRows() {
+        timerRowsContainer.removeAllViews();
+        timerRows.clear();
+        List<TimerItem> items = TimerStore.getTimers(this);
+        for (TimerItem item : items) {
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(5), dp(3), dp(4), dp(3));
+            row.setBackground(round(0xFF392B31, 8));
+
+            LinearLayout labels = new LinearLayout(this);
+            labels.setOrientation(LinearLayout.VERTICAL);
+            TextView name = button(item.emoji + " " + item.name, 0xFFF1E5D9, 9);
+            name.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+            name.setSingleLine(true);
+            name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            TextView countdown = smallInfoText("");
+            countdown.setSingleLine(true);
+            LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(-1, dp(17));
+            labels.addView(name, nameParams);
+            labels.addView(countdown, new LinearLayout.LayoutParams(-1, dp(15)));
+            row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
+
+            TextView restart = button("↻", CREAM, 13);
+            restart.setBackground(round(0xFF526A4D, 8));
+            restart.setVisibility(View.GONE);
+            restart.setContentDescription("Виконавши дію, перезапусти таймер «" + item.name + "»");
+            restart.setOnClickListener(view -> {
+                TimerStore.restartTimer(this, item.id);
+                refreshTimerPanel();
+            });
+            row.addView(restart, new LinearLayout.LayoutParams(dp(32), dp(30)));
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
+            rowParams.bottomMargin = dp(4);
+            timerRowsContainer.addView(row, rowParams);
+            timerRows.add(new TimerRow(item, countdown, restart));
+        }
+
+        if (items.isEmpty()) {
+            TextView empty = smallInfoText("Немає таймерів · додай їх у застосунку");
+            empty.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
+            timerRowsContainer.addView(empty, new LinearLayout.LayoutParams(-1, dp(43)));
+        }
+        int visibleCount = Math.max(1, Math.min(3, items.size()));
+        View scroll = timerRowsContainer.getParent() instanceof View ? (View) timerRowsContainer.getParent() : null;
+        if (scroll != null && scroll.getLayoutParams() != null) {
+            scroll.getLayoutParams().height = dp(items.isEmpty() ? 42 : visibleCount * 42);
+            scroll.requestLayout();
+        }
+        renderedTimerRevision = TimerStore.getRevision(this);
+    }
+
+    private void updateCompactTimerPreview(long now) {
+        List<TimerItem> items = TimerStore.getTimers(this);
+        TimerItem selected = null;
+        for (TimerItem item : items) {
+            if (item.isReady(now)) {
+                if (selected == null || !selected.isReady(now)
+                        || item.deadlineElapsedMs < selected.deadlineElapsedMs) selected = item;
+            } else if (selected == null || (!selected.isReady(now)
+                    && item.deadlineElapsedMs < selected.deadlineElapsedMs)) {
+                selected = item;
+            }
+        }
+        if (selected == null) {
+            compactTimerSelectedId = null;
+            compactTimerTitle.setText("Немає таймерів");
+            compactTimerCountdown.setText("Додай таймер у застосунку");
+            compactTimerRestart.setVisibility(View.GONE);
+            compactTimerRestart.setOnClickListener(null);
+            return;
+        }
+        compactTimerSelectedId = selected.id;
+        boolean ready = selected.isReady(now);
+        compactTimerTitle.setText(selected.emoji + " " + selected.name);
+        compactTimerCountdown.setText(ready ? "ГОТОВО · виконай дію"
+                : formatTimerDuration(selected.deadlineElapsedMs - now));
+        compactTimerCountdown.setTextColor(ready ? 0xFF9DD09E : 0xFFD4B7BF);
+        compactTimerRestart.setVisibility(ready ? View.VISIBLE : View.GONE);
+        compactTimerRestart.setOnClickListener(view -> restartCompactTimer());
+    }
+
+    private void restartCompactTimer() {
+        String selectedId = compactTimerSelectedId;
+        if (selectedId != null && TimerStore.restartTimer(this, selectedId)) refreshTimerPanel();
+    }
+
+    private String formatTimerDuration(long durationMs) {
+        long seconds = Math.max(0L, (durationMs + 999L) / 1_000L);
+        long days = seconds / 86_400L;
+        long hours = (seconds % 86_400L) / 3_600L;
+        long minutes = (seconds % 3_600L) / 60L;
+        long remainder = seconds % 60L;
+        if (days > 0L) return String.format(java.util.Locale.ROOT, "%dд %02d:%02d:%02d", days, hours, minutes, remainder);
+        if (hours > 0L) return String.format(java.util.Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainder);
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes, remainder);
+    }
+
+    private static final class TimerRow {
+        final TimerItem item;
+        final TextView countdown;
+        final TextView restart;
+
+        TimerRow(TimerItem item, TextView countdown, TextView restart) {
+            this.item = item;
+            this.countdown = countdown;
+            this.restart = restart;
+        }
+    }
+
+    private enum CalibrationMode { BOARD, MOUSE_SAMPLE }
 
     private View.OnTouchListener createDragListener() {
         return createDragListener(false);
@@ -310,9 +942,8 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void setDiagnosticsExpanded(boolean expanded) {
         diagnosticsExpanded = expanded;
-        if (diagnosticsPanel != null) {
-            diagnosticsPanel.setVisibility(expanded ? View.VISIBLE : View.GONE);
-        }
+        if (expanded) refreshTimerPanel();
+        updatePanelContentVisibility();
     }
 
     private TextView smallInfoText(String initialText) {
@@ -340,6 +971,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             Toast.makeText(this, "Автогра потребує Android 11 або новішу версію", Toast.LENGTH_LONG).show();
             return;
         }
+        if (timerMode) setTimerMode(false);
         if (autoPlaying) return;
         int currentRun = ++runGeneration;
         autoPlaying = true;
@@ -347,6 +979,9 @@ public final class TapAccessibilityService extends AccessibilityService {
         moveCount = 0;
         previousBoard = null;
         stableCandidateBoard = null;
+        previousMergeBoard = null;
+        stableCandidateMergeBoard = null;
+        stableCandidateMergeGeometry = null;
         stableCandidateReads = 0;
         stabilizationReads = 0;
         unchangedSwipeRetries = 0;
@@ -354,6 +989,10 @@ public final class TapAccessibilityService extends AccessibilityService {
         lastRecognitionError = null;
         lastChoice = null;
         lastGeometry = null;
+        lastMergeMove = null;
+        lastMergeGeometry = null;
+        awaitingMergeTransition = false;
+        mergeSpawnModel.reset();
         noMoveReads = 0;
         clearBoardPreview();
         updatePanel("АНАЛІЗ ПОЛЯ");
@@ -372,8 +1011,24 @@ public final class TapAccessibilityService extends AccessibilityService {
                 }
             }
         }
-        if (boardInfoView != null) boardInfoView.setText("Чекаю на поле 8×8");
-        if (scoreView != null) scoreView.setText("Шукаю сусідні заміни");
+        if (mergeBoardCells != null) {
+            for (int row = 0; row < MergeMadnessBoard.SIDE; row++) {
+                for (int column = 0; column < MergeMadnessBoard.SIDE; column++) {
+                    TextView cell = mergeBoardCells[row][column];
+                    cell.setText("·");
+                    cell.setTextColor(0xFF937D80);
+                    cell.setBackground(round(EMPTY_CELL, 4));
+                }
+            }
+        }
+        if (activeMode == BotMode.MERGE_MADNESS) {
+            if (boardInfoView != null) boardInfoView.setText("Чекаю на поле 4×4");
+            if (scoreView != null) scoreView.setText("Шукаю найкращий напрямок");
+            if (mergeDetailsView != null) mergeDetailsView.setText("Зсув поля · ланцюжок · впевненість");
+        } else {
+            if (boardInfoView != null) boardInfoView.setText("Чекаю на поле 8×8");
+            if (scoreView != null) scoreView.setText("Шукаю сусідні заміни");
+        }
     }
 
     private void readBoardAndMove(int currentRun) {
@@ -395,7 +1050,21 @@ public final class TapAccessibilityService extends AccessibilityService {
                     stopAutoPlay("Не вдалося прочитати екран");
                     return;
                 }
+                BoardVision.Geometry geometryAnchor = activeMode == BotMode.MERGE_MADNESS
+                        ? lastMergeGeometry : null;
+                BoardVision.Geometry calibratedGeometry = activeMode == BotMode.MERGE_MADNESS
+                        ? MergeMadnessCalibration.boardGeometry(TapAccessibilityService.this,
+                        bitmap.getWidth(), bitmap.getHeight()) : null;
                 solverExecutor.execute(() -> {
+                    if (activeMode == BotMode.MERGE_MADNESS) {
+                        MergeMadnessVision.Result result = mergeMadnessVision == null
+                                ? MergeMadnessVision.Result.error("Розпізнавач 2048 не готовий.")
+                                : mergeMadnessVision.recognize(bitmap, geometryAnchor,
+                                calibratedGeometry);
+                        bitmap.recycle();
+                        handler.post(() -> handleMergeBoardRead(currentRun, result));
+                        return;
+                    }
                     BoardVision.Result result = boardVision.recognize(bitmap);
                     bitmap.recycle();
                     handler.post(() -> handleBoardRead(currentRun, result));
@@ -469,6 +1138,58 @@ public final class TapAccessibilityService extends AccessibilityService {
         chooseMoveForStableBoard(currentRun, result);
     }
 
+    private void handleMergeBoardRead(int currentRun, MergeMadnessVision.Result result) {
+        if (!isCurrentRun(currentRun)) return;
+        screenshotPending = false;
+        if (!result.isSuccess()) {
+            lastRecognitionError = result.error;
+            if (result.geometry != null && result.partialRanks != null
+                    && result.recognizedCells != null) {
+                updateMergePartialDiagnostic(result);
+            } else {
+                clearMergeDiagnostic("Кадр не розпізнано");
+            }
+            updateDiagnosticMessage("КАДР НЕЧІТКИЙ · " + stabilizationReads + "/"
+                    + MAX_STABILIZATION_READS + " · " + result.error);
+            scheduleStabilityRead(currentRun);
+            return;
+        }
+
+        lastRecognitionError = null;
+        if (result.board.equals(stableCandidateMergeBoard)
+                && MergeMadnessLayout.isStable(stableCandidateMergeGeometry, result.geometry)) {
+            stableCandidateReads++;
+        } else {
+            stableCandidateMergeBoard = result.board;
+            stableCandidateMergeGeometry = result.geometry;
+            stableCandidateReads = 1;
+        }
+        String phase = stableCandidateReads >= STABLE_FRAME_COUNT ? "СТАБІЛЬНЕ" : "ПЕРЕВІРКА";
+        updateMergeDiagnostic(result, phase);
+        if (stableCandidateReads < STABLE_FRAME_COUNT) {
+            scheduleStabilityRead(currentRun);
+            return;
+        }
+
+        if (awaitingMergeTransition && previousMergeBoard != null
+                && !result.board.equals(previousMergeBoard) && lastMergeMove != null) {
+            MergeMadnessTransition transition = MergeMadnessTransition.analyze(
+                    previousMergeBoard, lastMergeMove.direction, result.board);
+            if (!transition.expected) {
+                lastRecognitionError = "Зміна поля не відповідає свайпу й одній новій плитці";
+                updateMergeDiagnostic(result, "ПЕРЕВІРЯЮ ПЕРЕХІД");
+                updateDiagnosticMessage("Перевіряю, чи завершилося переміщення плиток…");
+                scheduleStabilityRead(currentRun);
+                return;
+            }
+            mergeSpawnModel.observeIfConfirmed(transition);
+            awaitingMergeTransition = false;
+        }
+
+        stabilizationReads = 0;
+        chooseMergeMoveForStableBoard(currentRun, result);
+    }
+
     private long timeUntilNextScreenshotMs() {
         if (lastSuccessfulScreenshotAtMs <= 0L) return 0L;
         return Math.max(0L, MIN_SCREENSHOT_INTERVAL_MS
@@ -539,6 +1260,38 @@ public final class TapAccessibilityService extends AccessibilityService {
         });
     }
 
+    private void chooseMergeMoveForStableBoard(int currentRun, MergeMadnessVision.Result result) {
+        if (result.board.equals(previousMergeBoard)) {
+            long elapsedSinceSwipe = SystemClock.uptimeMillis() - lastSwipeCompletedAtMs;
+            if (lastSwipeCompletedAtMs > 0L
+                    && elapsedSinceSwipe < getNoChangeTimeoutMs(this)) {
+                updatePanel("ОЧІКУЮ ЗМІНУ ПОЛЯ");
+                updateDiagnosticMessage("Чекаю, поки плитки посунуться…");
+                handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
+                return;
+            }
+            if (lastMergeMove == null || lastMergeGeometry == null || unchangedSwipeRetries >= 1) {
+                stopAutoPlay("Свайп не змінив поле. Перевір гру та повтори запуск.");
+                return;
+            }
+
+            unchangedSwipeRetries++;
+            updateMergeDiagnostic(result, "ПОВТОР СВАЙПУ");
+            updatePanel("ПОВТОР СВАЙПУ");
+            lastMergeGeometry = result.geometry;
+            dispatchMergeSwipe(lastMergeMove, result.geometry, currentRun, true);
+            return;
+        }
+
+        unchangedSwipeRetries = 0;
+        previousMergeBoard = result.board;
+        solverExecutor.execute(() -> {
+            MergeMadnessSolver.Move move = mergeMadnessSolver.chooseMove(
+                    result.board, mergeSpawnModel);
+            handler.post(() -> handleMergeDecision(currentRun, result, move));
+        });
+    }
+
     private void handleDecision(int currentRun, BoardVision.Result result, GameSolver.Choice choice) {
         if (!isCurrentRun(currentRun)) return;
         if (choice.waitingForResolution) {
@@ -586,6 +1339,30 @@ public final class TapAccessibilityService extends AccessibilityService {
         dispatchSwap(choice, result.geometry, currentRun, false);
     }
 
+    private void handleMergeDecision(int currentRun, MergeMadnessVision.Result result,
+                                     MergeMadnessSolver.Move move) {
+        if (!isCurrentRun(currentRun)) return;
+        if (move == null) {
+            updateMergeDiagnostic(result, "НЕМАЄ ДОСТУПНОГО ХОДУ");
+            stopAutoPlay("На полі більше немає доступних свайпів.");
+            return;
+        }
+
+        updateMergeDiagnostic(result, "НАСТУПНИЙ СВАЙП");
+        if (messageView != null) {
+            messageView.setText("Свайп " + move.direction.label + " · злиттів " + move.mergedCount
+                    + "\nРозрахункова оцінка " + Math.round(move.value));
+        }
+        if (scoreView != null) {
+            scoreView.setText("Глибина " + move.searchDepth + "/"
+                    + MergeMadnessSolver.MAX_SEARCH_DEPTH + " · " + move.elapsedMs + " мс");
+        }
+        lastMergeMove = move;
+        lastMergeGeometry = result.geometry;
+        updatePanel("СВАЙП " + move.direction.label.toUpperCase(java.util.Locale.ROOT));
+        dispatchMergeSwipe(move, result.geometry, currentRun, false);
+    }
+
     private String specialName(int specialType) {
         if (specialType == GameBoard.ROCKET) return "ракети";
         if (specialType == GameBoard.BOMB) return "бомби";
@@ -613,6 +1390,51 @@ public final class TapAccessibilityService extends AccessibilityService {
         float startY = geometry.centerY(firstRow);
         float endX = geometry.centerX(secondColumn);
         float endY = geometry.centerY(secondRow);
+        dispatchSwipeGesture(startX, startY, endX, endY, currentRun, retry);
+    }
+
+    private void dispatchMergeSwipe(MergeMadnessSolver.Move move, BoardVision.Geometry geometry,
+                                    int currentRun, boolean retry) {
+        if (move == null || geometry == null) {
+            stopAutoPlay("Немає координат для свайпу");
+            return;
+        }
+        float startX;
+        float startY;
+        float endX;
+        float endY;
+        switch (move.direction) {
+            case LEFT:
+                startX = geometry.centerX(3);
+                startY = geometry.centerY(1);
+                endX = geometry.centerX(1);
+                endY = startY;
+                break;
+            case RIGHT:
+                startX = geometry.centerX(0);
+                startY = geometry.centerY(2);
+                endX = geometry.centerX(2);
+                endY = startY;
+                break;
+            case UP:
+                startX = geometry.centerX(1);
+                startY = geometry.centerY(3);
+                endX = startX;
+                endY = geometry.centerY(1);
+                break;
+            case DOWN:
+            default:
+                startX = geometry.centerX(2);
+                startY = geometry.centerY(0);
+                endX = startX;
+                endY = geometry.centerY(2);
+                break;
+        }
+        dispatchSwipeGesture(startX, startY, endX, endY, currentRun, retry);
+    }
+
+    private void dispatchSwipeGesture(float startX, float startY, float endX, float endY,
+                                      int currentRun, boolean retry) {
         long durationMs = getSwipeDurationMs(this);
         if (retry) durationMs = Math.min(MAX_SWIPE_DURATION_MS, durationMs + 60L);
 
@@ -628,9 +1450,12 @@ public final class TapAccessibilityService extends AccessibilityService {
                 moveCount++;
                 lastSwipeCompletedAtMs = SystemClock.uptimeMillis();
                 stableCandidateBoard = null;
+                stableCandidateMergeBoard = null;
+                stableCandidateMergeGeometry = null;
                 stableCandidateReads = 0;
                 stabilizationReads = 0;
                 lastRecognitionError = null;
+                if (activeMode == BotMode.MERGE_MADNESS) awaitingMergeTransition = true;
                 updatePanel("ЧЕКАЮ НА КАДР");
                 long scanDelay = Math.max(MIN_POST_SWIPE_SETTLE_MS,
                         timeUntilNextScreenshotMs());
@@ -676,6 +1501,118 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
     }
 
+    private void updateMergeDiagnostic(MergeMadnessVision.Result result, String phase) {
+        if (mergeBoardCells == null) return;
+        MergeMadnessBoard board = result.board;
+        int occupied = 0;
+        int maxRank = 0;
+        for (int row = 0; row < MergeMadnessBoard.SIDE; row++) {
+            for (int column = 0; column < MergeMadnessBoard.SIDE; column++) {
+                int rank = board.get(row, column);
+                TextView cell = mergeBoardCells[row][column];
+                if (rank == 0) {
+                    cell.setText("·");
+                    cell.setTextColor(0xFF937D80);
+                    cell.setBackground(round(EMPTY_CELL, 4));
+                } else {
+                    occupied++;
+                    maxRank = Math.max(maxRank, rank);
+                    cell.setText(Integer.toString(rank));
+                    cell.setTextColor(CREAM);
+                    cell.setBackground(round(mergeRankColor(rank), 4));
+                }
+            }
+        }
+        if (boardInfoView != null) {
+            boardInfoView.setText(occupied + "/16 плиток · макс. рівень " + maxRank
+                    + " · " + Math.round(result.similarity * 100) + "%");
+        }
+        if (mergeDetailsView != null) {
+            mergeDetailsView.setText("Поле Y=" + Math.round(result.geometry.firstCenterY)
+                    + " px · крок " + Math.round(result.geometry.cellStepPx)
+                    + " px · ланцюжок "
+                    + result.progressionRows + " ряди, " + result.progressionRanks
+                    + " рівнів\nВпевненість плиток " + Math.round(result.similarity * 100)
+                    + "% · геометрія " + Math.round(result.geometryConfidence * 100) + "%");
+        }
+        if (messageView != null) messageView.setText(phase);
+    }
+
+    private void updateMergePartialDiagnostic(MergeMadnessVision.Result result) {
+        if (mergeBoardCells == null) return;
+        int known = 0;
+        int occupied = 0;
+        int maxRank = 0;
+        for (int row = 0; row < MergeMadnessBoard.SIDE; row++) {
+            for (int column = 0; column < MergeMadnessBoard.SIDE; column++) {
+                int index = row * MergeMadnessBoard.SIDE + column;
+                TextView cell = mergeBoardCells[row][column];
+                if (!result.recognizedCells[index]) {
+                    cell.setText("?");
+                    cell.setTextColor(0xFFFFD4BA);
+                    cell.setBackground(round(0xFF49343A, 4));
+                    continue;
+                }
+                known++;
+                int rank = result.partialRanks[index];
+                if (rank == 0) {
+                    cell.setText("·");
+                    cell.setTextColor(0xFF937D80);
+                    cell.setBackground(round(EMPTY_CELL, 4));
+                } else {
+                    occupied++;
+                    maxRank = Math.max(maxRank, rank);
+                    cell.setText(Integer.toString(rank));
+                    cell.setTextColor(CREAM);
+                    cell.setBackground(round(mergeRankColor(rank), 4));
+                }
+            }
+        }
+        if (boardInfoView != null) {
+            boardInfoView.setText(known + "/16 клітинок · прочитано " + occupied
+                    + " мишей · макс. рівень " + maxRank);
+        }
+        if (mergeDetailsView != null) {
+            mergeDetailsView.setText("Поле Y=" + Math.round(result.geometry.firstCenterY)
+                    + " px · крок " + Math.round(result.geometry.cellStepPx)
+                    + " px · ланцюжок "
+                    + result.progressionRows + " ряди, " + result.progressionRanks
+                    + " рівнів\nНевизначені клітинки позначені «?»");
+        }
+        if (scoreView != null) scoreView.setText("Очікую на чіткий кадр 4×4");
+    }
+
+    private void clearMergeDiagnostic(String status) {
+        if (mergeBoardCells != null) {
+            for (TextView[] row : mergeBoardCells) {
+                for (TextView cell : row) {
+                    cell.setText("?");
+                    cell.setTextColor(0xFFFFD4BA);
+                    cell.setBackground(round(0xFF49343A, 4));
+                }
+            }
+        }
+        if (boardInfoView != null) boardInfoView.setText(status + " · дані поля невідомі");
+        if (scoreView != null) scoreView.setText("Очікую на чіткий кадр 4×4");
+        if (mergeDetailsView != null) mergeDetailsView.setText("Зсув поля невідомий · ланцюжок нечиткий");
+    }
+
+    private int mergeRankColor(int rank) {
+        switch (rank) {
+            case 1: return 0xFF785B51;
+            case 2: return 0xFF49464A;
+            case 3: return 0xFF686B70;
+            case 4: return 0xFF76645F;
+            case 5: return 0xFF568E53;
+            case 6: return 0xFF638344;
+            case 7: return 0xFFB18B42;
+            case 8: return 0xFF914F50;
+            default:
+                int shade = Math.min(100, 57 + rank * 2);
+                return Color.rgb(shade, 39, Math.min(100, shade + 18));
+        }
+    }
+
     private void updateDiagnosticMessage(String message) {
         if (messageView != null) messageView.setText(message);
     }
@@ -691,7 +1628,7 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void updatePanel() {
         if (autoPlaying) updatePanel("АВТО · ХІД " + moveCount);
-        else updatePanel("РЮКЗАК-БЛІЦ · ГОТОВИЙ");
+        else updatePanel(activeMode.panelTitle + " · ГОТОВИЙ");
     }
 
     private void updatePanel(String label) {
@@ -700,19 +1637,41 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
     private void closePanel() {
+        handler.removeCallbacks(timerTicker);
+        removeCalibrationOverlay();
         stopAutoPlay("Зупинено");
         if (panel != null && windowManager != null) {
             try { windowManager.removeView(panel); } catch (IllegalArgumentException ignored) { }
         }
         panel = null;
         panelParams = null;
+        panelTitle = null;
         stateChip = null;
         playButton = null;
         boardInfoView = null;
         messageView = null;
         scoreView = null;
+        mergeDetailsView = null;
+        calibrationToggleButton = null;
+        calibrationStatusView = null;
+        calibrationRankView = null;
         boardCells = null;
+        mergeBoardCells = null;
+        blitzBoardGrid = null;
+        mergeBoardGrid = null;
         diagnosticsPanel = null;
+        calibrationPanel = null;
+        calibrationExpanded = false;
+        timerPanel = null;
+        timerRowsContainer = null;
+        compactTimerPreview = null;
+        compactTimerTitle = null;
+        compactTimerCountdown = null;
+        compactTimerRestart = null;
+        compactTimerSelectedId = null;
+        timerRows.clear();
+        renderedTimerRevision = -1L;
+        timerMode = false;
         diagnosticsExpanded = false;
     }
 
@@ -737,9 +1696,9 @@ public final class TapAccessibilityService extends AccessibilityService {
         return drawable;
     }
 
-    private LinearLayout.LayoutParams controlWeight() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1f);
-        params.setMargins(dp(3), 0, dp(3), 0);
+    private LinearLayout.LayoutParams stackedControlParams() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(44));
+        params.setMargins(0, dp(2), 0, dp(2));
         return params;
     }
 

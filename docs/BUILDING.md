@@ -44,7 +44,7 @@ gradle/wrapper/                         версія Gradle Wrapper
 ## Поточна конфігурація
 
 - `applicationId`: `ua.borlock.autotap`.
-- Версія застосунку: `1.8.7` (`versionCode` 30).
+- Версія застосунку: `1.9.16` (`versionCode` 47).
 - `minSdk`: 24; для знімків екрана AccessibilityService потрібен Android 11 / API 30 або новіший.
 - `targetSdk` / `compileSdk`: 35.
 
