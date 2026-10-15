@@ -16,16 +16,23 @@ def replace_once(source, old, new):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--games", type=int, default=8)
-    parser.add_argument("--moves", type=int, default=500)
+    parser.add_argument("--games", type=int, default=8, help="Paired seed count per policy (default: 8)")
+    parser.add_argument("--moves", type=int, default=20_000,
+                        help="Per-game move guard; a live board at this limit is censored (default: 20000)")
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--seed-start", type=int, default=1)
+    parser.add_argument("--target-rank", type=int, default=15,
+                        help="Stop successfully at this game rank (default: 15)")
+    parser.add_argument("--start", choices=("mixed", "early", "user", "late"), default="mixed",
+                        help="late uses synthetic snake positions, never full-game wins")
     parser.add_argument("--spawn-probability", type=float, default=.90)
     parser.add_argument("--policies", default="greedy,expectimax2,current,adaptive4,expectimax4,minimax")
     parser.add_argument("--output", type=Path, required=True, help="Output path prefix, outside the repository")
     args = parser.parse_args()
     if args.games <= 0 or args.moves <= 0 or args.workers <= 0 or not 0 < args.spawn_probability < 1:
         parser.error("games, moves and workers must be positive; probability must be between 0 and 1")
+    if not 10 <= args.target_rank <= 15:
+        parser.error("target-rank must be between 10 and the game's final rank 15")
     root = Path(__file__).resolve().parents[1]
     java_sources = root / "app/src/main/java/ua/borlock/autotap"
     java_home = os.environ.get("JAVA_HOME")
@@ -81,7 +88,8 @@ def main():
         subprocess.run([java, "-Xms256m", "-Xmx768m", "-XX:ActiveProcessorCount=2",
                         "-cp", str(classes), "ua.borlock.autotap.MergeMadnessAlgorithmBenchmark",
                         str(args.games), str(args.moves), str(args.workers), str(args.seed_start),
-                        str(args.output), str(args.spawn_probability), args.policies], check=True)
+                        str(args.output), str(args.spawn_probability), args.policies,
+                        str(args.target_rank), args.start], check=True)
 
 
 if __name__ == "__main__":

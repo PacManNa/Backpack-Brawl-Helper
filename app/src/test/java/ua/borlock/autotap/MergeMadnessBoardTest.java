@@ -43,6 +43,34 @@ public final class MergeMadnessBoardTest {
                 new int[]{12, 11, 0, 11}, new int[]{0, 0, 12, 12}, 1);
     }
 
+    @Test public void mergesEveryGameRankThroughFifteenInEveryDirection() {
+        for (int rank = 1; rank < 15; rank++) {
+            for (MergeMadnessSolver.Direction direction : MergeMadnessSolver.Direction.values()) {
+                boolean reverse = direction == MergeMadnessSolver.Direction.RIGHT
+                        || direction == MergeMadnessSolver.Direction.DOWN;
+                MergeMadnessBoard.SlideResult result = assertSlide(direction,
+                        new int[]{rank, rank, rank, rank},
+                        reverse ? new int[]{0, 0, rank + 1, rank + 1}
+                                : new int[]{rank + 1, rank + 1, 0, 0}, 2);
+                assertEquals(2L * (1L << (rank + 1)), result.mergePoints);
+            }
+        }
+    }
+
+    @Test public void aHighRankMergeCannotChainAgainDuringOneSwipe() {
+        for (int rank = 10; rank < 15; rank++) {
+            for (MergeMadnessSolver.Direction direction : MergeMadnessSolver.Direction.values()) {
+                boolean reverse = direction == MergeMadnessSolver.Direction.RIGHT
+                        || direction == MergeMadnessSolver.Direction.DOWN;
+                assertSlide(direction,
+                        reverse ? new int[]{rank + 1, 0, rank, rank}
+                                : new int[]{rank, rank, 0, rank + 1},
+                        reverse ? new int[]{0, 0, rank + 1, rank + 1}
+                                : new int[]{rank + 1, rank + 1, 0, 0}, 1);
+            }
+        }
+    }
+
     @Test public void swipesConserveTileValueForEverySmallLineInEveryDirection() {
         for (int encoded = 0; encoded < 6 * 6 * 6 * 6; encoded++) {
             int[] ranks = new int[16];
@@ -64,8 +92,9 @@ public final class MergeMadnessBoardTest {
         return result;
     }
 
-    private void assertSlide(MergeMadnessSolver.Direction direction, int[] line, int[] expected,
-                             int expectedMergeCount) {
+    private MergeMadnessBoard.SlideResult assertSlide(MergeMadnessSolver.Direction direction,
+                                                      int[] line, int[] expected,
+                                                      int expectedMergeCount) {
         int[] values = new int[MergeMadnessBoard.CELL_COUNT];
         for (int position = 0; position < line.length; position++) {
             int index;
@@ -87,5 +116,7 @@ public final class MergeMadnessBoardTest {
         }
         assertArrayEquals(expected, actual);
         assertEquals(expectedMergeCount, result.mergedCount);
+        assertEquals(tileValue(new MergeMadnessBoard(values)), tileValue(result.board));
+        return result;
     }
 }

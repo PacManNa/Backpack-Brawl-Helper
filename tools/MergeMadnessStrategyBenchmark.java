@@ -6,7 +6,10 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Paired seeded simulation of the new expectimax policy and a one-step baseline. */
+/**
+ * Historical early/midgame comparison: 500 moves and a rank-10 milestone.
+ * For the actual rank-15 target use tools/check-merge-madness-algorithms.py.
+ */
 public final class MergeMadnessStrategyBenchmark {
     private static int scenarios = 500;
     private static final int MOVE_LIMIT = 500;
