@@ -52,6 +52,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     private static final int MAX_STABILIZATION_READS = 12;
     private static final long MIN_POST_SWIPE_SETTLE_MS = 120L;
     private static final long MIN_SCREENSHOT_INTERVAL_MS = 334L;
+    private static final float COMPACT_CONTROL_HEIGHT_DP = 48f * 0.60f;
     private static final int PLUM = Color.rgb(48, 32, 38);
     private static final int ROSE = Color.rgb(218, 139, 147);
     private static final int CREAM = Color.rgb(248, 236, 218);
@@ -328,12 +329,12 @@ public final class TapAccessibilityService extends AccessibilityService {
         titleRow.addView(dragHandle, new LinearLayout.LayoutParams(0, -2, 1f));
 
         TextView minimize = button("В іконку", CREAM, 10);
-        minimize.setMinHeight(dp(48));
+        minimize.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
         minimize.setContentDescription("Згорнути панель до іконки; бот продовжить роботу");
         minimize.setBackground(round(0xFF49353C, 10));
         minimize.setOnClickListener(view -> setCollapsedToBubble(true));
         titleRow.addView(minimize, new LinearLayout.LayoutParams(dp(68), -2));
-        TextView close = button("×\nЗакрити", CREAM, 10);
+        TextView close = button("×", CREAM, 30);
         close.setMinHeight(dp(48));
         close.setContentDescription("Зупинити бота й закрити панель");
         close.setOnClickListener(view -> closePanel());
@@ -354,12 +355,12 @@ public final class TapAccessibilityService extends AccessibilityService {
         LinearLayout controlRow = new LinearLayout(this);
         controlRow.setGravity(Gravity.CENTER_VERTICAL);
         detailsToggle = button("▼ Показати поле", CREAM, 11);
-        detailsToggle.setMinHeight(dp(48));
+        detailsToggle.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
         detailsToggle.setBackground(round(0xFF49353C, 10));
         detailsToggle.setOnClickListener(view -> setDiagnosticsExpanded(!diagnosticsExpanded));
         controlRow.addView(detailsToggle, new LinearLayout.LayoutParams(0, -2, 1f));
         playButton = button("▶ Старт", CREAM, 11);
-        playButton.setMinHeight(dp(48));
+        playButton.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
         playButton.setBackground(round(0xFF526A4D, 10));
         playButton.setOnClickListener(view -> {
             if (autoPlaying) stopAutoPlay("Зупинено");

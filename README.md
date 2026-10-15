@@ -73,4 +73,5 @@ APK буде створено в `app/build/outputs/apk/debug/app-debug.apk`. І
 Опис реалізації та додавання модуля: [docs/MODULES.md](docs/MODULES.md).
 Ідеї простого тапера, послідовностей дій і наступних ігрових модулів:
 [docs/ROADMAP.md](docs/ROADMAP.md). Поточний інтерфейс:
-[docs/INTERFACE-1.9.38.md](docs/INTERFACE-1.9.38.md).
+[docs/USAGE.md](docs/USAGE.md). Порівняння алгоритмів:
+[docs/ALGORITHMS-1.9.39.md](docs/ALGORITHMS-1.9.39.md).
