@@ -375,7 +375,7 @@ public final class MainActivity extends Activity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) { }
         });
         card.addView(widthSlider, margin(-1, -2, -8, 4, -8, 0));
-        card.addView(text("Перетягуй панель за назву. Положення зберігається для кожного модуля та орієнтації екрана.",
+        card.addView(text("Перетягуй за назву з підписом «Перетягнути». Кнопка «Показати поле» відкриває діагностику, «В іконку» згортає меню.",
                 11, MUTED, false), margin(-1, -2, 0, 7, 0, 0));
         return card;
     }

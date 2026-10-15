@@ -16,6 +16,9 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.RelativeSizeSpan;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
@@ -84,6 +87,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     private TextView panelTitle;
     private TextView stateChip;
     private TextView playButton;
+    private TextView detailsToggle;
     private TextView boardInfoView;
     private TextView messageView;
     private TextView scoreView;
@@ -254,7 +258,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             panelIcon.setTextColor(module.theme.accent);
         }
         if (bubbleButton != null) {
-            bubbleButton.setText(timerMode ? "⏱" : module.icon);
+            bubbleButton.setText(bubbleLabel(timerMode ? "⏱" : module.icon));
             bubbleButton.setContentDescription("Розгорнути панель: " + (timerMode ? "Таймери" : module.name));
         }
         if (blitzBoardGrid != null) {
@@ -304,43 +308,64 @@ public final class TapAccessibilityService extends AccessibilityService {
         panelIcon.setClickable(false);
         panelIcon.setFocusable(false);
         titleRow.addView(panelIcon, new LinearLayout.LayoutParams(dp(24), dp(48)));
+        LinearLayout dragHandle = new LinearLayout(this);
+        dragHandle.setOrientation(LinearLayout.VERTICAL);
+        dragHandle.setGravity(Gravity.CENTER_VERTICAL);
+        dragHandle.setMinimumHeight(dp(48));
+        dragHandle.setOnTouchListener(createDragListener(false));
         panelTitle = button(ClickerCatalog.get(activeMode).name, CREAM, 12);
         panelTitle.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        panelTitle.setSingleLine(true);
+        panelTitle.setMaxLines(2);
         panelTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        panelTitle.setContentDescription("Назва модуля. Натисни для діагностики або перетягни панель.");
-        panelTitle.setOnClickListener(view -> setDiagnosticsExpanded(!diagnosticsExpanded));
-        panelTitle.setOnTouchListener(createDragListener(true));
-        titleRow.addView(panelTitle, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        panelTitle.setClickable(false);
+        panelTitle.setFocusable(false);
+        dragHandle.addView(panelTitle, new LinearLayout.LayoutParams(-1, -2));
+        TextView dragHint = smallInfoText("⠿ Перетягнути");
+        dragHint.setPadding(dp(5), dp(2), 0, 0);
+        dragHint.setSingleLine(true);
+        dragHint.setTextColor(0xFFD4B7BF);
+        dragHandle.addView(dragHint, new LinearLayout.LayoutParams(-1, -2));
+        titleRow.addView(dragHandle, new LinearLayout.LayoutParams(0, -2, 1f));
 
-        TextView minimize = button("◉", CREAM, 18);
+        TextView minimize = button("В іконку", CREAM, 10);
+        minimize.setMinHeight(dp(48));
         minimize.setContentDescription("Згорнути панель до іконки; бот продовжить роботу");
+        minimize.setBackground(round(0xFF49353C, 10));
         minimize.setOnClickListener(view -> setCollapsedToBubble(true));
-        titleRow.addView(minimize, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        TextView close = button("×", CREAM, 24);
+        titleRow.addView(minimize, new LinearLayout.LayoutParams(dp(68), -2));
+        TextView close = button("×\nЗакрити", CREAM, 10);
+        close.setMinHeight(dp(48));
         close.setContentDescription("Зупинити бота й закрити панель");
         close.setOnClickListener(view -> closePanel());
-        titleRow.addView(close, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        titleRow.addView(close, new LinearLayout.LayoutParams(dp(48), -2));
         panelBody.addView(titleRow, new LinearLayout.LayoutParams(-1, -2));
 
-        LinearLayout controlRow = new LinearLayout(this);
-        controlRow.setGravity(Gravity.CENTER_VERTICAL);
         stateChip = button("Готовий", CREAM, 10);
         stateChip.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         stateChip.setBackground(round(0xFF49353C, 10));
         stateChip.setSingleLine(true);
         stateChip.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        stateChip.setContentDescription("Статус. Натисни для діагностики або перетягни панель.");
-        stateChip.setOnClickListener(view -> setDiagnosticsExpanded(!diagnosticsExpanded));
-        stateChip.setOnTouchListener(createDragListener(true));
-        controlRow.addView(stateChip, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        stateChip.setClickable(false);
+        stateChip.setFocusable(false);
+        LinearLayout.LayoutParams stateParams = new LinearLayout.LayoutParams(-1, dp(22));
+        stateParams.setMargins(0, dp(3), 0, dp(4));
+        panelBody.addView(stateChip, stateParams);
+
+        LinearLayout controlRow = new LinearLayout(this);
+        controlRow.setGravity(Gravity.CENTER_VERTICAL);
+        detailsToggle = button("▼ Показати поле", CREAM, 11);
+        detailsToggle.setMinHeight(dp(48));
+        detailsToggle.setBackground(round(0xFF49353C, 10));
+        detailsToggle.setOnClickListener(view -> setDiagnosticsExpanded(!diagnosticsExpanded));
+        controlRow.addView(detailsToggle, new LinearLayout.LayoutParams(0, -2, 1f));
         playButton = button("▶ Старт", CREAM, 11);
+        playButton.setMinHeight(dp(48));
         playButton.setBackground(round(0xFF526A4D, 10));
         playButton.setOnClickListener(view -> {
             if (autoPlaying) stopAutoPlay("Зупинено");
             else startAutoPlay();
         });
-        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(84), dp(48));
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(84), -2);
         playParams.leftMargin = dp(5);
         controlRow.addView(playButton, playParams);
         panelBody.addView(controlRow, new LinearLayout.LayoutParams(-1, -2));
@@ -433,11 +458,15 @@ public final class TapAccessibilityService extends AccessibilityService {
         panelBody.addView(timerPanel, new LinearLayout.LayoutParams(-1, -2));
         panelBody.addView(compactTimerPreview, new LinearLayout.LayoutParams(-1, dp(38)));
 
-        bubbleButton = button(ClickerCatalog.get(activeMode).icon, CREAM, 24);
+        bubbleButton = button("", CREAM, 10);
+        bubbleButton.setText(bubbleLabel(ClickerCatalog.get(activeMode).icon));
+        bubbleButton.setMinHeight(dp(48));
+        bubbleButton.setMaxLines(2);
+        bubbleButton.setPadding(dp(4), dp(2), dp(4), dp(2));
         bubbleButton.setOnClickListener(view -> setCollapsedToBubble(false));
         bubbleButton.setOnTouchListener(createDragListener(true));
         bubbleButton.setVisibility(View.GONE);
-        root.addView(bubbleButton, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        root.addView(bubbleButton, new LinearLayout.LayoutParams(-1, -2));
         root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
             if (panel != root || panelParams == null) return;
             if (restorePlacementPending) {
@@ -497,7 +526,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         preview.setGravity(Gravity.CENTER_VERTICAL);
         preview.setPadding(dp(6), dp(3), dp(4), dp(3));
         preview.setBackground(round(0xFF35272D, 9));
-        preview.setOnClickListener(view -> setDiagnosticsExpanded(true));
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
@@ -508,9 +536,10 @@ public final class TapAccessibilityService extends AccessibilityService {
         compactTimerCountdown = button("Додай таймер у застосунку", 0xFFD4B7BF, 8);
         compactTimerCountdown.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         compactTimerCountdown.setSingleLine(true);
-        View.OnClickListener expandTimers = view -> setDiagnosticsExpanded(true);
-        compactTimerTitle.setOnClickListener(expandTimers);
-        compactTimerCountdown.setOnClickListener(expandTimers);
+        compactTimerTitle.setClickable(false);
+        compactTimerTitle.setFocusable(false);
+        compactTimerCountdown.setClickable(false);
+        compactTimerCountdown.setFocusable(false);
         labels.addView(compactTimerTitle, new LinearLayout.LayoutParams(-1, dp(15)));
         labels.addView(compactTimerCountdown, new LinearLayout.LayoutParams(-1, dp(14)));
         preview.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -538,6 +567,15 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
     private void updatePanelContentVisibility() {
+        if (detailsToggle != null) {
+            String label = (diagnosticsExpanded ? "▲ Сховати " : "▼ Показати ")
+                    + (timerMode ? "таймери" : "поле");
+            detailsToggle.setText(label);
+            detailsToggle.setContentDescription(label);
+            if (Build.VERSION.SDK_INT >= 30) {
+                detailsToggle.setStateDescription(diagnosticsExpanded ? "Показано" : "Сховано");
+            }
+        }
         if (panelBody != null) panelBody.setVisibility(collapsedToBubble ? View.GONE : View.VISIBLE);
         if (bubbleButton != null) bubbleButton.setVisibility(collapsedToBubble ? View.VISIBLE : View.GONE);
         if (diagnosticsPanel != null) {
@@ -584,7 +622,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         panelArea = availablePanelArea();
         panelOrientation = getResources().getConfiguration().orientation
                 == Configuration.ORIENTATION_LANDSCAPE ? "landscape" : "portrait";
-        int width = collapsedToBubble ? dp(62)
+        int width = collapsedToBubble ? dp(78 * Math.max(1f, getResources().getConfiguration().fontScale))
                 : dp(ClickerPreferences.panelWidthDp(this, panelProfile));
         panelParams.width = Math.min(panelArea.width(), width);
         restorePlacementPending = true;
@@ -750,7 +788,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
 
-    private View.OnTouchListener createDragListener(boolean toggleDiagnosticsOnTap) {
+    private View.OnTouchListener createDragListener(boolean clickOnTap) {
         return new View.OnTouchListener() {
             private float downX;
             private float downY;
@@ -783,7 +821,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 }
                 if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
                     savePanelPlacement();
-                    if (toggleDiagnosticsOnTap && !moved) view.performClick();
+                    if (clickOnTap && !moved) view.performClick();
                     return true;
                 }
                 if (event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
@@ -800,6 +838,12 @@ public final class TapAccessibilityService extends AccessibilityService {
         ClickerPreferences.setDiagnosticsExpanded(this, panelProfile, expanded);
         if (expanded) refreshTimerPanel();
         updatePanelContentVisibility();
+    }
+
+    private CharSequence bubbleLabel(String icon) {
+        SpannableString label = new SpannableString(icon + "\nВідкрити");
+        label.setSpan(new RelativeSizeSpan(2.2f), 0, icon.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return label;
     }
 
     private TextView smallInfoText(String initialText) {
@@ -1491,7 +1535,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
     private void updatePanel(String label) {
-        if (stateChip != null) stateChip.setText(label);
+        if (stateChip != null) stateChip.setText("Стан: " + label);
         if (playButton != null) {
             playButton.setText(autoPlaying ? "■ Стоп" : "▶ Старт");
             playButton.setBackground(round(autoPlaying ? 0xFF78504E : 0xFF526A4D, 10));
@@ -1533,6 +1577,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         panelTitle = null;
         stateChip = null;
         playButton = null;
+        detailsToggle = null;
         boardInfoView = null;
         messageView = null;
         scoreView = null;

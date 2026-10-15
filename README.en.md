@@ -72,4 +72,4 @@ No license file is included, so reuse terms for the code are not specified.
 
 Implementation and registration guide (Ukrainian): [docs/MODULES.md](docs/MODULES.md).
 Proposed future modules: [docs/ROADMAP.md](docs/ROADMAP.md).
-Current interface: [docs/INTERFACE-1.9.37.md](docs/INTERFACE-1.9.37.md).
+Current interface: [docs/INTERFACE-1.9.38.md](docs/INTERFACE-1.9.38.md).
