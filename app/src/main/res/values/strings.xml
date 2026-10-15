@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Пелюстка — Рюкзак-Бліц</string>
+    <string name="app_name">Пелюстка</string>
     <string name="accessibility_service_name">Пелюстка — керування грою</string>
-    <string name="accessibility_service_description">Коли ви запускаєте бота, локально розпізнає самоцвіти й спецфішки на полі 8×8 та міняє сусідні клітинки місцями. Знімки не зберігаються.</string>
+    <string name="accessibility_service_description">Після запуску вибраного модуля читає його ігрове поле та виконує свайпи. Доступні «Рюкзак-Бліц» і «Злиття Божевілля». Знімки обробляються на пристрої та не зберігаються.</string>
 </resources>

@@ -1,10 +1,14 @@
-# Pelyustka — separate bots for Backpack Brawl
+# Pelyustka — clicker catalog and reminders
 
-An Android app with two independent modes: a match bot for Backpack Blitz and a 2048 bot for Merge Madness. Each has its own launch button on the home screen. Both read the board through an AccessibilityService and play locally on the device.
+An Android app with two independent modes: a match bot for Backpack Blitz and a 2048 bot for Merge Madness. Their cards, settings and floating controls are built from a shared module catalog. Both read the board through an AccessibilityService and play locally on the device.
 
 [Українська версія README](README.md)
 
 ## Features
+
+- Collapsed icon-and-name cards with descriptions, launch buttons and settings inside.
+- Independent retry timeout and panel width per module, with migration of previous settings.
+- Compact floating controls, optional diagnostics, an icon mode and saved panel positions.
 
 - Recognizes seven gem colors, rockets, bombs, and portal/whirlwind specials.
 - Evaluates up to 112 adjacent swaps on an 8×8 board.
@@ -23,8 +27,8 @@ An Android app with two independent modes: a match bot for Backpack Blitz and a 
 ## Install and run
 
 1. Build a debug APK using [docs/BUILDING.md](docs/BUILDING.md), or install the generated `app/build/outputs/apk/debug/app-debug.apk`.
-2. Open **Pelyustka**, tap **Enable access**, and enable **Pelyustka — game control** in Android Accessibility settings.
-3. Return to the app and tap the launch button for the bot you want.
+2. Open **Pelyustka**, expand **Android permission**, tap **Enable access**, and enable **Pelyustka — game control** in Android Accessibility settings.
+3. Return to the app, tap a module name, then tap **Open panel**.
 4. Open the matching minigame, wait for animations to finish, and tap **Start**. Tap **Stop** to halt automated moves.
 
 To use reminders, open **Set up timers** and create one with a name and duration. A timer starts as soon as it is created. To show the countdown in the floating panel, tap **Floating panel** on the timer screen. After completing the game action, tap **↻** to start the same duration again.
@@ -42,7 +46,7 @@ The base score uses 50 points per cleared gem at a ×1 multiplier, based on obse
 ## Limitations
 
 - Board coordinates and color palette are calibrated for one portrait game layout. Changes to the board position, theme, or game version can reduce recognition accuracy.
-- Merge Madness locates moderate board shifts from the grid borders, but changes to the rat illustrations may require updated templates.
+- Merge Madness locates moderate board shifts from the grid borders, but current hint icons are learned automatically; obscured hints and major artwork changes may reduce recognition confidence.
 - If a cell is uncertain or an animation is still running, the bot retries capture instead of swiping.
 - Rocket stripe direction is not recognized from the screenshot; the solver models it randomly.
 - Android limits screenshot frequency. The service enforces a minimum interval of about 334 ms, and game animations add more time.
@@ -60,6 +64,12 @@ The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. See [docs/BUI
 
 ## Privacy and reuse
 
-Frames are processed in device memory and are not saved by the app. The manifest has no network permission, and app data backup is disabled. Screenshots, recordings, local Android settings, and build outputs are excluded from the repository.
+Frames are processed in device memory and are not saved by the app. The manifest has no network permission, and app data backup is disabled. Reference screenshots live in `app/src/test/resources`; runtime screenshots are not recorded. Signing keys, local settings and build outputs are ignored by Git.
 
 No license file is included, so reuse terms for the code are not specified.
+
+## Modules and roadmap
+
+Implementation and registration guide (Ukrainian): [docs/MODULES.md](docs/MODULES.md).
+Proposed future modules: [docs/ROADMAP.md](docs/ROADMAP.md).
+Current interface: [docs/INTERFACE-1.9.37.md](docs/INTERFACE-1.9.37.md).

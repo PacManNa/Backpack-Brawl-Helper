@@ -3,10 +3,13 @@ package ua.borlock.autotap;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
+import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.hardware.HardwareBuffer;
 import android.os.Build;
@@ -16,6 +19,7 @@ import android.os.SystemClock;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.LinearLayout;
@@ -68,6 +72,14 @@ public final class TapAccessibilityService extends AccessibilityService {
     private MergeMadnessVision mergeMadnessVision;
     private WindowManager windowManager;
     private LinearLayout panel;
+    private LinearLayout panelBody;
+    private TextView panelIcon;
+    private TextView bubbleButton;
+    private boolean collapsedToBubble;
+    private boolean restorePlacementPending;
+    private String panelProfile = BotMode.BACKPACK_BLITZ.id;
+    private String panelOrientation = "portrait";
+    private Rect panelArea = new Rect();
     private WindowManager.LayoutParams panelParams;
     private TextView panelTitle;
     private TextView stateChip;
@@ -132,6 +144,12 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) { }
 
+    @Override public void onConfigurationChanged(Configuration configuration) {
+        savePanelPlacement();
+        super.onConfigurationChanged(configuration);
+        restorePanelPlacement();
+    }
+
     @Override public void onInterrupt() { stopAutoPlay("Призупинено Android"); }
 
     @Override public boolean onUnbind(android.content.Intent intent) {
@@ -157,9 +175,16 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     static boolean showTimerPanel() {
         if (instance == null || instance.panel == null) return false;
-        instance.diagnosticsExpanded = true;
         instance.setTimerMode(true);
+        instance.setDiagnosticsExpanded(true);
         return true;
+    }
+
+    static void refreshModulePanel(BotMode mode) {
+        if (instance != null && instance.activeMode == mode && !instance.timerMode) {
+            instance.savePanelPlacement();
+            instance.restorePanelPlacement();
+        }
     }
 
     static long getNoChangeTimeoutMs(Context context) {
@@ -186,7 +211,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
         panel = createPanel();
         panelParams = new WindowManager.LayoutParams(
-                dp(272),
+                dp(ClickerPreferences.panelWidthDp(this, panelProfile)),
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
@@ -194,10 +219,10 @@ public final class TapAccessibilityService extends AccessibilityService {
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT);
         panelParams.gravity = Gravity.TOP | Gravity.START;
-        panelParams.x = dp(14);
-        panelParams.y = dp(4);
         try {
             windowManager.addView(panel, panelParams);
+            restorePanelPlacement();
+            updatePanel();
             refreshTimerPanel();
             startTimerTicker();
             return true;
@@ -209,16 +234,29 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void selectBot(BotMode mode) {
         if (mode == null) mode = BotMode.BACKPACK_BLITZ;
+        savePanelPlacement();
         if (autoPlaying && activeMode != mode) stopAutoPlay("Зупинено");
         activeMode = mode;
+        panelProfile = mode.id;
         timerMode = false;
-        diagnosticsExpanded = true;
+        collapsedToBubble = false;
+        diagnosticsExpanded = ClickerPreferences.diagnosticsExpanded(this, panelProfile);
         updateBotModeViews();
         updatePanelContentVisibility();
+        restorePanelPlacement();
     }
 
     private void updateBotModeViews() {
-        if (panelTitle != null) panelTitle.setText(activeMode.panelTitle);
+        ClickerModule module = ClickerCatalog.get(activeMode);
+        if (panelTitle != null) panelTitle.setText(timerMode ? "Таймери" : module.name);
+        if (panelIcon != null) {
+            panelIcon.setText(timerMode ? "⏱" : module.icon);
+            panelIcon.setTextColor(module.theme.accent);
+        }
+        if (bubbleButton != null) {
+            bubbleButton.setText(timerMode ? "⏱" : module.icon);
+            bubbleButton.setContentDescription("Розгорнути панель: " + (timerMode ? "Таймери" : module.name));
+        }
         if (blitzBoardGrid != null) {
             blitzBoardGrid.setVisibility(activeMode == BotMode.BACKPACK_BLITZ ? View.VISIBLE : View.GONE);
         }
@@ -230,7 +268,9 @@ public final class TapAccessibilityService extends AccessibilityService {
                     ? View.VISIBLE : View.GONE);
         }
         if (playButton != null) {
-            playButton.setContentDescription("Запустити бота «" + activeMode.displayName + "»");
+            playButton.setContentDescription((autoPlaying ? "Зупинити" : "Запустити")
+                    + " бота «" + module.name + "»");
+            playButton.setVisibility(timerMode && !autoPlaying ? View.GONE : View.VISIBLE);
         }
         if (boardInfoView != null && !autoPlaying) {
             boardInfoView.setText(activeMode == BotMode.BACKPACK_BLITZ
@@ -253,34 +293,61 @@ public final class TapAccessibilityService extends AccessibilityService {
         root.setBackground(panelBackground);
         root.setElevation(dp(8));
 
+        panelBody = new LinearLayout(this);
+        panelBody.setOrientation(LinearLayout.VERTICAL);
+        root.addView(panelBody, new LinearLayout.LayoutParams(-1, -2));
+
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        panelTitle = button(activeMode.panelTitle, CREAM, 10);
+        panelIcon = button(ClickerCatalog.get(activeMode).icon, CREAM, 18);
+        panelIcon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        panelIcon.setClickable(false);
+        panelIcon.setFocusable(false);
+        titleRow.addView(panelIcon, new LinearLayout.LayoutParams(dp(24), dp(48)));
+        panelTitle = button(ClickerCatalog.get(activeMode).name, CREAM, 12);
         panelTitle.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        panelTitle.setPadding(dp(4), 0, dp(4), 0);
-        panelTitle.setOnTouchListener(createDragListener());
-        titleRow.addView(panelTitle, new LinearLayout.LayoutParams(0, dp(22), 1f));
-        TextView versionView = button(readVersionName(), ROSE, 9);
-        versionView.setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
-        versionView.setContentDescription("Версія застосунку " + readVersionName());
-        versionView.setOnTouchListener(createDragListener());
-        titleRow.addView(versionView, new LinearLayout.LayoutParams(-2, dp(22)));
-        root.addView(titleRow);
+        panelTitle.setSingleLine(true);
+        panelTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        panelTitle.setContentDescription("Назва модуля. Натисни для діагностики або перетягни панель.");
+        panelTitle.setOnClickListener(view -> setDiagnosticsExpanded(!diagnosticsExpanded));
+        panelTitle.setOnTouchListener(createDragListener(true));
+        titleRow.addView(panelTitle, new LinearLayout.LayoutParams(0, dp(48), 1f));
 
-        stateChip = button("ГОТОВИЙ", CREAM, 10);
-        stateChip.setBackground(round(0xFF62464D, 10));
+        TextView minimize = button("◉", CREAM, 18);
+        minimize.setContentDescription("Згорнути панель до іконки; бот продовжить роботу");
+        minimize.setOnClickListener(view -> setCollapsedToBubble(true));
+        titleRow.addView(minimize, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        TextView close = button("×", CREAM, 24);
+        close.setContentDescription("Зупинити бота й закрити панель");
+        close.setOnClickListener(view -> closePanel());
+        titleRow.addView(close, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        panelBody.addView(titleRow, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout controlRow = new LinearLayout(this);
+        controlRow.setGravity(Gravity.CENTER_VERTICAL);
+        stateChip = button("Готовий", CREAM, 10);
+        stateChip.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+        stateChip.setBackground(round(0xFF49353C, 10));
         stateChip.setSingleLine(true);
         stateChip.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        stateChip.setContentDescription("Торкнись, щоб показати діагностику; перетягни, щоб пересунути панель.");
+        stateChip.setContentDescription("Статус. Натисни для діагностики або перетягни панель.");
+        stateChip.setOnClickListener(view -> setDiagnosticsExpanded(!diagnosticsExpanded));
         stateChip.setOnTouchListener(createDragListener(true));
-        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, dp(25));
-        statusParams.setMargins(0, dp(2), 0, dp(3));
-        root.addView(stateChip, statusParams);
+        controlRow.addView(stateChip, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        playButton = button("▶ Старт", CREAM, 11);
+        playButton.setBackground(round(0xFF526A4D, 10));
+        playButton.setOnClickListener(view -> {
+            if (autoPlaying) stopAutoPlay("Зупинено");
+            else startAutoPlay();
+        });
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(84), dp(48));
+        playParams.leftMargin = dp(5);
+        controlRow.addView(playButton, playParams);
+        panelBody.addView(controlRow, new LinearLayout.LayoutParams(-1, -2));
 
         diagnosticsPanel = new LinearLayout(this);
         diagnosticsPanel.setOrientation(LinearLayout.VERTICAL);
-        diagnosticsPanel.setVisibility(View.VISIBLE);
-        diagnosticsExpanded = true;
+        diagnosticsPanel.setPadding(0, dp(5), 0, 0);
 
         boardCells = new TextView[GameBoard.SIDE][GameBoard.SIDE];
         blitzBoardGrid = new LinearLayout(this);
@@ -362,42 +429,30 @@ public final class TapAccessibilityService extends AccessibilityService {
         compactTimerPreview = createCompactTimerPreview();
         compactTimerPreview.setVisibility(View.GONE);
 
-        LinearLayout contentRow = new LinearLayout(this);
-        contentRow.setGravity(Gravity.TOP);
+        panelBody.addView(diagnosticsPanel, new LinearLayout.LayoutParams(-1, -2));
+        panelBody.addView(timerPanel, new LinearLayout.LayoutParams(-1, -2));
+        panelBody.addView(compactTimerPreview, new LinearLayout.LayoutParams(-1, dp(38)));
 
-        LinearLayout panelContent = new LinearLayout(this);
-        panelContent.setOrientation(LinearLayout.VERTICAL);
-        panelContent.addView(diagnosticsPanel, new LinearLayout.LayoutParams(-1, -2));
-        panelContent.addView(timerPanel, new LinearLayout.LayoutParams(-1, -2));
-        panelContent.addView(compactTimerPreview, new LinearLayout.LayoutParams(-1, dp(38)));
-        contentRow.addView(panelContent, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        LinearLayout controls = new LinearLayout(this);
-        controls.setOrientation(LinearLayout.VERTICAL);
-        controls.setGravity(Gravity.TOP);
-        LinearLayout.LayoutParams controlsColumnParams = new LinearLayout.LayoutParams(dp(52), -2);
-        controlsColumnParams.setMargins(dp(4), 0, 0, 0);
-        contentRow.addView(controls, controlsColumnParams);
-
-        playButton = button("▶\nСтарт", CREAM, 9);
-        playButton.setBackground(round(0xFF526A4D, 10));
-        playButton.setOnClickListener(view -> startAutoPlay());
-        playButton.setContentDescription("Запустити бота Рюкзак-Бліц");
-        controls.addView(playButton, stackedControlParams());
-
-        TextView stopButton = button("■\nСтоп", CREAM, 9);
-        stopButton.setBackground(round(0xFF78504E, 10));
-        stopButton.setOnClickListener(view -> stopAutoPlay("Зупинено"));
-        stopButton.setContentDescription("Зупинити бота");
-        controls.addView(stopButton, stackedControlParams());
-
-        TextView closeButton = button("×\nСховати", CREAM, 9);
-        closeButton.setBackground(round(0xFF493339, 10));
-        closeButton.setOnClickListener(view -> closePanel());
-        closeButton.setContentDescription("Сховати плаваючу панель");
-        controls.addView(closeButton, stackedControlParams());
-
-        root.addView(contentRow, new LinearLayout.LayoutParams(-1, -2));
+        bubbleButton = button(ClickerCatalog.get(activeMode).icon, CREAM, 24);
+        bubbleButton.setOnClickListener(view -> setCollapsedToBubble(false));
+        bubbleButton.setOnTouchListener(createDragListener(true));
+        bubbleButton.setVisibility(View.GONE);
+        root.addView(bubbleButton, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            if (panel != root || panelParams == null) return;
+            if (restorePlacementPending) {
+                restorePlacementPending = false;
+                ClickerPreferences.Position position = ClickerPreferences.position(
+                        TapAccessibilityService.this, panelProfile, panelOrientation);
+                panelParams.x = ClickerPreferences.coordinate(position.x, panelArea.left,
+                        panelArea.width(), root.getWidth());
+                panelParams.y = ClickerPreferences.coordinate(position.y, panelArea.top,
+                        panelArea.height(), root.getHeight());
+                updatePanelWindow();
+            } else {
+                clampPanelPlacement();
+            }
+        });
         updateBotModeViews();
         updatePanelContentVisibility();
         return root;
@@ -470,12 +525,21 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
     private void setTimerMode(boolean enabled) {
+        if (timerMode != enabled) savePanelPlacement();
         timerMode = enabled;
+        panelProfile = enabled ? ClickerPreferences.TIMERS_PROFILE : activeMode.id;
+        collapsedToBubble = false;
+        diagnosticsExpanded = enabled || ClickerPreferences.diagnosticsExpanded(this, panelProfile);
+        updateBotModeViews();
         refreshTimerPanel();
         updatePanelContentVisibility();
+        restorePanelPlacement();
+        updatePanel();
     }
 
     private void updatePanelContentVisibility() {
+        if (panelBody != null) panelBody.setVisibility(collapsedToBubble ? View.GONE : View.VISIBLE);
+        if (bubbleButton != null) bubbleButton.setVisibility(collapsedToBubble ? View.VISIBLE : View.GONE);
         if (diagnosticsPanel != null) {
             diagnosticsPanel.setVisibility(!timerMode && diagnosticsExpanded ? View.VISIBLE : View.GONE);
         }
@@ -485,10 +549,74 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (compactTimerPreview != null) {
             compactTimerPreview.setVisibility(timerMode && !diagnosticsExpanded ? View.VISIBLE : View.GONE);
         }
-        if (panel != null && panelParams != null && windowManager != null) {
-            try { windowManager.updateViewLayout(panel, panelParams); }
-            catch (IllegalArgumentException ignored) { }
+        if (panel != null) panel.requestLayout();
+    }
+
+    private void setCollapsedToBubble(boolean collapsed) {
+        savePanelPlacement();
+        collapsedToBubble = collapsed;
+        updatePanelContentVisibility();
+        updatePanelAppearance();
+        restorePanelPlacement();
+    }
+
+    private Rect availablePanelArea() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            android.view.WindowMetrics metrics = windowManager.getCurrentWindowMetrics();
+            Rect bounds = metrics.getBounds();
+            android.graphics.Insets insets = metrics.getWindowInsets().getInsetsIgnoringVisibility(
+                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            return new Rect(insets.left, insets.top,
+                    Math.max(insets.left + 1, bounds.width() - insets.right),
+                    Math.max(insets.top + 1, bounds.height() - insets.bottom));
         }
+        Point size = new Point();
+        windowManager.getDefaultDisplay().getRealSize(size);
+        int statusId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        int status = statusId == 0 ? 0 : getResources().getDimensionPixelSize(statusId);
+        int navigationId = getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+        int navigation = navigationId == 0 ? 0 : getResources().getDimensionPixelSize(navigationId);
+        return new Rect(0, status, Math.max(1, size.x), Math.max(status + 1, size.y - navigation));
+    }
+
+    private void restorePanelPlacement() {
+        if (panel == null || panelParams == null || windowManager == null) return;
+        panelArea = availablePanelArea();
+        panelOrientation = getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE ? "landscape" : "portrait";
+        int width = collapsedToBubble ? dp(62)
+                : dp(ClickerPreferences.panelWidthDp(this, panelProfile));
+        panelParams.width = Math.min(panelArea.width(), width);
+        restorePlacementPending = true;
+        updatePanelWindow();
+        panel.requestLayout();
+    }
+
+    private void savePanelPlacement() {
+        if (panel == null || panelParams == null || restorePlacementPending
+                || panel.getWidth() <= 0 || panel.getHeight() <= 0 || panelArea.isEmpty()) return;
+        ClickerPreferences.savePosition(this, panelProfile, panelOrientation,
+                ClickerPreferences.fraction(panelParams.x, panelArea.left, panelArea.width(), panel.getWidth()),
+                ClickerPreferences.fraction(panelParams.y, panelArea.top, panelArea.height(), panel.getHeight()));
+    }
+
+    private void clampPanelPlacement() {
+        if (panel == null || panelParams == null || panelArea.isEmpty()) return;
+        int x = Math.max(panelArea.left,
+                Math.min(panelParams.x, panelArea.right - panel.getWidth()));
+        int y = Math.max(panelArea.top,
+                Math.min(panelParams.y, panelArea.bottom - panel.getHeight()));
+        if (x != panelParams.x || y != panelParams.y) {
+            panelParams.x = x;
+            panelParams.y = y;
+            updatePanelWindow();
+        }
+    }
+
+    private void updatePanelWindow() {
+        if (panel == null || panelParams == null || windowManager == null) return;
+        try { windowManager.updateViewLayout(panel, panelParams); }
+        catch (IllegalArgumentException ignored) { }
     }
 
     private void startTimerTicker() {
@@ -622,10 +750,6 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
 
-    private View.OnTouchListener createDragListener() {
-        return createDragListener(false);
-    }
-
     private View.OnTouchListener createDragListener(boolean toggleDiagnosticsOnTap) {
         return new View.OnTouchListener() {
             private float downX;
@@ -637,6 +761,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             @Override public boolean onTouch(View view, android.view.MotionEvent event) {
                 if (panelParams == null) return false;
                 if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    restorePlacementPending = false;
                     downX = event.getRawX();
                     downY = event.getRawY();
                     startX = panelParams.x;
@@ -651,22 +776,28 @@ public final class TapAccessibilityService extends AccessibilityService {
                     if (moved) {
                         panelParams.x = startX + Math.round(dx);
                         panelParams.y = startY + Math.round(dy);
-                        try { windowManager.updateViewLayout(panel, panelParams); }
-                        catch (IllegalArgumentException ignored) { }
+                        clampPanelPlacement();
+                        updatePanelWindow();
                     }
                     return true;
                 }
                 if (event.getAction() == android.view.MotionEvent.ACTION_UP) {
-                    if (toggleDiagnosticsOnTap && !moved) setDiagnosticsExpanded(!diagnosticsExpanded);
+                    savePanelPlacement();
+                    if (toggleDiagnosticsOnTap && !moved) view.performClick();
                     return true;
                 }
-                return event.getAction() == android.view.MotionEvent.ACTION_CANCEL;
+                if (event.getAction() == android.view.MotionEvent.ACTION_CANCEL) {
+                    savePanelPlacement();
+                    return true;
+                }
+                return false;
             }
         };
     }
 
     private void setDiagnosticsExpanded(boolean expanded) {
         diagnosticsExpanded = expanded;
+        ClickerPreferences.setDiagnosticsExpanded(this, panelProfile, expanded);
         if (expanded) refreshTimerPanel();
         updatePanelContentVisibility();
     }
@@ -680,15 +811,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         view.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         view.setEllipsize(android.text.TextUtils.TruncateAt.END);
         return view;
-    }
-
-    private String readVersionName() {
-        try {
-            String name = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-            return "v" + (name == null ? "?" : name);
-        } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
-            return "v?";
-        }
     }
 
     private void startAutoPlay() {
@@ -970,7 +1092,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             }
             long elapsedSinceSwipe = SystemClock.uptimeMillis() - lastSwipeCompletedAtMs;
             if (lastSwipeCompletedAtMs > 0L
-                    && elapsedSinceSwipe < getNoChangeTimeoutMs(this)) {
+                    && elapsedSinceSwipe < ClickerPreferences.timeoutMs(this, activeMode)) {
                 updatePanel("ОЧІКУЮ ЗМІНУ ПОЛЯ");
                 updateDiagnosticMessage("Чекаю, поки гра перемістить клітинки…");
                 handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
@@ -1001,7 +1123,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (result.board.equals(previousMergeBoard)) {
             long elapsedSinceSwipe = SystemClock.uptimeMillis() - lastSwipeCompletedAtMs;
             if (lastSwipeCompletedAtMs > 0L
-                    && elapsedSinceSwipe < getNoChangeTimeoutMs(this)) {
+                    && elapsedSinceSwipe < ClickerPreferences.timeoutMs(this, activeMode)) {
                 updatePanel("ОЧІКУЮ ЗМІНУ ПОЛЯ");
                 updateDiagnosticMessage("Чекаю, поки плитки посунуться…");
                 handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
@@ -1365,21 +1487,48 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void updatePanel() {
         if (autoPlaying) updatePanel("АВТО · ХІД " + moveCount);
-        else updatePanel(activeMode.panelTitle + " · ГОТОВИЙ");
+        else updatePanel(timerMode ? "Таймери" : "Готовий");
     }
 
     private void updatePanel(String label) {
         if (stateChip != null) stateChip.setText(label);
-        if (playButton != null) playButton.setText(autoPlaying ? "●\nПрацює" : "▶\nСтарт");
+        if (playButton != null) {
+            playButton.setText(autoPlaying ? "■ Стоп" : "▶ Старт");
+            playButton.setBackground(round(autoPlaying ? 0xFF78504E : 0xFF526A4D, 10));
+            playButton.setContentDescription((autoPlaying ? "Зупинити" : "Запустити")
+                    + " бота «" + ClickerCatalog.get(activeMode).name + "»");
+            playButton.setVisibility(timerMode && !autoPlaying ? View.GONE : View.VISIBLE);
+        }
+        updatePanelAppearance();
+    }
+
+    private void updatePanelAppearance() {
+        if (panel == null) return;
+        ClickerModule module = ClickerCatalog.get(activeMode);
+        GradientDrawable background = round(0xF52F2025, collapsedToBubble ? 31 : 17);
+        background.setStroke(dp(1), autoPlaying ? 0xFF7EAE74 : module.theme.border);
+        panel.setBackground(background);
+        if (stateChip != null) stateChip.setBackground(round(autoPlaying ? 0xFF3D5540 : 0xFF49353C, 10));
+        if (bubbleButton != null) {
+            bubbleButton.setContentDescription((timerMode ? "Таймери" : module.name) + ". "
+                    + (autoPlaying ? "Бот працює" : "Бот зупинений") + ". Натисни, щоб розгорнути панель.");
+        }
     }
 
     private void closePanel() {
+        savePanelPlacement();
         handler.removeCallbacks(timerTicker);
         stopAutoPlay("Зупинено");
         if (panel != null && windowManager != null) {
             try { windowManager.removeView(panel); } catch (IllegalArgumentException ignored) { }
         }
         panel = null;
+        panelBody = null;
+        panelIcon = null;
+        bubbleButton = null;
+        collapsedToBubble = false;
+        restorePlacementPending = false;
+        panelArea.setEmpty();
         panelParams = null;
         panelTitle = null;
         stateChip = null;
@@ -1425,12 +1574,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         drawable.setColor(color);
         drawable.setCornerRadius(dp(radiusDp));
         return drawable;
-    }
-
-    private LinearLayout.LayoutParams stackedControlParams() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(44));
-        params.setMargins(0, dp(2), 0, dp(2));
-        return params;
     }
 
     private int dp(float value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }

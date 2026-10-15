@@ -58,7 +58,7 @@ gradle/wrapper/                         версія Gradle Wrapper
 ## Поточна конфігурація
 
 - `applicationId`: `ua.borlock.autotap`.
-- Версія застосунку: `1.9.36` (`versionCode` 67).
+- Версія застосунку: `1.9.37` (`versionCode` 68).
 - `minSdk`: 24; для знімків екрана AccessibilityService потрібен Android 11 / API 30 або новіший.
 - `targetSdk` / `compileSdk`: 35.
 
@@ -78,3 +78,7 @@ bash tools/check-merge-madness.sh
 
 Заміри прискорення та порівняння з попереднім рушієм описані в
 [VERIFICATION-1.9.35.md](VERIFICATION-1.9.35.md).
+
+Модульний каталог і налаштування описані в [MODULES.md](MODULES.md),
+реалізований інтерфейс — у [INTERFACE-1.9.37.md](INTERFACE-1.9.37.md),
+ідеї наступних клікерів — у [ROADMAP.md](ROADMAP.md).
