@@ -1,99 +1,100 @@
-# «Рюкзак-Бліц»: швидший пошук і точніші каскади — 1.9.41
+# Backpack Blitz: faster search and better cascade estimates — 1.9.41
 
-## Поведінка
+## Behavior
 
-Найбільше поточне очищення залишається першим критерієм. На стабільному полі
-новий збіг може проходити лише через клітинку обміну: перший прохід швидко
-перевіряє ці дві позиції. Повний розрахунок бонусів і каскадів виконується
-для ходів із максимальним очищенням. Якщо такий хід лише один, симуляція
-випадкового поповнення не потрібна. Звичайна перевірка наявності збігу також
-більше не створює копію поля та об'єкти повного аналізу.
+The largest immediate clear remains the first criterion. On a stable board, a
+new match can only pass through one of the swapped cells: the first pass now
+checks those two positions quickly. Full bonus and cascade evaluation is done
+for moves with the largest clear. If there is only one such move, random-refill
+simulation is unnecessary. The regular match-existence check also no longer
+copies the board or creates full-analysis objects.
 
-Для вибору між рівними великими збігами точно рахується очікувана кількість
-унікальних самоцвітів у першому каскаді. Припущення моделі — незалежна
-рівномірна поява семи кольорів. Для фіксованого кольору центральної клітинки
-ймовірність її участі в горизонтальному збігу:
+To choose between equally large matches, the solver exactly computes the
+expected number of unique gems in the first cascade. The model assumes seven
+colors appear independently and uniformly. For a fixed color at the center
+cell, its probability of joining a horizontal match is:
 
 ```text
 H = L1·R1 + L1·(1−R1)·L2 + (1−L1)·R1·R2
 ```
 
-`L1`, `L2`, `R1`, `R2` — імовірності того самого кольору в сусідніх позиціях:
-0 або 1 для відомих клітинок і 1/7 для нових. Вертикальна ймовірність `V`
-рахується так само. Участь у будь-якому збігу: `H + V − H·V`, що враховує
-перетин лише раз. Для нової центральної клітинки результат усереднюється
-за сімома кольорами. Сума за клітинками дає точне математичне очікування
-першого очищення за цієї моделі.
+`L1`, `L2`, `R1`, and `R2` are probabilities of the same color in adjacent
+positions: 0 or 1 for known cells and 1/7 for new cells. The vertical
+probability `V` is calculated the same way. The probability of being in either
+match is `H + V − H·V`, counting an intersection only once. For a new center
+cell, the result is averaged over all seven colors. Summing over cells gives
+the exact expected first clear under this model.
 
-Це очікування враховується для всіх ходів максимального розміру до відбору
-трьох кандидатів. Випадкові зразки оцінюють залишок: бонуси й наступні каскади.
-Перші чотири зразки повторно використовуються при уточненні до восьми.
+This expectation is used for all moves tied at the largest match size before
+selecting three candidates. Random samples estimate the rest: bonuses and later
+cascades. The first four samples are reused when extending the estimate to eight.
 
-Виправлено групування бонусів: суміжні незалежні лінії не об'єднуються в
-одну фігуру. Наприклад, дві сусідні четвірки отримують по ракеті; пересічні
-лінії однієї T/L-фігури дають одну бомбу. Модель раніше іноді занижувала
-цінність таких подвійних збігів.
+Bonus grouping was fixed: adjacent independent lines are no longer combined
+into one shape. For example, two adjacent four-gem lines produce two rockets;
+intersecting lines in one T/L shape produce one bomb. The model previously
+sometimes undervalued such double matches.
 
-Плаваюче меню оновлює стиль лише клітинок, які змінилися. Повторне
-відображення того самого поля після рішення бота не створює ще 64 фони.
+The floating panel now restyles only cells that changed. Rendering the same
+board again after the bot's decision no longer creates 64 new backgrounds.
 
-## Перевірка
+## Verification
 
-- Окрема перевірка оптимізації до зміни прогнозу: 5 000 полів, ті самі ходи,
-  найбільші очищення й кількість кандидатів, що в 1.9.40.
-- Остаточне порівняння: 10 000 стабільних полів; у 25% додано 1–5 бонусів.
-  Найбільше очищення й кількість доступних ходів збігаються з 1.9.40 у всіх
-  випадках. Вибір між рівними очищеннями змінився на 825 полях.
-- Швидка перевірка наявності збігів збігається з повним аналізом на ще
-  10 000 полів із кольорами, порожніми клітинками та бонусами.
-- Модульні тести перевіряють правила незалежних бонусів, T/L і пряму п'ятірку,
-  максимальний розмір ходу, незмінність вхідного поля й точне очікування
-  перебором усіх 7⁴ поповнень для контрольних полів.
+- An isolated optimization check before changing the prediction: 5,000 boards,
+  same moves, largest clears, and candidate count as 1.9.40.
+- Final comparison: 10,000 stable boards; 25% had 1–5 bonuses added. Largest
+clear and available-move counts match 1.9.40 in every case. The choice among
+equally large matches changed on 825 boards.
+- The quick match-existence check agrees with full analysis on another 10,000
+  boards containing colors, empty cells, and bonuses.
+- Unit tests cover independent bonuses, T/L shapes and straight fives, largest
+  match size, unchanged input board, and exact expectation by enumerating all
+  7⁴ refills for control boards.
 
-На Linux / JDK 21.0.12.1, 10 000 полів, почерговий порядок запуску після
-прогріву: медіана вибору 1.9.40 — **0,114 мс**, 1.9.41 — **0,040 мс**;
-p95 — **0,174 / 0,128 мс**. Це час рушія на комп'ютері. Захоплення екрана,
-Android, жести й анімації гри до нього не входять; прискорення обчислень
-не означає такого самого збільшення кількості ходів за хвилину.
+On Linux / JDK 21.0.12.1, using 10,000 boards and alternating run order after
+warm-up: median move selection was **0.114 ms** in 1.9.40 and **0.040 ms** in
+1.9.41; p95 was **0.174 / 0.128 ms**. This is engine time on a computer.
+Screenshot capture, Android, gestures, and game animations are excluded; faster
+computation does not imply the same increase in moves per minute.
 
-На окремих 1 000 полях для різних виборів виконано по 2 048 поповнень на
-кожен хід. У спільній виправленій моделі новий вибір кращий / такий самий /
-гірший у **74 / 905 / 21** випадках. Середня парна різниця модельної оцінки
-**+0,4154**, 95% bootstrap-інтервал **[+0,2740; +0,5692]**. Це перевірка
-узгодженості вибору з моделлю, а не виміряний приріст фактичного рахунку гри.
-Порожні оцінки в quality CSV означають однаковий хід і нульову різницю.
+On a separate 1,000 boards with different move choices, each move was tested
+with 2,048 refills. Under the shared corrected model, the new choice was better
+/ tied / worse in **74 / 905 / 21** cases. Mean paired modeled-score difference
+was **+0.4154**, with a 95% bootstrap interval of **[+0.2740; +0.5692]**. This
+checks consistency with the model; it is not a measured increase in the game's
+actual score. Empty scores in the quality CSV mean the move was identical, so
+the difference is zero.
 
-Дані: [час і очищення](benchmarks/blitz-1.9.41.csv),
-[порівняння модельних оцінок](benchmarks/blitz-1.9.41.csv.quality.csv).
+Data: [timing and clears](benchmarks/blitz-1.9.41.csv),
+[modeled-score comparison](benchmarks/blitz-1.9.41.csv.quality.csv).
 
-Відтворення (потрібні Git і JDK 17+):
+To reproduce (Git and JDK 17+ required):
 
 ```bash
 JAVA_HOME=/path/to/jdk bash tools/check-blitz-solver.sh \
   10000 /tmp/blitz.csv quality 1000 2048
 ```
 
-Базовий код береться з коміту `e6e393c` (1.9.40), варіант для порівняння
-компілюється лише в тимчасовому каталозі. Він не входить до APK. Seed полів
-для часу — 1941, для окремого порівняння якості — 1941041, bootstrap — 1941042.
+Baseline code is taken from commit `e6e393c` (1.9.40); the comparison variant
+is compiled only in a temporary directory and is not included in the APK.
+Board-generation seed is 1941 for timing, 1941041 for the separate quality
+comparison, and 1941042 for bootstrap sampling.
 
-Пакет `ua.borlock.autotap`, service-компонент і постійний ключ підпису
-збережені; APK має `versionCode=72`. Встановлюється поверх попереднього
-релізу зі збереженням даних. Реальна хвилинна партія на телефоні в цьому
-середовищі не запускалася.
+Package `ua.borlock.autotap`, service component, and persistent signing key are
+retained; the APK has `versionCode=72`. It installs over the previous release
+and retains data. A real 60-second phone round was not run in this environment.
 
-## Збірка
+## Build
 
-`testDebugUnitTest assembleDebug assembleRelease` виконано успішно: **56
-тестів**, 0 помилок і пропусків. `apksigner verify` підтвердив релізний APK.
-Порівняння з фактичним APK 1.9.40 підтвердило той самий пакет, компонент
-служби доступності й SHA-256 сертифіката:
+`testDebugUnitTest assembleDebug assembleRelease` succeeded: **56 tests**, zero
+failures and skips. `apksigner verify` confirmed the release APK. Comparison
+with the actual 1.9.40 APK confirmed the same package, accessibility-service
+component, and certificate SHA-256:
 
 ```text
 78b0b3adc65fdd195744113386994b80319cfd119f1221f6960dbfc02c234985
 ```
 
-SHA-256 релізного APK 1.9.41:
+Release APK 1.9.41 SHA-256:
 
 ```text
 bc280474fa1582e484b0f558a70cc5077d6a30b0011db0ad0e8ce00b1c81ca7b

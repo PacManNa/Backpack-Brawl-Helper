@@ -1,48 +1,48 @@
-# Ціль — рівень 15: уточнення перевірки алгоритмів
+# Rank-15 target: expanded algorithm evaluation
 
-За уточненням користувача, у «Злитті Божевілля» **15 рівнів**. Попереднє
-[порівняння 1.9.39](ALGORITHMS-1.9.39.md) було обмежене 600 ходами й
-досягненням рівня 10 як показником. Воно не підтверджує якість проходження
-до 15-го та не доводить, що поточний алгоритм найкращий для всієї гри.
+The user clarified that Merge Madness has **15 ranks**. The earlier
+[1.9.39 comparison](ALGORITHMS-1.9.39.md) was limited to 600 moves and used
+reaching rank 10 as its metric. It does not verify success through rank 15 or
+show that the current algorithm is best for the entire game.
 
-## Чому 600 ходів замало
+## Why 600 moves are insufficient
 
-У моделі цінність плитки рангу `r` дорівнює `2^r`. Злиття зберігають суму,
-а нова плитка додає 2 або 4. Цінність плитки рівня 15 — 32768.
+In the model, a tile of rank `r` has value `2^r`. Merges preserve the total,
+while each new tile adds 2 or 4. A rank-15 tile is worth 32,768.
 
-Надане поле має сумарну цінність 770. За 600 ходів навіть при появі лише
-плиток рівня 2 сума не перевищить `770 + 600 × 4 = 3170`: цього недостатньо
-навіть для одного рівня 12 (`4096`). Для старту з двох нових плиток верхня
-межа ще нижча — 2408. Отже, рівні 12–15 у попередньому прогоні були
-математично недосяжними незалежно від якості алгоритму.
+The supplied board has total value 770. After 600 moves, even if every new tile
+were rank 2, the total could not exceed `770 + 600 × 4 = 3170`, which is not
+enough even for one rank-12 tile (`4096`). Starting with two new tiles gives an
+even lower upper bound of 2,408. Therefore ranks 12–15 were mathematically
+unreachable in the previous run, regardless of algorithm quality.
 
-Від двох нових плиток для рівня 15 потрібно щонайменше 8190 ходів навіть
-за максимальної цінності кожної появи. При модельному розподілі 90% / 10%
-нова плитка в середньому додає 2.2; приблизно 14.9 тисячі появ лише
-накопичують потрібну суму. Це оцінка кількості матеріалу, а не гарантія
-досягнення цілі: стратегія ще має зібрати його в одну плитку.
+Starting from two new tiles, reaching rank 15 requires at least 8,190 moves even
+if every spawn has maximum value. Under the modeled 90% / 10% distribution, a
+new tile adds 2.2 on average; about 14,900 spawns merely accumulate the required
+total value. This estimates the amount of material, not a guarantee of reaching
+the goal: the strategy must still combine it into one tile.
 
-## Що змінено в інструменті перевірки
+## Changes to the evaluation tool
 
-- Ціль за замовчуванням — 15, параметр `--target-rank` приймає 10–15.
-  Типовий ліміт збільшено до 20000 ходів; партія завершується раніше при
-  досягненні цілі або відсутності доступних ходів.
-- CSV записує перший хід досягнення кожного рівня 10–15: `-1` означає
-  «не досягнуто», `0` — «вже був у початковому полі».
-- Результат явно позначається як `reached`, `blocked` або `move-limit`.
-  Поле, яке ще має хід після ліміту, не рахується успішним проходженням.
-- Зберігається початкова й кінцева цінність поля; на кожному переході
-  перевіряється збереження цінності при злитті й точне додавання нової плитки.
-- `--start mixed` чергує нові партії з продовженнями наданого поля;
-  `early` й `user` запускають лише відповідну групу.
-- `--start late` задає **штучну** пізню позицію: по одній плитці рангів
-  `1..target-1` та другу плитку рангу 1, упорядковані змійкою.
-  Початкова цінність дорівнює `2^target`, готової цільової плитки ще немає.
-  Вісім орієнтацій — чотири повороти
-  та їх відображення. Це перевірка кінцівки з уже наданими старшими плитками;
-  досягнення цілі тут не зараховується як проходження гри від початку.
+- The default target is 15; `--target-rank` accepts 10–15. The default move
+  limit is now 20,000. A game ends sooner if it reaches the goal or has no legal
+  moves.
+- CSV output records the first move on which each rank from 10 to 15 is reached:
+  `-1` means “not reached,” and `0` means “already present on the starting board.”
+- Results are explicitly labeled `reached`, `blocked`, or `move-limit`. A board
+  that still has a legal move at the limit is not counted as a successful game.
+- Initial and final board values are saved. Every transition checks value
+  conservation for merges and the exact value added by the new tile.
+- `--start mixed` alternates fresh games with continuations of the supplied
+  board; `early` and `user` run only the corresponding group.
+- `--start late` creates a **synthetic** late-game position: one tile for every
+  rank `1..target-1`, plus a second rank-1 tile, arranged in a snake. Initial
+  value is `2^target`, but the target tile is not yet present. Eight
+  orientations cover four rotations and their reflections. This checks an
+  endgame with higher-rank tiles already supplied; reaching the target here does
+  not count as completing a game from the start.
 
-Наприклад, базова штучна позиція для перевірки рівня 15:
+Example base synthetic position for testing rank 15:
 
 ```text
 14 13 12 11
@@ -51,26 +51,24 @@
  0  1  1  2
 ```
 
-Вона має лише одну вільну клітинку та вже накопичений матеріал для цілі,
-тож перевіряє збирання старших плиток під тиском заповненого поля.
+It has one empty cell and enough accumulated value for the goal, so it tests
+combining higher-rank tiles under a nearly full board.
 
-Кандидати, оцінка поля, бюджет 120 мс і навчання ймовірності появи залишаються
-такими самими, як у попередньому порівнянні. Симуляція припускає рівномірну
-появу в порожній клітинці й імовірності рангів 1/2 = 0.90/0.10.
-База застосунку — `675f277` / 1.9.39. Обчислення: Linux, JDK 21,
-квота 2 CPU, 2 робочі потоки, JVM `-Xms256m -Xmx768m`. Довга серія та пізні
-позиції запускаються послідовно.
+Candidates, board evaluation, 120 ms budget, and spawn-probability learning
+remain the same as in the earlier comparison. Simulation assumes a uniformly
+chosen empty cell and rank probabilities 1/2 = 0.90/0.10. App baseline:
+`675f277` / 1.9.39. Environment: Linux, JDK 21, 2 CPU quota, 2 worker threads,
+JVM `-Xms256m -Xmx768m`. Long runs and late positions were run sequentially.
 
-Довга серія використовує 16 спільних seed 201–216 для кожної з шести політик:
-8 нових партій та 8 продовжень наданого поля. Ліміт 20000 дає змогу
-накопичити матеріал для рівня 15 навіть при появі лише найменших плиток;
-саме збирання цільового об'єкта все одно перевіряється окремо.
-Для кожної пізньої цілі використовуються 8 seed 301–308, що покривають усі
-вісім орієнтацій підготовленої позиції.
+The long series uses 16 shared seeds, 201–216, for each of six policies: eight
+fresh games and eight continuations of the supplied board. The 20,000-move limit
+allows enough value to accumulate for rank 15 even if only the smallest tiles
+spawn; combining the target tile is evaluated separately. Each late-game target
+uses eight seeds, 301–308, covering all eight orientations of the prepared board.
 
-## Відтворення
+## Reproduction
 
-Потрібні Python 3 та JDK 17+.
+Python 3 and JDK 17+ are required.
 
 ```bash
 JAVA_HOME=/path/to/jdk python3 tools/check-merge-madness-algorithms.py \
@@ -88,75 +86,75 @@ for target in 11 12 13 14 15; do
 done
 ```
 
-## Довгі партії: результат
+## Long games: results
 
-96 модельних партій, **151926 ходів**. Усі закінчилися відсутністю доступних
-ходів раніше ліміту; зупинок за 20000 ходів немає. Найдовша партія — 5429
-ходів, найвищий отриманий рівень — **13**. Рівні 14 і 15 не отримані.
+96 modeled games, **151,926 moves**. All ended because no legal moves remained,
+before reaching the limit; none stopped at 20,000 moves. The longest game lasted
+5,429 moves. The highest rank reached was **13**. Ranks 14 and 15 were not reached.
 
-Кожна клітинка досягнення нижче — кількість партій із 16 для цієї політики.
-Політики мають спільні правила та оцінку поля; вони не охоплюють усі можливі
-оцінювачі й алгоритми.
+Each reach count below is out of 16 games for that policy. Policies share the
+same rules and board evaluation; they do not cover all possible evaluators or
+algorithms.
 
-| Політика | ≥11 | ≥12 | ≥13 | ≥14 | 15 | Медіана вибору | p95 |
+| Policy | ≥11 | ≥12 | ≥13 | ≥14 | 15 | Median search | p95 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Один хід | 5/16 | 0/16 | 0/16 | 0/16 | 0/16 | 0.019 мс | 0.058 мс |
-| Expectimax до 2 | 10/16 | 2/16 | 0/16 | 0/16 | 0/16 | 0.247 мс | 0.540 мс |
-| Поточний expectimax до 3 | 12/16 | 3/16 | 0/16 | 0/16 | 0/16 | 3.472 мс | 8.448 мс |
-| Адаптивний до 3–4 | 14/16 | 8/16 | 0/16 | 0/16 | 0/16 | 5.801 мс | 40.653 мс |
-| Expectimax до 4 | 14/16 | 8/16 | 1/16 | 0/16 | 0/16 | 41.821 мс | 119.457 мс |
-| Minimax до 3 | 9/16 | 1/16 | 0/16 | 0/16 | 0/16 | 3.232 мс | 8.316 мс |
+| One move | 5/16 | 0/16 | 0/16 | 0/16 | 0/16 | 0.019 ms | 0.058 ms |
+| Expectimax up to 2 | 10/16 | 2/16 | 0/16 | 0/16 | 0/16 | 0.247 ms | 0.540 ms |
+| Current expectimax up to 3 | 12/16 | 3/16 | 0/16 | 0/16 | 0/16 | 3.472 ms | 8.448 ms |
+| Adaptive up to 3–4 | 14/16 | 8/16 | 0/16 | 0/16 | 0/16 | 5.801 ms | 40.653 ms |
+| Expectimax up to 4 | 14/16 | 8/16 | 1/16 | 0/16 | 0/16 | 41.821 ms | 119.457 ms |
+| Minimax up to 3 | 9/16 | 1/16 | 0/16 | 0/16 | 0/16 | 3.232 ms | 8.316 ms |
 
-На цьому довшому горизонті глибина 4 дала середні модельні очки 51452.50
-проти 32195.25 у поточної глибини 3. Попарна середня різниця — `+19257.3`,
-95% bootstrap-інтервал — `[+4175.5; +35245.3]` за 10000 повторних вибірок.
-Отже, короткий прогін пропустив перевагу глибшого пошуку за цим показником.
-Для адаптивної глибини різниця `+10330.3`, інтервал `[-4361.5; +24457.3]`:
-невизначеність більша. Ці інтервали стосуються очок у моделі, не ймовірності
-досягнення 15-го рівня.
+On this longer horizon, depth 4 scored 51,452.50 modeled points on average versus
+32,195.25 for current depth 3. The mean paired difference was `+19,257.3`, with
+a 95% bootstrap interval of `[+4,175.5; +35,245.3]` over 10,000 resamples. Thus
+the shorter run missed a depth-4 advantage on this metric. Adaptive depth had a
+difference of `+10,330.3`, interval `[-4,361.5; +24,457.3]`, with more
+uncertainty. These intervals describe modeled score, not the probability of
+reaching rank 15.
 
-Зростання глибини має ціну в часі. Бюджет 120 мс перевіряється між операціями;
-він не є жорсткою межею реального часу при паузах JVM чи планувальника.
-Найдовше рішення глибини 4 у цій серії — 254.709 мс; поточної глибини 3 —
-66.239 мс. Показники стосуються цього комп'ютера.
+Greater depth costs time. The 120 ms budget is checked between operations; it
+is not a hard real-time bound during JVM or scheduler pauses. The longest depth-4
+decision in this series took 254.709 ms; current depth 3 took 66.239 ms. These
+measurements are specific to this computer.
 
-Дані: [підсумки та поділ за стартом](benchmarks/algorithms-target15-1.9.39.summary.csv),
-[кожна партія](benchmarks/algorithms-target15-1.9.39.games.csv).
+Data: [summaries by starting board](benchmarks/algorithms-target15-1.9.39.summary.csv),
+[each game](benchmarks/algorithms-target15-1.9.39.games.csv).
 
-## Підготовлені пізні позиції
+## Prepared late-game positions
 
-Ще 240 модельних сценаріїв, 9467 ходів: по 8 орієнтацій для кожної цілі
-11–15 і кожної з шести політик. Тут старші плитки вже задані початковим
-полем. Таблиця показує **збирання цілі з підготовленої позиції**, а не
-проходження гри від двох початкових плиток.
+Another 240 modeled scenarios and 9,467 moves: eight orientations for each goal
+from 11 to 15 and each of six policies. Higher-rank tiles are already in the
+starting board. The table shows **reaching a goal from a prepared position**,
+not completing a game that starts with two initial tiles.
 
-| Політика | Ціль 11 | Ціль 12 | Ціль 13 | Ціль 14 | Ціль 15 |
+| Policy | Goal 11 | Goal 12 | Goal 13 | Goal 14 | Goal 15 |
 | --- | --- | --- | --- | --- | --- |
-| Один хід | 7/8 | 7/8 | 5/8 | 5/8 | 5/8 |
-| Expectimax до 2 | 8/8 | 8/8 | 5/8 | 7/8 | 5/8 |
-| Поточний expectimax до 3 | 8/8 | 8/8 | 7/8 | 7/8 | 6/8 |
-| Адаптивний до 3–4 | 8/8 | 8/8 | 7/8 | 7/8 | 7/8 |
-| Expectimax до 4 | 8/8 | 8/8 | 7/8 | 6/8* | 7/8 |
-| Minimax до 3 | 8/8 | 7/8 | 8/8 | 8/8 | 7/8 |
+| One move | 7/8 | 7/8 | 5/8 | 5/8 | 5/8 |
+| Expectimax up to 2 | 8/8 | 8/8 | 5/8 | 7/8 | 5/8 |
+| Current expectimax up to 3 | 8/8 | 8/8 | 7/8 | 7/8 | 6/8 |
+| Adaptive up to 3–4 | 8/8 | 8/8 | 7/8 | 7/8 | 7/8 |
+| Expectimax up to 4 | 8/8 | 8/8 | 7/8 | 6/8* | 7/8 |
+| Minimax up to 3 | 8/8 | 7/8 | 8/8 | 8/8 | 7/8 |
 
-\* Для цілі 14 у постійної глибини 4: 6 успіхів, 1 програш і 1 живе поле
-після ліміту 500 ходів. Останнє не зараховане як успіх або програш.
+\* For goal 14 with constant depth 4: 6 wins, 1 loss, and 1 live board after
+the 500-move limit. The last case counts as neither a win nor a loss.
 
-Для цілі 15 медіана / p95 вибору: поточний — `0.645 / 10.906 мс`,
-адаптивний — `8.673 / 58.771 мс`, глибина 4 — `12.207 / 97.587 мс`,
-minimax — `1.343 / 9.617 мс`.
+For goal 15, median / p95 search times were: current `0.645 / 10.906 ms`,
+adaptive `8.673 / 58.771 ms`, depth 4 `12.207 / 97.587 ms`, and minimax
+`1.343 / 9.617 ms`.
 
-Це показує, що поточний код уміє оперувати рангом 15, але не завжди збирає
-його навіть із підготовленого поля. Minimax вартий подальшого дослідження
-для заповнених пізніх полів: слабші результати від початку не виключають
-користі на окремій стадії. Вісім орієнтацій однієї конструкції є малою
-вибіркою для вибору стратегії на всі пізні позиції. Порівняння лише очок
-тут також недостатнє: успішна партія зупиняється одразу при цілі, невдала
-може набирати інші очки до програшу або ліміту.
+This shows that the current code can represent rank 15, but does not always
+assemble it even from a prepared board. Minimax warrants further study on full
+late-game boards: weaker results from the start do not rule out usefulness at a
+specific stage. Eight orientations of one construction are a small sample for
+choosing a strategy across all late positions. Score alone is also insufficient:
+a successful game stops as soon as the target is reached, while an unsuccessful
+one may earn more points before losing or reaching the limit.
 
-Для кожної цілі збережено підсумок і кожен сценарій:
+Each target has a summary and individual scenarios:
 
-| Ціль | Підсумок | Сценарії |
+| Goal | Summary | Scenarios |
 | --- | --- | --- |
 | 11 | [CSV](benchmarks/algorithms-late11-1.9.39.summary.csv) | [CSV](benchmarks/algorithms-late11-1.9.39.games.csv) |
 | 12 | [CSV](benchmarks/algorithms-late12-1.9.39.summary.csv) | [CSV](benchmarks/algorithms-late12-1.9.39.games.csv) |
@@ -164,34 +162,33 @@ minimax — `1.343 / 9.617 мс`.
 | 14 | [CSV](benchmarks/algorithms-late14-1.9.39.summary.csv) | [CSV](benchmarks/algorithms-late14-1.9.39.games.csv) |
 | 15 | [CSV](benchmarks/algorithms-late15-1.9.39.summary.csv) | [CSV](benchmarks/algorithms-late15-1.9.39.games.csv) |
 
-## Перевірки та висновок
+## Checks and conclusion
 
-Усього виконано **336 нових модельних сценаріїв, 161393 ходи**. Узгодженість
-CSV перевірено: цінність поля, досягнуті ранги, номери ходів і причини
-завершення відповідають одне одному.
+In total, **336 new modeled scenarios and 161,393 moves** were run. CSV
+consistency was checked: board value, reached ranks, move numbers, and end
+reasons agree.
 
-**44 модульні тести пройдено**, без помилок і пропусків. Додано перевірки:
+**All 44 unit tests passed**, with no errors or skips. Added checks cover:
 
-- злиття кожного рангу до 15 включно в усіх чотирьох напрямках, очки й
-  збереження цінності;
-- відсутність повторного злиття щойно створеної старшої плитки за один свайп;
-- вибір вимушеного злиття до кожного рівня 11–15 на повному полі в чотирьох
-  орієнтаціях.
+- merging every rank through 15 in all four directions, score, and value conservation;
+- preventing a newly created higher-rank tile from merging again in one swipe;
+- choosing a forced merge up to each rank 11–15 on a full board in four orientations.
 
-**Попередній висновок про найкращий алгоритм для всієї гри був передчасним.**
-Глибший пошук дав кращі результати довгих партій за частиною показників,
-але досягнення фінального рівня зі стартових полів не підтвердив жоден
-перевірений варіант. Швидкість без втрати якості проходження до 15 наразі
-не доведена ані для зменшення, ані для збільшення глибини.
+**The earlier conclusion about the best algorithm for the entire game was
+premature.** Deeper search improved some long-game metrics, but no tested
+variant reached the final rank from a fresh starting board. Faster play without
+loss of quality through rank 15 has not been proven for either a shallower or
+deeper search.
 
-Наступні кандидати мають змінювати оцінку пізнього поля або поєднувати
-політики залежно від стадії та перевірятися на незалежних повних партіях
-до 15. Саме подовження тесту виявляє проблему, але не покращує стратегію.
-Це оновлення інструментів, тестів і документації для APK 1.9.39.
+Further candidates should change late-board evaluation or combine policies by
+game stage, then be tested on independent complete games through rank 15.
+Extending the test reveals the problem but does not improve the strategy. This
+updates the tools, tests, and documentation for APK 1.9.39.
 
-## Межі перевірки
+## Verification limits
 
-Це перевірка логіки на JVM, без захоплення екрана, Android-жестів та анімацій.
-Штучні пізні поля перевіряють роботу з числовими рангами, а розпізнаванню
-реального вигляду об'єктів рівнів 11–15 потрібні відповідні скриншоти.
-Технічна місткість реалізації — 17 рангів; вона не означає, що в грі їх 17.
+This is a JVM logic test without screenshot capture, Android gestures, or
+animations. Synthetic late boards test numeric-rank handling; recognizing the
+real artwork for ranks 11–15 requires corresponding screenshots. The
+implementation has technical capacity for 17 ranks; that does not mean the game
+has 17 ranks.

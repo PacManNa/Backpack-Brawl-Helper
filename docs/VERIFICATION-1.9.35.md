@@ -1,83 +1,83 @@
-# Прискорення 1.9.35
+# Performance improvements — 1.9.35
 
-## Зміни
+## Changes
 
-Профілювання 1.9.34 через Java Flight Recorder показало, що найбільше часу
-витрачалося на повторне обчислення вертикального контрасту для кандидатів меж
-поля. Окремий значний внесок мав пошук рядків підказок.
+Java Flight Recorder profiling of 1.9.34 showed that the most time was spent
+recalculating vertical contrast for candidate board boundaries. Searching for
+hint rows was another significant cost.
 
-- Контраст пікселів обчислюється один раз на поточний кадр для всіх кандидатів.
-  Читаються всі колонки, потрібні для оцінки меж і перевірки розділювачів:
-  враховано околиці згладжування й пошуку локального максимуму. Значення сум
-  додаються в попередньому порядку, що зберігає результат float-обчислень.
-- Горизонтальний профіль читається в усьому діапазоні, де можливе поле,
-  з додатковими пікселями для згладжування. Пошук положення поля виконується
-  на кожному кадрі; старі координати не підміняють перевірку.
-- Положення незмінних підказок кешується за відбитком усіх пікселів області,
-  у якій їх шукають, геометрії та розміру знімка. Зміна іконок, відкриття нового
-  рівня, зміщення поля й зміна роздільної здатності спричиняють новий пошук.
-- Модель свайпу формує результат без двох тимчасових масивів на кожен рядок.
-  Хеш незмінного поля обчислюється під час його створення.
-- Доступні напрямки визначаються за сусідніми клітинками, без створення
-  чотирьох результатів свайпу для кожної листової оцінки. Кеш свайпів будується
-  за потреби.
+- Pixel contrast is computed once per current frame for all candidates. All
+  columns needed for boundary scoring and separator checks are read, including
+  smoothing and local-maximum neighborhoods. Sums are added in the previous
+  order to preserve float results.
+- The horizontal profile is read across the full range where a board may be,
+  with extra pixels for smoothing. Board position is searched on every frame;
+  old coordinates do not replace the check.
+- Positions of unchanged hints are cached by a fingerprint of all pixels in
+  their search area, geometry, and screenshot size. Icon changes, a newly
+  revealed rank, board shifts, and resolution changes trigger a new search.
+- Swipe simulation no longer creates two temporary arrays per row. The hash of
+  an immutable board is computed on creation.
+- Available directions are determined from adjacent cells without creating
+  four swipe results for each leaf evaluation. Swipe caches are built on demand.
 
-Глибина пошуку 3, бюджет 120 мс, ваги оцінки, порядок напрямків і модель появи
-плиток збережені. Усі можливі місця появи плиток рівнів 1 і 2 обчислюються
-повністю. Скріншот не зменшується, пороги розпізнавання не послаблюються.
+Search depth 3, 120 ms budget, evaluation weights, direction order, and tile
+spawn model are retained. All possible spawn locations for rank-1 and rank-2
+tiles are computed completely. Screenshots are not downscaled, and recognition
+thresholds are not loosened.
 
-## Швидкість
+## Speed
 
-Однаковий знімок `1000011196.jpg`, JDK 21, одна JVM на версію,
-`-Xms256m -Xmx512m`, 12 прогрівальних і 100 вимірюваних повторів на кожен розмір.
-Заміри версій виконані послідовно, без одночасного складання чи тестування.
-Підказки між повторами однакові; градієнти поля обчислюються заново.
+Same screenshot, `1000011196.jpg`; JDK 21; one JVM per version;
+`-Xms256m -Xmx512m`; 12 warm-up and 100 measured repetitions per size. Versions
+were measured sequentially, without concurrent builds or tests. Hints remained
+identical; board gradients were recalculated each time.
 
-| Розпізнавання | Медіана 1.9.34 | Медіана 1.9.35 | Зменшення часу | p95 до → після |
+| Recognition | 1.9.34 median | 1.9.35 median | Time reduction | p95 before → after |
 | --- | --- | --- | --- | --- |
-| 576×1280 | 27.653 мс | 5.996 мс | 78.3% | 34.925 → 11.250 мс |
-| 1080×2400 | 54.453 мс | 8.289 мс | 84.8% | 61.189 → 11.958 мс |
+| 576×1280 | 27.653 ms | 5.996 ms | 78.3% | 34.925 → 11.250 ms |
+| 1080×2400 | 54.453 ms | 8.289 ms | 84.8% | 61.189 → 11.958 ms |
 
-Матриця та мінімальна впевненість не змінилися: 0.861 і 0.824 відповідно.
+Matrix and minimum confidence did not change: 0.861 and 0.824.
 
-Окремо порівняно повністю завершений пошук на глибинах 1–3 із тими самими
-деревами й без переривання за часом. Для глибини 3: 24 поля, три повтори,
-почерговий порядок запуску версій, ймовірність плитки першого рівня 0.90.
+Search was separately compared at depths 1–3 after full completion, using the
+same trees and without timeout interruption. At depth 3: 24 boards, three
+repetitions, alternating version order, first-rank spawn probability 0.90.
 
-| Пошук, 72 виміри | Медіана | p95 |
+| Search, 72 measurements | Median | p95 |
 | --- | --- | --- |
-| 1.9.34 | 1.823 мс | 9.079 мс |
-| 1.9.35 | 0.790 мс | 3.628 мс |
+| 1.9.34 | 1.823 ms | 9.079 ms |
+| 1.9.35 | 0.790 ms | 3.628 ms |
 
-Це час JVM у середовищі розробки. Захоплення екрана, фізичний жест, частота
-кадрів телефона й анімації гри сюди не входять. Приріст ходів за хвилину на
-телефоні цими числами не вимірюється. У поточному способі захоплення збережений
-інтервал 334 мс, а для швидкого підтвердження переходу — 180 мс після жесту.
-Їх подальше скорочення потребує замірів на телефоні. Пауза повторної спроби
-0.4 с не додається після успішного ходу.
+These are JVM times on a development computer. Screen capture, physical gestures,
+phone frame rate, and game animations are excluded. These numbers do not measure
+moves per minute on a phone. The current capture method retains a 334 ms
+interval, with 180 ms after a gesture for fast transition confirmation.
+Reducing them further requires phone measurements. The 0.4-second retry pause
+is not added after a successful move.
 
-## Перевірка якості
+## Quality checks
 
-- 41 модульний тест пройдено, включно з повторним використанням робочого
-  кешу після зміщення поля, нових рядків підказок і перекриття поля.
-- 27 повних скриншотів: усі 432 клітинки збігаються з вручну перевіреними
-  матрицями; два непридатні кадри відхилено.
-- Підказки без статичних зразків: три роздільні здатності, відкриття нового
-  силуету на наступному кадрі, позиції 1–17 у чотирьох рядках, перекриті іконки.
-  Один робочий кеш повторно використовується між змінами розміру й підказок.
-- Збережені класи 1.9.34 порівняно з новими в окремих завантажувачах класів:
-  усі `18^4` комбінації рядка в обох орієнтаціях, усі чотири напрямки —
-  839 808 однакових свайпів, рахунків, кількостей злиттів і масок доступних ходів.
-  Додатково перевірено 2048 змішаних полів із рівнями 0–17.
-- 216 повних пошуків на глибинах 1–3 із ймовірностями появи першого рівня
-  0.50, 0.90, 0.97 дали той самий напрямок та побітово однакову оцінку double.
-- Вісім відтворюваних партій по 120 ходів на глибині 2 дали всі 960 однакових
-  рішень, однаковий рахунок злиттів і кінцеві поля.
-- 174 порівняння геометрії на 29 скринах у трьох розмірах із повторними
-  читаннями: координати, впевненість float, рядки підказок і відхилення
-  непридатних кадрів побітово збігаються з 1.9.34.
+- 41 unit tests passed, including reuse of the working cache after board shifts,
+  new hint rows, and board occlusion.
+- 27 full screenshots: all 432 cells match manually verified matrices; two
+  unusable frames were rejected.
+- Hints without static samples: three resolutions, learning a new silhouette on
+  the next frame, positions 1–17 in four rows, and occluded icons. One working
+  cache is reused across resolution and hint changes.
+- Saved 1.9.34 classes were compared with new classes in separate class loaders:
+  all `18^4` row combinations in both orientations and all four directions —
+  839,808 identical swipes, scores, merge counts, and legal-move masks. Also
+  checked 2,048 mixed boards with ranks 0–17.
+- 216 full searches at depths 1–3 and spawn probabilities 0.50, 0.90, and 0.97
+  returned the same direction and bit-identical double scores.
+- Eight reproducible 120-move games at depth 2 produced all 960 identical
+  decisions, merge scores, and final boards.
+- 174 geometry comparisons across 29 screenshots at three sizes with repeated
+  reads matched 1.9.34 bit-for-bit for coordinates, float confidence, hint rows,
+  and rejection of unusable frames.
 
-Для порівняння двох версій після компіляції й збереження попередніх класів:
+To compare both versions after compiling and saving the old classes:
 
 ```bash
 javac -d /tmp/merge-equivalence tools/MergeMadnessEquivalenceCheck.java
@@ -87,25 +87,25 @@ java -Xms256m -Xmx768m -Djava.awt.headless=true -cp /tmp/merge-equivalence \
   app/src/test/resources/merge_madness
 ```
 
-Загальні команди перевірки та складання наведені в [BUILDING.md](BUILDING.md).
+General build and verification commands are in [BUILDING.md](BUILDING.md).
 
-## Збірка та підпис
+## Build and signature
 
-Версія `1.9.35`, `versionCode=66`. Release — пакет `ua.borlock.autotap`,
-debug — `ua.borlock.autotap.newkey`. Обидва використовують збережений ключ
-із локальної конфігурації; зміни алгоритмів в обох пакетах однакові.
-Байти основних класів рушія в debug/release збігаються. Обидва APK пройшли
-`apksigner verify`; SHA-256 сертифіката збігається з APK 1.9.34:
+Version `1.9.35`, `versionCode=66`. Release package is
+`ua.borlock.autotap`; debug package is `ua.borlock.autotap.newkey`. Both use the
+saved key from local configuration, with identical algorithm changes in both
+packages. Main engine class bytes match between debug and release. Both APKs
+passed `apksigner verify`; certificate SHA-256 matches APK 1.9.34:
 
 ```text
 78b0b3adc65fdd195744113386994b80319cfd119f1221f6960dbfc02c234985
 ```
 
-SHA-256 файлів:
+File SHA-256:
 
 ```text
 replacement:  4956ad82613b20af09a56c3a98faa63c74016d7652e5b7e839f673a2fcd3dccd
 side-by-side: edb468070883ea6fa620c756c68054ccd8da594c8f28a488bdf616fe4da561a0
 ```
 
-Встановлення та фізичні жести на телефоні в середовищі розробки не виконуються.
+Phone installation and physical gestures were not performed in the development environment.

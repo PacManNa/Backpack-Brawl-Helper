@@ -1,11 +1,10 @@
-# Прапорець перемикання мови — 1.9.44
+# Language-switch flag — 1.9.44
 
-Кнопка мови в хедері перед лічильником модулів показує прапорець і код
-мови, на яку перемкнеться інтерфейс: 🇨🇿 CZ для українського інтерфейсу
-та 🇺🇦 UA для чеського. Ширину кнопки збільшено, щоб прапорець і підпис
-поміщалися разом. Опис кнопки для служби доступності продовжує називати
-мову перемикання.
+The language button in the header, before the module count, shows the flag and
+code of the language the interface will switch to: 🇨🇿 CZ for Ukrainian and
+🇺🇦 UA for Czech. The button was widened to fit both the flag and label. Its
+accessibility description continues to identify the destination language.
 
 Release: `ua.borlock.autotap`, **1.9.44**, `versionCode=75`.
-Пакет підписано наявним постійним ключем, тож його можна встановити
-поверх попередньої release-збірки з тим самим сертифікатом.
+The APK uses the saved persistent key and can be installed over a previous
+release signed with the same certificate.

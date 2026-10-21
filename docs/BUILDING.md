@@ -1,37 +1,38 @@
-# Розробка та складання
+# Development and build
 
-## Інструменти
+## Tools
 
 - JDK 17.
 - Android SDK Platform 35.
-- Gradle Wrapper із репозиторію (Gradle 8.13) та Android Gradle Plugin 8.13.2.
+- The repository's Gradle Wrapper (Gradle 8.13) and Android Gradle Plugin 8.13.2.
 
-Код застосунку — Java 17. Окремих бібліотек виконання в Gradle-залежностях немає; бот використовує Android API.
+The app is written in Java 17. There are no separate runtime libraries in the
+Gradle dependencies; the bot uses Android APIs.
 
-## Debug-збірка
+## Debug build
 
-У Windows PowerShell, з кореня репозиторію:
+From the repository root in Windows PowerShell:
 
 ```powershell
 .\gradlew.bat assembleDebug --no-daemon --max-workers=1
 ```
 
-Зібраний файл:
+Output:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Для встановлення через ADB на під’єднаний пристрій:
+Install it over a connected device with ADB:
 
 ```powershell
 adb install -r .\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-Обидві збірки підписуються одним збереженим ключем із локального файла
-`local-signing.properties`. Ключ не генерується під час збірки. Якщо конфігурації
-немає, Gradle зупиняється, щоб випадково не підписати оновлення іншим ключем.
-Файл конфігурації та keystore ігноруються Git. Поля конфігурації:
+Both build variants use the same saved key from the local `local-signing.properties`
+file. The key is not generated during the build. If the config is missing,
+Gradle stops to avoid accidentally signing an update with a different key. The
+config and keystore are ignored by Git. Config fields:
 
 ```properties
 storeFile=/absolute/path/to/persistent-signing.jks
@@ -41,51 +42,55 @@ keyPassword=YOUR_EXISTING_PASSWORD
 storeType=JKS
 ```
 
-Для оновлення потрібні та сама пара package ID / ключ. Debug має package ID
-`ua.borlock.autotap.newkey` і назву з позначкою «нова»; release — `ua.borlock.autotap`.
+An update requires the same package ID and key pair. Debug uses package ID
+`ua.borlock.autotap.newkey` and the “new” app label; release uses
+`ua.borlock.autotap`.
 
-## Структура
+## Structure
 
 ```text
-app/src/main/java/ua/borlock/autotap/   Java-код інтерфейсу, розпізнавання та розв’язувача
-app/src/main/res/                       ресурси Android і конфігурація AccessibilityService
-docs/                                   інструкції користувача й архітектурні нотатки
-gradle/wrapper/                         версія Gradle Wrapper
+app/src/main/java/ua/borlock/autotap/   Java UI, recognition, and solver code
+app/src/main/res/                       Android resources and AccessibilityService configuration
+docs/                                   User guides and architecture notes
+gradle/wrapper/                         Gradle Wrapper version
 ```
 
-`local.properties`, згенеровані каталоги `build/` і `.gradle/`, APK та прикріплені до Codex матеріали ігноруються Git. Не додавай у коміт XML-дамп налаштувань Android із кореня проєкту.
+`local.properties`, generated `build/` and `.gradle/` directories, APKs, and
+Codex attachments are ignored by Git. Do not commit Android settings XML dumps
+from the repository root.
 
-## Поточна конфігурація
+## Current configuration
 
 - `applicationId`: `ua.borlock.autotap`.
-- Версія застосунку: `1.9.44` (`versionCode` 75).
-- `minSdk`: 24; для знімків екрана AccessibilityService потрібен Android 11 / API 30 або новіший.
+- App version: `1.9.44` (`versionCode` 75).
+- `minSdk`: 24; AccessibilityService screenshots require Android 11 / API 30 or later.
 - `targetSdk` / `compileSdk`: 35.
 
-## Перевірки
+## Checks
 
 ```bash
 bash gradlew testDebugUnitTest --no-daemon --max-workers=1
 bash tools/check-merge-madness.sh
 ```
 
-Другій команді потрібні `JAVA_HOME` і `ANDROID_HOME` або `ANDROID_SDK_ROOT`.
-Вона запускає код розпізнавача, скомпільований для APK: звіряє всі клітинки
-з вручну перевіреними матрицями скриншотів, відхиляє перекриті/обрізані кадри,
-перевіряє масштабування й навчання об'єктів із підказок без статичних зразків.
-Окремі штучні сценарії перевіряють відкриття нового силуету та технічну
-місткість позицій 1–17 у чотирьох рядках. Фактичних рівнів гри — 15;
-ці штучні зразки не підтверджують розпізнавання всіх реальних пізніх об'єктів.
-Тести JVM не виконують фізичний жест на Android; його перевіряють на телефоні.
+The second command needs `JAVA_HOME` and `ANDROID_HOME` or `ANDROID_SDK_ROOT`.
+It runs the recognizer code compiled for the APK: checks every cell against
+manually verified screenshot matrices, rejects covered/cropped frames, and
+checks scaling and learning objects from hints without static samples. Separate
+synthetic scenarios test a newly revealed silhouette and technical capacity for
+positions 1–17 in four rows. The actual game has 15 ranks; these synthetic
+samples do not verify recognition of all real late-game artwork. JVM tests do
+not dispatch a physical Android gesture; that needs a phone.
 
-Тести таймерів використовують Robolectric 4.14.1 з Android API 33;
-`unitTests.includeAndroidResources` увімкнено. Перший запуск завантажує
-залежності Gradle та образ Android для Robolectric і потребує мережі.
-У середовищі з обов’язковим HTTP-проксі передай його налаштування JVM
-згідно з політикою середовища. Ключ підпису потрібен і для конфігурації тестів;
-не створюй новий ключ для виправлення відсутньої локальної конфігурації.
+Timer tests use Robolectric 4.14.1 with Android API 33; Android resources are
+enabled for unit tests through `unitTests.includeAndroidResources`. The first
+run downloads Gradle dependencies and the Robolectric Android image, so it
+needs network access. In an environment requiring an HTTP proxy, pass its JVM
+settings according to that environment's policy. The signing key is also
+required to configure tests; do not create a new key to work around a missing
+local configuration.
 
-Для APK, що оновлює основний застосунок, використовуй release:
+For an APK that updates the main app, use release:
 
 ```bash
 bash gradlew testDebugUnitTest assembleRelease --no-daemon --max-workers=1
@@ -93,19 +98,20 @@ apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-Перед поширенням звіряй package ID та SHA-256 сертифіката з попереднім APK,
-а `versionCode` збільшуй. Debug із суфіксом `.newkey` не оновлює release.
+Before distributing, compare the package ID and certificate SHA-256 with the
+previous APK, and increment `versionCode`. Debug's `.newkey` suffix cannot
+update the release app.
 
-Заміри прискорення та порівняння з попереднім рушієм описані в
+Performance measurements and comparison with the previous engine are in
 [VERIFICATION-1.9.35.md](VERIFICATION-1.9.35.md).
 
-Модульний каталог і налаштування описані в [MODULES.md](MODULES.md),
-реалізований інтерфейс — у [INTERFACE-1.9.37.md](INTERFACE-1.9.37.md),
-уточнене керування панеллю — у [INTERFACE-1.9.38.md](INTERFACE-1.9.38.md),
-компактніші кнопки та перевірка алгоритмів — у [ALGORITHMS-1.9.39.md](ALGORITHMS-1.9.39.md),
-ціль автогри «Рюкзак-Бліц» — у [BLITZ-AUTOPLAY-1.9.40.md](BLITZ-AUTOPLAY-1.9.40.md),
-прискорення пошуку й точніші каскади — у [BLITZ-AUTOPLAY-1.9.41.md](BLITZ-AUTOPLAY-1.9.41.md),
-окреме вікно нагород і перевірки таймерів — у [TIMERS-1.9.42.md](TIMERS-1.9.42.md),
-українська/чеська локалізація — у [LOCALIZATION-1.9.43.md](LOCALIZATION-1.9.43.md),
-уточнення цілі до рівня 15 — у [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md),
-ідеї наступних клікерів — у [ROADMAP.md](ROADMAP.md).
+The module catalog and settings are documented in [MODULES.md](MODULES.md),
+the implemented interface in [INTERFACE-1.9.37.md](INTERFACE-1.9.37.md), panel
+controls in [INTERFACE-1.9.38.md](INTERFACE-1.9.38.md), compact buttons and
+algorithm checks in [ALGORITHMS-1.9.39.md](ALGORITHMS-1.9.39.md), Backpack
+Blitz autoplay goals in [BLITZ-AUTOPLAY-1.9.40.md](BLITZ-AUTOPLAY-1.9.40.md),
+search and cascade improvements in [BLITZ-AUTOPLAY-1.9.41.md](BLITZ-AUTOPLAY-1.9.41.md),
+reward timers and checks in [TIMERS-1.9.42.md](TIMERS-1.9.42.md), Ukrainian/Czech
+localization in [LOCALIZATION-1.9.43.md](LOCALIZATION-1.9.43.md), rank-15
+testing in [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md), and future clicker
+ideas in [ROADMAP.md](ROADMAP.md).

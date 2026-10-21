@@ -1,49 +1,49 @@
-# Компактні кнопки та перевірка алгоритмів — 1.9.39
+# Compact controls and algorithm evaluation — 1.9.39
 
-**Уточнення після зауваження користувача:** у грі 15 рівнів. Наведене нижче
-600-ходове порівняння оцінює лише ранню й середню гру. Його показник
-«рівень ≥10» не підтверджує якість алгоритму до 15-го й не дозволяє назвати
-його найкращим для проходження всієї гри. Продовження перевірки:
-[ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md).
+**Correction following user feedback:** the game has 15 ranks. The 600-move
+comparison below evaluates only early and mid-game. Its “rank ≥10” metric does
+not confirm play quality through rank 15 or show that this is the best algorithm
+for the whole game. Follow-up: [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md).
 
-## Інтерфейс
+## Interface
 
-Мінімальна висота `Старт / Стоп`, `Показати / Сховати поле` (також списку
-таймерів) і `В іконку` зменшена на 40%: `48 × 0.60 = 28.8 dp`.
-Округлення до фізичних пікселів дає приблизно 29 dp; довгий текст із великим
-системним шрифтом може збільшити висоту, щоб залишитися читабельним.
-Кнопка закриття показує лише великий хрестик `×`, розмір шрифту — 30 sp.
-Її опис для служб доступності зберігає дію «Зупинити бота й закрити панель».
+Minimum height for `Start / Stop`, `Show / Hide board` (also the timer list),
+and `To icon` was reduced by 40%: `48 × 0.60 = 28.8 dp`. Rounding to physical
+pixels gives about 29 dp; long labels with a large system font can still grow
+to remain legible. The close button now shows only a large `×`, in 30 sp. Its
+accessibility description still says “Stop bot and close panel.”
 
-## Що порівнюється
+## Algorithms compared
 
-Перевірка стосується **«Злиття Божевілля»**, поля 4×4 з попередніх скриншотів.
+The evaluation covers **Merge Madness**, the 4×4 board from earlier screenshots.
 
-| Позначення | Алгоритм |
+| Name | Algorithm |
 | --- | --- |
-| `greedy` | Expectimax на один хід, із поточною оцінкою після появи плитки |
-| `expectimax2` | Та сама оцінка й модель появи, глибина до 2 |
-| `current` | Поточний expectimax, глибина до 3 |
-| `expectimax4` | Та сама стратегія, глибина до 4 |
-| `adaptive4` | Глибина до 4 за наявності не більш ніж 4 порожніх клітинок, інакше до 3 |
-| `minimax` | Глибина до 3, найгірша можлива поява плитки замість математичного очікування |
+| `greedy` | One-move expectimax using the current post-spawn board evaluation |
+| `expectimax2` | Same evaluation and spawn model, depth up to 2 |
+| `current` | Current expectimax, depth up to 3 |
+| `expectimax4` | Same strategy, depth up to 4 |
+| `adaptive4` | Depth up to 4 with no more than 4 empty cells, otherwise up to 3 |
+| `minimax` | Depth up to 3; worst-case tile spawn instead of expected value |
 
-Кандидати генеруються в тимчасовому каталозі з вихідного коду поточного
-`MergeMadnessSolver`. Збережені його оцінка, кеші, порядок напрямків,
-поступове завершення рівнів і бюджет 120 мс. Правила поля спільні для всіх.
-Згенеровані класи не включаються до APK.
-Порівнюються тип і глибина пошуку з поточною оцінкою поля. Інші набори ваг,
-навчені оцінювачі й усі можливі алгоритми цим прогоном не охоплюються.
+Candidates are generated in a temporary directory from the current
+`MergeMadnessSolver` source. Its evaluation, caches, direction order,
+incremental completion of search levels, and 120 ms budget are retained. Board
+rules are shared across all variants. Generated classes are not included in
+the APK. The comparison varies search type and depth with the current board
+evaluation; it does not cover other weight sets, learned evaluators, or every
+possible algorithm.
 
-## Умови моделювання
+## Simulation conditions
 
-- Однакові початкові seed і послідовності випадкових значень для всіх політик.
-  На кожному ході однакові значення визначають ранг нової плитки й порядковий
-  номер серед порожніх клітинок поточного поля.
-- Модель симуляції: рівень 1 із ймовірністю 0.90, рівень 2 — 0.10;
-  позиція рівномірна серед порожніх клітинок. Це припущення поточного
-  розв'язувача; фактичний розподіл гри новими записами з телефона не вимірювався.
-- Непарні seed починаються з двох нових плиток; парні — з поля користувача:
+- All policies use the same starting seeds and random-value sequences. On every
+  move, corresponding values determine the new tile rank and its ordinal among
+  currently empty cells.
+- Simulation model: rank 1 with probability 0.90, rank 2 with probability 0.10;
+  position uniformly selected among empty cells. This is the current solver's
+  assumption; new phone observations have not measured the actual game
+  distribution.
+- Odd seeds start with two new tiles; even seeds start from the user's board:
 
 ```text
 0 0 0 1
@@ -52,20 +52,21 @@
 1 5 7 9
 ```
 
-- Навчання ймовірності виконується через `observeIfConfirmed`, як у застосунку:
-  лише після підтвердженого переходу з одним злиттям. Кожен симульований
-  перехід перевіряється `MergeMadnessTransition`.
-- Показники цього історичного прогону: досягнення рівня 10, завершені ходи, доступність
-  наступного ходу, максимальний ранг та модельні очки злиттів.
-  Модельні очки не є виміряним рахунком, показаним грою.
-- Партії обмежені числом ходів. Живе поле наприкінці такого ліміту не означає,
-  що гра пройдена або що відомий остаточний результат.
-- Час вимірюється у JVM JDK 21 на комп'ютері, 2 робочі потоки. Захоплення
-  екрана, фізичні жести, Android ART та анімації у ці виміри не входять.
+- Spawn probabilities are learned through `observeIfConfirmed`, as in the app,
+  only after a confirmed transition with one merge. Every simulated transition
+  is checked by `MergeMadnessTransition`.
+- Metrics in this historical run: reaching rank 10, completed moves, whether
+  another move remains, maximum rank, and modeled merge score. Modeled score is
+  not the score displayed by the game.
+- Games are move-limited. A board that still has a legal move at the limit is
+  not counted as a completed game, and its final outcome is unknown.
+- Timing uses a JDK 21 JVM on a computer, with two worker threads. Screenshot
+  capture, physical gestures, Android ART, and game animations are excluded.
 
-## Відтворення
+## Reproduction
 
-Потрібні Python 3 і JDK 17 або новіший; Android SDK для цієї симуляції не потрібен.
+Python 3 and JDK 17 or later are required; Android SDK is not needed for this
+simulation.
 
 ```bash
 JAVA_HOME=/path/to/jdk python3 tools/check-merge-madness-algorithms.py \
@@ -79,79 +80,79 @@ JAVA_HOME=/path/to/jdk python3 tools/check-merge-madness-algorithms.py \
   --output /tmp/merge-holdout
 ```
 
-Перший прогін оцінює витрати кандидатів. Основний використовує інші seed:
-101–132, по 16 початкових і продовжених партій для кожної політики.
-CSV містять підсумки та результати кожної партії. Порівняння очок виконується
-попарно з поточною політикою; 95% bootstrap-інтервал обчислюється за 10 000
-повторних вибірок парних різниць.
+The first run estimates the cost of candidate policies. The main run uses
+different seeds, 101–132, with 16 fresh games and 16 continuations of the
+supplied board per policy. CSV files contain summaries and each individual
+game. Scores are compared pairwise against the current policy; a 95% bootstrap
+interval uses 10,000 resamples of paired differences.
 
-## Результати першого прогону
+## Pilot results
 
-4 seed, до 300 ходів, по 2 початкові й продовжені партії для кожної політики.
-Постійна глибина 4 дала середні модельні очки 5458 проти 5411 у поточної
-глибини 3, однакове досягнення рівня 10 (2/4) та однакову доступність ходів
-наприкінці (4/4). 95% інтервал різниці очок: `[-40; +159]` — переконливої
-переваги немає. Медіана рішення зросла з 5.883 до 90.202 мс, p95 —
-з 10.893 до 120.056 мс. Повний четвертий рівень часто не вміщується в бюджет.
-Цей прогін не дає підстав обирати постійну глибину 4 для вимоги прискорення
-без втрати якості.
+Four seeds, up to 300 moves, two fresh games and two continuations per policy.
+Constant depth 4 averaged 5,458 modeled points versus 5,411 for current depth 3,
+with the same rank-10 reach rate (2/4) and same number of boards with a legal
+move at the end (4/4). The 95% score-difference interval was `[-40; +159]`, so
+there is no convincing advantage. Median decision time rose from 5.883 to
+90.202 ms, and p95 from 10.893 to 120.056 ms. A full fourth search level often
+does not fit within the budget. This run does not justify constant depth 4 for
+the goal of speeding up without reducing quality.
 
-Заміри: [короткий підсумок](benchmarks/algorithms-pilot-1.9.39.summary.csv),
-[кожна партія](benchmarks/algorithms-pilot-1.9.39.games.csv).
+Measurements: [pilot summary](benchmarks/algorithms-pilot-1.9.39.summary.csv),
+[each game](benchmarks/algorithms-pilot-1.9.39.games.csv).
 
-## Основне порівняння
+## Main comparison
 
-32 інші seed, до 600 ходів, п'ять політик — 160 модельних партій.
+32 different seeds, up to 600 moves, five policies — 160 modeled games.
 
-| Політика | Рівень ≥10 | Поле має доступний хід наприкінці | Середні модельні очки | Медіана вибору | p95 |
+| Policy | Rank ≥10 | Board has a legal move at end | Mean modeled score | Median search | p95 |
 | --- | --- | --- | --- | --- | --- |
-| Один хід | 25/32 | 24/32 | 9343.88 | 0.021 мс | 0.060 мс |
-| Expectimax, глибина 2 | 31/32 | 28/32 | 10455.25 | 0.299 мс | 0.612 мс |
-| **Поточний expectimax, глибина 3** | **31/32** | **32/32** | **11057.63** | **4.949 мс** | **9.647 мс** |
-| Адаптивний, глибина 3–4 | 29/32 | 32/32 | 10769.25 | 6.046 мс | 38.601 мс |
-| Minimax, глибина 3 | 26/32 | 25/32 | 9670.00 | 4.173 мс | 9.022 мс |
+| One move | 25/32 | 24/32 | 9343.88 | 0.021 ms | 0.060 ms |
+| Expectimax, depth 2 | 31/32 | 28/32 | 10455.25 | 0.299 ms | 0.612 ms |
+| **Current expectimax, depth 3** | **31/32** | **32/32** | **11057.63** | **4.949 ms** | **9.647 ms** |
+| Adaptive, depth 3–4 | 29/32 | 32/32 | 10769.25 | 6.046 ms | 38.601 ms |
+| Minimax, depth 3 | 26/32 | 25/32 | 9670.00 | 4.173 ms | 9.022 ms |
 
-Дані по всіх 32 парах очок, різниця відносно поточного алгоритму:
+Results across all 32 paired scores, relative to the current algorithm:
 
-| Варіант | Кращий / однаковий / гірший результат | Середня різниця | 95% bootstrap-інтервал |
+| Variant | Better / tied / worse | Mean difference | 95% bootstrap interval |
 | --- | --- | --- | --- |
-| Один хід | 4 / 3 / 25 | −1713.8 | [−2771.6; −755.9] |
-| Глибина 2 | 11 / 2 / 19 | −602.4 | [−1367.0; +40.8] |
-| Адаптивний 3–4 | 11 / 3 / 18 | −288.4 | [−715.0; +51.9] |
+| One move | 4 / 3 / 25 | −1713.8 | [−2771.6; −755.9] |
+| Depth 2 | 11 / 2 / 19 | −602.4 | [−1367.0; +40.8] |
+| Adaptive 3–4 | 11 / 3 / 18 | −288.4 | [−715.0; +51.9] |
 | Minimax | 8 / 1 / 23 | −1387.6 | [−2502.8; −457.9] |
 
-Для продовження саме наданого поля поточна політика досягла рівня 10 у всіх
-16 сценаріях, у всіх 16 лишився доступний хід після 600 кроків. Цифри
-показують результат обмежених сценаріїв за зазначеною моделлю появи плиток.
-Вони не доводять глобальної оптимальності та не вимірюють результат на телефоні.
-Варіанти з часовим обмеженням можуть завершувати різну глибину на іншому CPU.
+For continuations of the supplied board, the current policy reached rank 10 in
+all 16 scenarios, and all 16 still had a legal move after 600 steps. These
+numbers describe limited scenarios under the stated spawn model. They do not
+prove global optimality or measure a phone result. Time-limited variants may
+complete different depths on a different CPU.
 
-Дані: [підсумки з розбиттям за початковим полем](benchmarks/algorithms-holdout-1.9.39.summary.csv),
-[кожна партія](benchmarks/algorithms-holdout-1.9.39.games.csv).
-Разом із першим прогоном виконано 180 модельних партій.
+Data: [summaries split by starting board](benchmarks/algorithms-holdout-1.9.39.summary.csv),
+[each game](benchmarks/algorithms-holdout-1.9.39.games.csv). A total of 180
+modeled games were run, including the pilot.
 
-## Рішення для APK
+## APK decision
 
-**Алгоритм залишається поточним expectimax із глибиною до 3 та бюджетом 120 мс.**
-У межах ранньої й середньої гри цей прогін не виявив заміни, яка доведено
-покращує результат зі збереженням швидкості. Це тимчасовий вибір, а не висновок
-про найкращий алгоритм для рівня 15. Глибина 2 швидша, але у чотирьох сценаріях поле стало безвихідним;
-поточна політика в цих умовах зберегла можливість наступного ходу. Адаптивна
-глибина збільшила час без підтвердженого покращення результату. Minimax
-моделює появу як дії супротивника, тоді як поточна модель гри випадкова.
+**Keep the current expectimax with depth up to 3 and a 120 ms budget.** This
+early/mid-game evaluation found no replacement proven to improve results while
+preserving speed. This is a temporary choice, not a conclusion about the best
+algorithm for rank 15. Depth 2 is faster but ran out of moves in four scenarios;
+the current policy retained a legal next move in those conditions. Adaptive
+depth increased time without a confirmed result improvement. Minimax treats
+tile spawning as an opponent's choice, while the current game model is random.
 
-41 модульний тест пройдено. Debug і release 1.9.39 (`versionCode=70`)
-зібрано з тим самим збереженим ключем. Ігрові алгоритми й розпізнавання
-не змінені; нові варіанти є лише в інструменті перевірки. Інтерфейс
-на фізичному телефоні в цьому середовищі не запускався.
+All 41 unit tests passed. Debug and release 1.9.39 (`versionCode=70`) were built
+with the same saved key. Game algorithms and recognition were unchanged; new
+variants exist only in the evaluation tool. The interface was not run on a
+physical phone in this environment.
 
-`apksigner verify` підтвердив обидва APK. SHA-256 сертифіката збігається з 1.9.38:
+`apksigner verify` confirmed both APKs. Certificate SHA-256 matches 1.9.38:
 
 ```text
 78b0b3adc65fdd195744113386994b80319cfd119f1221f6960dbfc02c234985
 ```
 
-SHA-256 файлів:
+File SHA-256:
 
 ```text
 replacement:  10f6227b537a75ebbcc263a1af5b035a0703ce61778955c6b10ea2eec3de0cda

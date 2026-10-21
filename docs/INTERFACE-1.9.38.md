@@ -1,35 +1,37 @@
-# Зрозумілі дії плаваючої панелі — 1.9.38
+# Clear floating-panel controls — 1.9.38
 
-## Керування
+## Controls
 
-| Елемент | Дія |
+| Element | Action |
 | --- | --- |
-| `▼ Показати поле` | Показує поле й діагностику; підпис змінюється на `▲ Сховати поле` |
-| `▲ Сховати поле` | Ховає діагностику, залишаючи основне керування |
-| `Показати таймери / Сховати таймери` | Керує списком у режимі таймерів |
-| `В іконку` | Згортає всю панель до іконки; активний бот продовжує роботу |
-| Іконка з підписом `Відкрити` | Повертає панель із попереднім станом діагностики |
-| `× Закрити` | Зупиняє бота й закриває панель |
-| `Старт / Стоп` | Запускає або зупиняє поточний модуль |
-| Назва з підписом `⠿ Перетягнути` | Служить для переміщення панелі; звичайне натискання не змінює її вигляд |
+| `▼ Show board` | Shows the board and diagnostics; the label changes to `▲ Hide board` |
+| `▲ Hide board` | Hides diagnostics while keeping the main controls visible |
+| `Show timers / Hide timers` | Controls the list in timer mode |
+| `To icon` | Collapses the whole panel to an icon; the active bot keeps running |
+| Icon labeled `Open` | Restores the panel and its previous diagnostics state |
+| `× Close` | Stops the bot and closes the panel |
+| `Start / Stop` | Starts or stops the current module |
+| Heading labeled `⠿ Drag` | Moves the panel; a regular tap does not change its appearance |
 
-## Зміни
+## Changes
 
-- Прибрано розгортання натисканням назви, статусу чи тексту найближчого таймера.
-- Статус став звичайним рядком із префіксом `Стан:`.
-- Додано окрему кнопку діагностики з поточною дією й напрямком стрілки.
-- Кнопки згортання й закриття мають видимі підписи.
-- Іконка згорнутої панелі має підпис `Відкрити`. Її розмір враховує системний
-  масштаб шрифту; коротке натискання відкриває, перетягування переміщує.
-- Збереження позиції, ширини й діагностики працює через наявні профілі модулів.
-- Підказку у налаштуваннях панелі та інструкцію користувача оновлено.
+- Tapping the name, status, or nearest timer text no longer expands the panel.
+- Status is now a regular line prefixed with `Status:`.
+- Added a separate diagnostics button with the current action and an arrow
+  indicating its state.
+- Collapse and close buttons have visible labels.
+- The collapsed-panel icon is labeled `Open`. Its size accounts for system font
+  scaling; a short tap opens it, while dragging moves it.
+- Position, width, and diagnostics state continue to use existing module profiles.
+- Updated the panel-settings hint and user guide.
 
-## Обсяг і збірка
+## Scope and build
 
-Порівняно з `1ae4941` (1.9.37) змінено два файли UI, номер версії й документацію.
-24 інші Java-файли та ділянка служби від запуску автогри до виконання жесту
-побітово збігаються з попередньою версією. Ігрові алгоритми й параметри збережені.
+Compared with `1ae4941` (1.9.37), two UI files, the version, and documentation
+changed. The other 24 Java files and the service path from autoplay start to
+gesture execution are byte-for-byte identical to the previous version. Game
+algorithms and parameters are unchanged.
 
-`assembleDebug assembleRelease` успішний. Версія `1.9.38`, `versionCode=69`.
-Обидва APK пройшли перевірку підпису зі збереженим ключем. Автоматичні тести
-на цьому етапі UI не запускалися; фізичний телефон у середовищі недоступний.
+`assembleDebug assembleRelease` succeeded. Version `1.9.38`, `versionCode=69`.
+Both APKs passed signature verification with the saved key. Automated tests
+were not run for this UI change; a physical phone was unavailable here.

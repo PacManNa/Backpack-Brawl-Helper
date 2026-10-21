@@ -1,35 +1,35 @@
-# Інтерфейс 1.9.36
+# Interface — 1.9.36
 
-- Картки ботів під час нового запуску згорнуті до іконки й назви.
-- Натискання заголовка відкриває або ховає формат поля, опис, кнопку панелі
-  та налаштування очікування. Прихований вміст не займає місця на екрані.
-- Повзунок очікування перенесено всередину карток. Він змінює те саме спільне
-  налаштування; обидва повзунки й підписи синхронізовані. Поточне значення
-  зберігається під час оновлення.
-- Поворот екрана зберігає розгорнуті картки. Заголовки підтримують керування
-  з клавіатури й оголошують стан згортання службам доступності.
-- З плаваючого меню видалено кнопку калібрування та її елементи керування.
-  Збережені налаштування розпізнавання не видаляються.
+- Bot cards are collapsed to their icon and name when the app opens.
+- Tapping a heading reveals or hides the board format, description, panel button,
+  and wait setting. Hidden content does not take up screen space.
+- The wait slider is inside each card. It changes the same shared setting;
+  both sliders and labels stay in sync. The current value is preserved on update.
+- Expanded cards remain open after screen rotation. Headings support keyboard
+  control and announce their collapsed state to accessibility services.
+- The calibration button and its controls were removed from the floating menu.
+  Saved recognition settings are retained.
 
-## Обсяг змін і складання
+## Change scope and build
 
-Змінено два файли інтерфейсу: `MainActivity.java` та UI-частину
-`TapAccessibilityService.java`, а також номер версії й документацію.
-20 решти Java-файлів побітово збігаються з вихідними перед цим редагуванням.
-Ділянка служби від запуску автогри до захоплення екрана, розпізнавання,
-вибору ходу й виконання свайпу порівняна з 1.9.35 та не змінена.
-Параметри, пороги й часові значення гри збережені.
+Two UI files changed: `MainActivity.java` and the UI portion of
+`TapAccessibilityService.java`, along with the version and documentation.
+The other 20 Java files are byte-for-byte identical to the source before this
+edit. The service path from starting autoplay through screen capture,
+recognition, move selection, and swipe execution was compared with 1.9.35 and
+is unchanged. Game parameters, thresholds, and timing values are retained.
 
-Збірка `assembleDebug assembleRelease` успішна. Версія `1.9.36`, код `67`.
-Обидва APK пройшли перевірку підпису з попереднім ключем, SHA-256 сертифіката:
+`assembleDebug assembleRelease` succeeded. Version `1.9.36`, code `67`.
+Both APKs passed signature verification with the previous key. Certificate
+SHA-256:
 
 ```text
 78b0b3adc65fdd195744113386994b80319cfd119f1221f6960dbfc02c234985
 ```
 
-| APK | Package ID | SHA-256 файла |
+| APK | Package ID | File SHA-256 |
 | --- | --- | --- |
 | replacement | ua.borlock.autotap | 92a07a443f2b7d7047a1d24532cbe782029852969c41504ec92414251efdbefc |
 | side-by-side | ua.borlock.autotap.newkey | 339fb63c3b48c19067e50b5438c6b63442aabe32ed4f4c79c42bb95e8bb55e41 |
 
-На фізичному телефоні інтерфейс у цьому середовищі не запускався.
+The interface was not run on a physical phone in this environment.

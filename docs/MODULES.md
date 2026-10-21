@@ -1,113 +1,116 @@
-# Модулі клікерів
+# Clicker modules
 
-Каталог запроваджено в **1.9.37**, перекладено в **1.9.43**. Каталог, картки, налаштування й плаваюча панель
-спільні. Два наявні ігрові рушії зберігають свої моделі, розпізнавачі та оцінювачі.
+The catalog was introduced in **1.9.37** and localized in **1.9.43**. The
+catalog, cards, settings, and floating panel are shared. The two existing game
+engines retain their own board models, recognizers, and evaluators.
 
-## Підключені модулі
+## Registered modules
 
-| Сталий ID | Назва | Рушій |
+| Stable ID | Name | Engine |
 | --- | --- | --- |
-| `backpack_blitz` | Рюкзак-Бліц | `BoardVision`, `GameBoard`, `GameSolver` |
-| `merge_madness` | Злиття Божевілля | `MergeMadnessVision`, `MergeMadnessBoard`, `MergeMadnessSolver` |
+| `backpack_blitz` | Backpack Blitz | `BoardVision`, `GameBoard`, `GameSolver` |
+| `merge_madness` | Merge Madness | `MergeMadnessVision`, `MergeMadnessBoard`, `MergeMadnessSolver` |
 
-## Структура
+## Structure
 
-| Клас | Відповідальність |
+| Class | Responsibility |
 | --- | --- |
-| `BotMode` | Сталі ключі підтримуваних рушіїв; порядок enum не використовується в збережених даних |
-| `ClickerModule` | Незмінний опис модуля: ID, назва, іконка, опис, формат поля, палітра та перелік налаштувань |
-| `ClickerCatalog` | Єдиний впорядкований каталог; перевіряє унікальність ID і наявність опису для кожного рушія |
-| `ClickerPreferences` | Налаштування модуля, міграція старого таймауту та профілі панелі |
-| `ExpandableSection` | Спільна поведінка спойлера, клавіатурного фокуса й дій доступності |
-| `MainActivity` | Будує картки й доступні елементи налаштування з каталогу |
-| `TapAccessibilityService` | Одна активна сесія, спільне захоплення екрана, виконання жестів, панель та маршрутизація до наявних рушіїв |
+| `BotMode` | Stable keys for supported engines; enum order is not used in saved data |
+| `ClickerModule` | Immutable module description: ID, name, icon, description, board format, palette, and settings |
+| `ClickerCatalog` | One ordered catalog; checks unique IDs and a description for every engine |
+| `ClickerPreferences` | Module settings, old-timeout migration, and panel profiles |
+| `ExpandableSection` | Shared expandable-section behavior, keyboard focus, and accessibility actions |
+| `MainActivity` | Builds cards and available settings from the catalog |
+| `TapAccessibilityService` | One active session, shared screenshot capture and gesture execution, panel, and routing to existing engines |
 
 ```mermaid
 flowchart TD
-    Catalog[ClickerCatalog] --> Cards[Картки MainActivity]
-    Catalog --> Panel[Назва, іконка й палітра панелі]
+    Catalog[ClickerCatalog] --> Cards[MainActivity cards]
+    Catalog --> Panel[Panel name, icon, and palette]
     Cards --> Preferences[ClickerPreferences]
     Cards --> Host[TapAccessibilityService]
-    Host --> Blitz[Рушій Рюкзак-Бліц]
-    Host --> Merge[Рушій Злиття Божевілля]
-    Blitz --> Gesture[Спільне виконання жестів]
+    Host --> Blitz[Backpack Blitz engine]
+    Host --> Merge[Merge Madness engine]
+    Blitz --> Gesture[Shared gesture execution]
     Merge --> Gesture
     Preferences --> Host
 ```
 
-Це каталог вбудованих модулів, які постачаються з APK. Окремого завантаження
-виконуваних плагінів у цій версії немає.
+This is a catalog of built-in modules shipped in the APK. This version does not
+support separately downloaded executable plugins.
 
-## Опис і налаштування
+## Descriptions and settings
 
-У `ClickerCatalog` створюється `ClickerModule` із ключем `BotMode`, ресурсом назви,
-іконкою, ресурсом опису, форматом поля, палітрою `Theme` та набором `Setting`.
-Поля `nameRes` та `descriptionRes` — ідентифікатори `R.string`; значення
-визначаються під час побудови інтерфейсу з урахуванням вибраної мови.
-Головний екран перебирає `ClickerCatalog.all()`; картка й лічильник модулів
-оновлюються без додаткової верстки для конкретної гри.
+`ClickerCatalog` creates `ClickerModule` entries with a `BotMode` key, name
+resource, icon, description resource, board format, `Theme` palette, and set of
+`Setting` values. `nameRes` and `descriptionRes` are `R.string` IDs; their values
+are resolved while building the UI using the selected language. The main screen
+iterates over `ClickerCatalog.all()`. Cards and the module count update without
+game-specific layouts.
 
-Доступні параметри схеми:
+Supported setting schemas:
 
-- `NO_CHANGE_TIMEOUT`: очікування повторної спроби після незміненого поля,
-  400–4000 мс із кроком 100 мс. Після успішного ходу цей час не додається.
-- `PANEL_WIDTH`: ширина панелі 224–360 dp із кроком 8 dp, початково 272 dp.
-  Фактична ширина обмежується доступною областю екрана.
+- `NO_CHANGE_TIMEOUT`: delay before retrying an unchanged board, 400–4000 ms in
+  100 ms steps. This delay is not added after a successful move.
+- `PANEL_WIDTH`: panel width from 224–360 dp in 8 dp steps, 272 dp by default.
+  The actual width is limited by the available screen area.
 
-Набір параметрів задає сам запис модуля. Новий тип параметра потребує окремого
-елемента схеми й спільного віджета; це не вимагає копіювання всієї картки.
+Each module entry declares its own settings. A new setting type requires a
+schema entry and shared widget, not a copied card implementation.
 
-## Збереження даних
+## Saved data
 
-Новий файл `SharedPreferences`: `pelyustka_modules`.
+New `SharedPreferences` file: `pelyustka_modules`.
 
-| Ключ | Значення |
+| Key | Value |
 | --- | --- |
-| `module.<id>.timeout_ms` | Незалежний таймаут модуля |
-| `panel.<id>.width_dp` | Ширина панелі модуля |
-| `panel.<id>.details` | Розгорнутість діагностики |
-| `panel.<id>.<orientation>.x` / `.y` | Відносне положення в доступній області |
+| `module.<id>.timeout_ms` | Per-module timeout |
+| `panel.<id>.width_dp` | Per-module panel width |
+| `panel.<id>.details` | Whether diagnostics are expanded |
+| `panel.<id>.<orientation>.x` / `.y` | Relative position within the available area |
 
-`orientation` має значення `portrait` або `landscape`. Відносні координати
-зберігаються в межах 0–1 з урахуванням розміру панелі. Під час відновлення
-враховуються системні панелі й виріз екрана; після зміни висоти панель
-утримується у доступній області. Профілі `timers` і `timers_bubble` зарезервовані
-для окремого вікна нагадувань та його іконки. Вони не перемикають активний бот.
-Ширина спільна для двох орієнтацій конкретного модуля; положення окреме.
-Висота визначається вмістом. Згортання до іконки діє до наступного відкриття
-модуля через головний екран.
+`orientation` is `portrait` or `landscape`. Relative coordinates are saved from
+0 to 1 and account for panel size. Restoration accounts for system bars and
+display cutouts; after a height change, the panel is kept within the usable area.
+The `timers` and `timers_bubble` profiles are reserved for the separate reminder
+window and its icon. They do not switch the active bot. Width is shared between
+orientations for a module; position is stored separately. Height follows the
+content. Collapsing to an icon lasts until the next module is opened from the
+main screen.
 
-Коли `module.<id>.timeout_ms` ще відсутній, значення один раз копіюється зі
-старого `pelyustka_settings/move_delay_ms`, з тими самими межами. Після цього
-модулі налаштовуються незалежно. Старий ключ лишається джерелом міграції.
-Дані зразків розпізнавання не змінюються. Таймери зберігають старий ключ даних;
-міграція нових полів описана в [TIMERS-1.9.42.md](TIMERS-1.9.42.md).
+If `module.<id>.timeout_ms` is missing, it is copied once from the old
+`pelyustka_settings/move_delay_ms`, using the same bounds. Modules are then
+configured independently. The old key remains as the migration source.
+Recognition samples are unchanged. Timers retain their previous data key; see
+[TIMERS-1.9.42.md](TIMERS-1.9.42.md) for migration of their new fields.
 
-## Поточна межа модульності
+## Current modularity boundary
 
-Розпізнавання й пошук ходів уже знаходяться в окремих класах кожної гри.
-Життєвий цикл двох різних полів ще маршрутизується всередині
-`TapAccessibilityService` через `BotMode`: типізовані результати, перевірка
-стабільності та діагностичні сітки відрізняються. Цей етап не переносить їх
-у новий універсальний рушій і не змінює ігрові правила.
+Recognition and move search are already in separate classes for each game.
+The lifecycle for the two different boards is still routed inside
+`TapAccessibilityService` through `BotMode`: typed results, stability checks,
+and diagnostic grids differ. This stage does not move them to a new universal
+engine or change game rules.
 
-Перед третім типом гри варто винести цю маршрутизацію в адаптери сесій із
-єдиними операціями запуску, зупинки, читання кадру й формування діагностики.
-Контракт слід визначити за вимогами нового клікера; приклади — у
-[ROADMAP.md](ROADMAP.md).
+Before adding a third game type, consider moving this routing into session
+adapters with shared start, stop, frame-reading, and diagnostics operations.
+Define the contract from the new clicker's needs; examples are in [ROADMAP.md](ROADMAP.md).
 
-## Додавання нового модуля
+## Adding a module
 
-1. Визначити поведінку, очікувані екрани, допустимі дії й умови зупинки.
-2. Додати сталий ID у `BotMode`; ID не змінювати після випуску й не
-   використовувати `timers` чи `timers_bubble`.
-3. Зареєструвати опис, палітру та підтримувані параметри у `ClickerCatalog`.
-   Назву й опис додати до `values/strings.xml` та `values-cs/strings.xml`.
-4. Реалізувати окремі класи розпізнавання/стану/вибору дії. Якщо потрібен інший
-   життєвий цикл, спочатку виділити адаптер сесії зі спільної служби.
-5. Підключити виконання й діагностику через спільну службу. Знімання екрана,
-   черга жестів і правило однієї активної сесії залишаються спільними.
-6. Додати специфічні параметри в схему, описати їхні одиниці, межі й міграцію.
-7. Оновити документацію модуля й випустити APK зі збереженим ключем.
+1. Define the behavior, expected screens, allowed actions, and stop conditions.
+2. Add a stable ID to `BotMode`; do not change it after release or use
+   `timers` / `timers_bubble`.
+3. Register the description, palette, and supported settings in
+   `ClickerCatalog`. Add the name and description to `values/strings.xml` and
+   `values-cs/strings.xml`.
+4. Implement separate recognition, state, and action-selection classes. If a
+   different lifecycle is needed, first extract a session adapter from the
+   shared service.
+5. Connect execution and diagnostics through the shared service. Screenshot
+   capture, gesture queue, and the one-active-session rule remain shared.
+6. Add module-specific settings to the schema and document their units, bounds,
+   and migration.
+7. Update the module documentation and build an APK with the saved signing key.
 
-Ідеї модулів не додаються в робочий каталог до реалізації їхньої поведінки.
+Module ideas do not enter the working catalog until their behavior is implemented.

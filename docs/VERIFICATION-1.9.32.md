@@ -1,17 +1,17 @@
-# Перевірка 1.9.32
+# Verification — 1.9.32
 
-Репозиторій: https://github.com/PacManNa/Bot-klicker
+Repository: https://github.com/PacManNa/Bot-klicker
 
-## Відтворена помилка
+## Reproduced issue
 
-На `1000011196.jpg` попередня версія читала останню клітинку як 7 замість 9.
-У підказках оцінки рівнів 8–17 були вимкнені нескінченним порогом, але результат
-цього порівняння міг замінити правильний результат зразка клітинки. Захист,
-доданий у 1.9.31, порівнював рівень із довжиною масиву (17), тому для 9 не спрацьовував.
-На помилковому полі бот очікував злиття двох 7; на справжньому полі свайп праворуч
-нічого не змінює.
+On `1000011196.jpg`, the previous version read the last cell as 7 instead of 9.
+Rank scores 8–17 from hints were disabled with an infinite threshold, but the
+result could still override a correct cell-template match. The protection added
+in 1.9.31 compared a rank against the array length (17), so it did not apply to
+rank 9. On the incorrect board, the bot expected two 7s to merge; on the actual
+board, a right swipe changes nothing.
 
-Правильна матриця:
+Correct matrix:
 
 ```text
 0 0 0 1
@@ -20,57 +20,58 @@
 1 5 7 9
 ```
 
-## Зміни
+## Changes
 
-- На кожному кадрі читаються поточні підказки: 5 позицій зліва направо в рядку,
-  далі наступний рядок, аж до рівня 17. Номер визначається позицією в ланцюжку.
-- Розпізнавач відділяє звірка від фону, порівнює форму й просторові кольори,
-  відтінки та яскравість. Темне тіло відновлюється за контуром.
-- Закритий чорний силует зберігає позицію наступного рівня, але не стає зразком
-  відкритого об'єкта. Кольорова іконка, що з'явилася замість силуету, підхоплюється
-  на наступному кадрі. Статичні зразки залишаються резервом при нечітких підказках.
-- Усі видимі відкриті рівні беруть участь у перевірці різниці між найкращими
-  збігами. Обрізані фрагменти не розтягуються до повного шаблону.
-- Панель показує кількість відкритих рівнів та наступний закритий рівень.
+- Read current hints on every frame: five positions left-to-right in a row,
+  then the next row, through rank 17. Rank is determined by sequence position.
+- Separate the animal from the background and compare shape, spatial color,
+  hue, and brightness. Recover a dark body from its contour.
+- A closed black silhouette keeps the next-rank position but is not used as a
+  sample for an open object. When a colored icon replaces it, the next frame
+  picks it up. Static samples remain a fallback for unclear hints.
+- Use all visible open ranks when checking the margin between the best matches.
+  Cropped fragments are not stretched to fit a full template.
+- The panel shows the number of open ranks and the next closed rank.
 
-## Результати
+## Results
 
-| Перевірка | Результат |
+| Check | Result |
 | --- | --- |
-| Модульні тести зсувів, злиття, переходів, вибору ходу, геометрії та впевненості | 33 пройдено, 0 помилок |
-| Повні знімки з вручну перевіреними матрицями | 27/27, усі 432 клітинки збіглися |
-| Перекритий кадр і горизонтальний фрагмент | Обидва відхилено |
-| Масштабування останнього кадру та попереднього контрольного кадру | 1080×2340 і 1080×2400: точні матриці |
-| Читання останнього поля лише за підказками, без статичних зразків | Усі зайняті клітинки при 576×1280, 1080×2340, 1080×2400 |
-| Відкриття нового кольорового об'єкта замість силуету | Рівень 11 вивчено на наступному кадрі, 12 залишається закритим |
-| Залежність рангу від позиції, чотири рядки | Усі позиції 1–17 пройдено |
-| Неповні іконки під непрозорою панеллю | Не використовуються як зразки |
-| Повторне злиття щойно створеної плитки в одному ході | Заборонено, включно з рівнями 11–12 |
-| Збереження суми значень плиток | 1296 варіантів рядка × 4 напрямки |
-| Вибір ходу на останньому справжньому полі | Праворуч не обирається, обраний хід змінює поле |
-| Debug/release APK | Зібрані, класи розпізнавання однакові |
+| Unit tests for shifts, merges, transitions, move selection, geometry, and confidence | 33 passed, 0 failures |
+| Full screenshots with manually verified matrices | 27/27, all 432 cells matched |
+| Occluded frame and horizontal crop | Both rejected |
+| Scaling of latest and previous control frames | Exact matrices at 1080×2340 and 1080×2400 |
+| Latest board read only from hints, without static samples | All occupied cells at 576×1280, 1080×2340, and 1080×2400 |
+| New colored object replacing a silhouette | Rank 11 learned on next frame; rank 12 remains closed |
+| Rank by position, four rows | All positions 1–17 passed |
+| Incomplete icons under opaque panel | Not used as samples |
+| Merging a newly created tile again in one move | Prevented, including ranks 11–12 |
+| Conservation of total tile value | 1,296 row variants × 4 directions |
+| Move selection on latest real board | Right not selected; chosen move changes the board |
+| Debug/release APKs | Built; recognition classes identical |
 
-Команди відтворення наведено в [BUILDING.md](BUILDING.md).
+Reproduction commands are in [BUILDING.md](BUILDING.md).
 
-## APK та підпис
+## APK and signature
 
-Версія `1.9.32`, `versionCode=63`. Обидва APK підписані тим самим збереженим
-ключем, що й збірка 1.9.31; відповідність перевірено `apksigner`.
+Version `1.9.32`, `versionCode=63`. Both APKs are signed with the same saved key
+as build 1.9.31; `apksigner` confirmed the match.
 
-Відбиток сертифіката SHA-256:
+Certificate SHA-256:
 
 ```text
 78b0b3adc65fdd195744113386994b80319cfd119f1221f6960dbfc02c234985
 ```
 
-| Файл | Package ID | SHA-256 APK |
+| File | Package ID | APK SHA-256 |
 | --- | --- | --- |
 | Bot-klicker-1.9.32-replacement.apk | ua.borlock.autotap | cc84460a0afdb6c56a592f9eb9dbab5b0b0e49a7eddf64c6a87ae8843125a625 |
 | Bot-klicker-1.9.32-side-by-side.apk | ua.borlock.autotap.newkey | 35d5585d62168ff4d9634cf6c85d1293de6a3e756253faafc7460fae3d0739ff |
 
-## Межі перевірки
+## Verification limits
 
-Зображень справжніх відкритих об'єктів 11–17 у наданих матеріалах немає.
-Їх автоматичне підхоплення перевірено керованою зміною кольорів і позицій іконок;
-це перевіряє механізм навчання, але не є перевіркою ще не показаних ігрових малюнків.
-Фізичний жест та встановлення APK на телефон у цьому середовищі не виконувалися.
+The supplied materials do not include images of real, open objects at ranks
+11–17. Automatic pickup was checked with controlled changes to icon colors and
+positions. This checks the learning mechanism, not artwork the game has not yet
+shown. Physical gestures and APK installation on a phone were not performed in
+this environment.

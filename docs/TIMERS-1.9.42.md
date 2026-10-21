@@ -1,127 +1,129 @@
-# Нагадування про нагороди — 1.9.42
+# Reward reminders — 1.9.42
 
-## Готові таймери
+## Preset timers
 
-Інтервали задані за вимогами користувача та доступні для редагування.
+Intervals follow the requested schedule and can be edited.
 
-| Сталий ID | Назва | Інтервал |
+| Stable ID | Name | Interval |
 | --- | --- | --- |
-| `reward.event_tickets` | 🎟️ Квитки події | 4 години |
-| `reward.shop_gems` | 💎 Самоцвіти крамниці | 1 година |
-| `reward.shop_coins` | 🪙 Монети крамниці | 1 година |
-| `reward.event_bones` | 🦴 Мішок кісток | 3 години |
+| `reward.event_tickets` | 🎟️ Event tickets | 4 hours |
+| `reward.shop_gems` | 💎 Shop gems | 1 hour |
+| `reward.shop_coins` | 🪙 Shop coins | 1 hour |
+| `reward.event_bones` | 🦴 Bone bag | 3 hours |
 
-Монети й самоцвіти незалежні: на наданому скриншоті вони мають різний залишок.
-Готові визначення додаються зупиненими. Вже наявні таймери, назви, інтервали
-та запущені відліки зберігаються; збіг ID або відомої попередньої назви
-не створює дубль. Після видалення готовий таймер не з’являється знову сам:
-для цього є **Додати відсутні таймери гри**.
+Coins and gems are independent because the supplied screenshot showed different
+remaining times. Presets are added stopped. Existing timers, names, intervals,
+and running countdowns are retained; matching an ID or known previous name does
+not create a duplicate. A deleted preset does not reappear automatically; use
+**Add missing game timers** to restore it.
 
-## Керування
+## Controls
 
-- **Запустити / Старт** починає повний інтервал після отримання нагороди.
-- **Перезапустити / ↻ Заново** починає інтервал від поточного моменту,
-  замінюючи попередній відлік, будильник і сповіщення.
-- **Зупинити / Стоп** прибирає чинний відлік і сповіщення, зберігаючи визначення.
-  Зупинка не зберігає залишок як паузу.
-- **⋮ → Задати залишок часу з гри** приймає години, хвилини й секунди
-  для одного запуску. Наприклад, самоцвіти можна синхронізувати на `00:31:12`,
-  залишивши інтервал наступного перезапуску `01:00:00`.
-- **✎** змінює назву, емодзі й інтервал. Чинний дедлайн зберігається;
-  прапорець **Зберегти й перезапустити відлік** застосовує інтервал одразу.
-- **Додати таймер** зберігає власний таймер; негайний запуск необов’язковий.
-  Діапазон введення: від 1 секунди до 365 днів. Видалення потребує підтвердження.
+- **Start** begins a full interval after the reward is claimed.
+- **Restart / ↻ Restart** starts the interval from now, replacing the previous
+  countdown, alarm, and notification.
+- **Stop** clears the current countdown and notification while keeping the
+  definition. Stop does not preserve a remaining time as a pause.
+- **⋮ → Set remaining time from game** accepts hours, minutes, and seconds for
+  one run. For example, gems can be synchronized to `00:31:12` while their next
+  restart still uses the `01:00:00` interval.
+- **✎** edits the name, emoji, and interval. The current deadline is retained;
+  **Save and restart countdown** applies the interval immediately.
+- **Add timer** saves a custom timer; starting it immediately is optional. The
+  input range is 1 second to 365 days. Deletion requires confirmation.
 
-Після завершення показано **ГОТОВО · отримай нагороду**. Наступний відлік
-починає користувач після фактичного отримання, тому пропущений час
-не спричиняє хибних повторних нагадувань.
+After completion, **READY · claim reward** appears. The user starts the next
+countdown after actually claiming the reward, so missed time does not cause false
+repeat reminders.
 
-## Окреме плаваюче вікно
+## Separate floating window
 
-`TimerOverlay` має власний `TYPE_ACCESSIBILITY_OVERLAY`, незалежний від
-панелі клікера. Може бути відкрите одночасно з ботом. Активні відліки
-сортуються за часом завершення, зупинені розташовані нижче; довгий список
-прокручується. Для кожного таймера видимі назва, статус і дві підписані кнопки.
+`TimerOverlay` is an independent `TYPE_ACCESSIBILITY_OVERLAY`, separate from
+the clicker panel. It can be open alongside a bot. Active countdowns are sorted
+by completion time, with stopped timers below; long lists scroll. Each timer
+shows its name, status, and two labeled buttons.
 
-Перетягування заголовка змінює положення. **В іконку** залишає найближчий
-відлік або кількість готових нагород; натискання іконки розгортає список.
-**×** закриває лише вікно. **Керувати таймерами** відкриває застосунок
-і згортає вікно, щоб воно не перекривало редактор.
+Drag the heading to move it. **To icon** leaves the nearest countdown or number
+of ready rewards; tap the icon to expand the list. **×** closes only the window.
+**Manage timers** opens the app and collapses the window so it does not cover the
+editor.
 
-Позиції панелі й іконки зберігаються окремо (`timers`, `timers_bubble`),
-також окремо для портретної та горизонтальної орієнтації. Враховано системні
-панелі, виріз екрана й масштаб шрифту. Служба доступності потрібна для
-плаваючого вікна; звичайні відліки та сповіщення від неї не залежать.
+Panel and icon positions are stored separately (`timers`, `timers_bubble`), as
+are portrait and landscape positions. System bars, display cutouts, and font
+scaling are accounted for. The accessibility service is needed for the floating
+window; regular countdowns and notifications do not depend on it.
 
-## Сповіщення та Android
+## Notifications and Android
 
-Кожен запуск має унікальний токен. Одне сповіщення на запуск, без повторення
-під час оновлення інтерфейсу. Старе сповіщення або будильник не змінює новіший
-відлік. Натискання сповіщення відкриває потрібний таймер; дії
-**Отримано · ще раз** та **Зупинити** працюють без відкриття екрана таймерів.
+Each run has a unique token. It gets one notification, with no duplicate when
+the UI is refreshed. An old notification or alarm cannot change a newer
+countdown. Tapping a notification opens the relevant timer; **Claimed · restart**
+and **Stop** work without opening the timer screen.
 
-У секції **Сповіщення та точний час** доступні:
+The **Notifications and exact timing** section provides:
 
-- дозвіл сповіщень на Android 13+ і перехід до системних налаштувань;
-- **Будильники й нагадування** на Android 12+ для точного `AlarmManager`.
+- notification permission on Android 13+ and a link to system settings;
+- **Alarms & reminders** on Android 12+ for exact `AlarmManager` timing.
 
-За наявності доступу використовується `setExactAndAllowWhileIdle`, без нього —
-`setAndAllowWhileIdle`. Відлік у меню залишається точним в обох випадках,
-але неточний будильник Android може відкласти. Обмеження Doze, частоти
-будильників, примусова зупинка застосунку та обмеження виробника телефона
-можуть впливати на доставку навіть із доступом. Постійна фонова служба
-й щосекундне пробудження телефона для закритого меню не використовуються.
+With access, the app uses `setExactAndAllowWhileIdle`; without it, it uses
+`setAndAllowWhileIdle`. The countdown displayed in the menu remains accurate in
+both cases, but Android may delay an inexact alarm. Doze limits, alarm frequency,
+force-stopping the app, and phone-vendor restrictions can affect delivery even
+with access. The app does not keep a permanent background service or wake the
+phone every second while the menu is closed.
 
-Якщо сповіщення заборонені, готовий запуск не позначається доставленим.
-Після дозволу й повернення в застосунок або повторного відкриття меню
-готові нагадування доставляються. Автоматичне повторення відліку не виконується.
+If notifications are denied, a ready run is not marked as delivered. After
+permission is granted and the app returns to the foreground or the menu is
+reopened, ready reminders are delivered. Timers do not restart automatically.
 
-## Збереження й міграція
+## Persistence and migration
 
-`TimerCodec` використовує той самий JSON-ключ `reminder_timers_v1` у
-`pelyustka_settings`. Старі поля `deadline_ms`, `deadline_wall_ms`,
-`deadline_elapsed_ms` підтримуються. Додаються `run_token` та `boot_count`;
-попередній маркер доставки переноситься на токен без дубльованого сповіщення.
+`TimerCodec` uses the same JSON key, `reminder_timers_v1`, in
+`pelyustka_settings`. The old fields `deadline_ms`, `deadline_wall_ms`, and
+`deadline_elapsed_ms` remain supported. `run_token` and `boot_count` are added;
+the previous delivery marker is migrated to the token without duplicating a
+notification.
 
-Під час роботи відлік використовує монотонний `elapsedRealtime`. Подія
-`TIME_SET` оновлює резервний календарний дедлайн, зберігаючи поточний залишок.
-Після реального перезавантаження залишок відновлюється за календарним часом;
-вимкнений телефон не показує сповіщення, прострочений відлік стає готовим
-після завантаження. `MY_PACKAGE_REPLACED` переплановує будильники без
-перезапуску відліків. Стара ідентичність `PendingIntent` збережена,
-щоб оновлення замінило попередній будильник.
+While the device is running, countdowns use monotonic `elapsedRealtime`. A
+`TIME_SET` event updates the fallback wall-clock deadline while preserving the
+current remaining time. After a real reboot, remaining time is restored from
+wall-clock time; the phone cannot notify while off, and an expired countdown
+becomes ready after boot. `MY_PACKAGE_REPLACED` reschedules alarms without
+restarting countdowns. The old `PendingIntent` identity is preserved so an
+update replaces the previous alarm.
 
-Автоматичного читання таймерів зі скриншотів, перегляду реклами або отримання
-нагород немає: користувач задає залишок і підтверджує дію перезапуском.
+The app does not read timer values from screenshots, watch ads, or claim rewards.
+The user enters a remaining time and confirms a restart manually.
 
-## Перевірки та APK
+## Verification and APK
 
-Виконано `testDebugUnitTest assembleDebug assembleRelease`:
-**91 тест, 0 помилок, 0 пропусків**, включно з 35 тестами таймерів:
+`testDebugUnitTest assembleDebug assembleRelease` completed successfully:
+**91 tests, 0 failures, 0 skipped**, including 35 timer tests:
 
-- 10 перевірок станів, інтервалів, одноразового залишку та готових визначень;
-- 20 перевірок сховища, будильників, дозволів, сповіщень, застарілих дій,
-  редагування, перезавантаження, зміни годинника й міграції старих даних;
-- 5 перевірок Android-інтерфейсу через Robolectric: кнопки, редактор,
-  залишок із гри, додавання без запуску, незалежне вікно поруч із ботом.
+- 10 checks for states, intervals, one-time remaining time, and preset definitions;
+- 20 checks for storage, alarms, permissions, notifications, stale actions,
+  editing, reboot, clock changes, and old-data migration;
+- 5 Robolectric Android UI checks for buttons, editor, in-game remaining time,
+  add-without-start, and the independent window alongside the bot.
 
-Перевірки Android виконані в Robolectric API 33. Фактична доставка на
-заблокований телефон, оформлення на різних екранах і обмеження виробників
-потребують перевірки на пристрої; фізичний телефон у цьому середовищі відсутній.
+Android checks ran under Robolectric API 33. Delivery to a locked phone,
+appearance on different screens, and vendor restrictions still need device
+verification; no physical phone was available in this environment.
 
-Release: `ua.borlock.autotap`, версія `1.9.42`, `versionCode=73`.
-Порівняно з APK 1.9.41: package ID, сертифікат і компонент служби доступності
-збігаються, код версії збільшено з 72. Це оновлення поверх попередньої
-release-збірки зі збереженням даних і вже виданого доступу до служби.
-Нові дозволи для сповіщень/точного часу за потреби надаються окремо.
+Release: `ua.borlock.autotap`, version `1.9.42`, `versionCode=73`.
+Compared with APK 1.9.41, package ID, certificate, and accessibility-service
+component match, while the version code increased from 72. It can be installed
+over the previous release while keeping app data and previously granted service
+access. Any new notification/exact-alarm permissions are granted separately as
+needed.
 
-SHA-256 сертифіката підпису:
+Signing certificate SHA-256:
 
 ```text
 78b0b3adc65fdd195744113386994b80319cfd119f1221f6960dbfc02c234985
 ```
 
-SHA-256 релізного APK:
+Release APK SHA-256:
 
 ```text
 4a7812e532d9cb1136610c32ec505f1ac0171ffddd1ba060180bf9b45006d1e1

@@ -1,96 +1,93 @@
-# 🌸 Пелюстка
+# 🌸 Pelyustka
 
-**Локальні Android-клікери та таймери нагород для Backpack Brawl.**
-Пелюстка розпізнає ігрове поле на пристрої й автоматизує ходи у двох режимах.
+**On-device Android game bots and reward timers for Backpack Brawl.**
+Pelyustka recognizes the game board on the phone and automates moves in two modes.
 
-[🇬🇧 Read this README in English](README.en.md)
+## 🎮 Game modes
 
-## 🎮 Ігрові модулі
-
-| Режим | Що вміє бот |
+| Mode | What the bot does |
 | --- | --- |
-| **Рюкзак-Бліц** | Аналізує поле 8×8, перевіряє сусідні обміни, враховує спеціальні блоки та оцінює каскади. |
-| **Злиття Божевілля** | Розпізнає поле 4×4 і ланцюжок рівнів-підказок, моделює об'єднання та появу нових плиток. |
+| **Backpack Blitz** | Reads an 8×8 board, evaluates adjacent swaps, special gems, and possible cascades. |
+| **Merge Madness** | Reads a 4×4 board and its hint chain, then models merges and the next tile spawn. |
 
-### Рюкзак-Бліц
+### Backpack Blitz
 
-- Розпізнає сім кольорів самоцвітів, ракети, бомби та портали-вихори.
-- Перевіряє до 112 сусідніх обмінів за хід і надає перевагу більшому миттєвому очищенню.
-- За однакового очищення враховує спеціальні блоки й оцінку каскадів після поповнення поля.
+- Recognizes seven gem colors, rockets, bombs, and portal/whirlwind specials.
+- Evaluates up to 112 adjacent swaps per move and prefers larger immediate clears.
+- Breaks ties using special gems and estimated cascades after the board refills.
 
-### Злиття Божевілля
+### Merge Madness
 
-- Знаходить сітку й зіставляє зображення плиток із рівнями у нижньому ланцюжку підказок.
-- Перевіряє чотири напрямки, моделює злиття однакових рівнів і появу наступної плитки.
-- Якщо клітинка визначена невпевнено або триває анімація, робить новий знімок замість свайпу.
-- У грі 15 рівнів; розпізнавання реальних зображень усіх пізніх об'єктів ще потребує перевірки скриншотами.
+- Locates the grid and matches tile images to the rank sequence shown below it.
+- Checks four swipe directions, simulates equal-rank merges, and models the next tile.
+- If a cell is uncertain or an animation is in progress, it captures another frame instead of swiping.
+- The game has 15 ranks; real screenshots are still needed to verify recognition of every late-game object.
 
-## 🔔 Таймери нагород
+## 🔔 Reward timers
 
-Є чотири готові таймери: квитки події — 4 години, самоцвіти — 1 година,
-монети — 1 година, мішок кісток — 3 години. Їх можна запускати, перезапускати
-й зупиняти у плаваючому меню. Доступні власні таймери, редагування та сповіщення.
+Four presets are included: event tickets (4 hours), shop gems (1 hour), shop coins
+(1 hour), and the event bone bag (3 hours). Start, restart, or stop them from a
+separate floating menu. Custom timers, editing, and notifications are supported.
 
-## ✨ Інтерфейс
+## ✨ Interface
 
-- Українська та чеська мови. Кнопка перед лічильником модулів показує прапорець
-  і код мови, на яку перемкнеться інтерфейс: 🇨🇿 CZ або 🇺🇦 UA.
-- Картки модулів починаються з іконки й назви; опис і налаштування відкриваються натисканням.
-- У кожного модуля окремі параметри паузи та плаваючої панелі.
-- Панелі можна згортати, переміщати та використовувати одночасно з таймерами.
+- Ukrainian and Czech. The button before the module count shows the flag and code
+  of the language it switches to: 🇨🇿 CZ or 🇺🇦 UA.
+- Module cards start with an icon and name; tap to open descriptions and settings.
+- Each module has independent timing and floating-panel settings.
+- Panels can be collapsed and moved; the timer menu can run alongside a game bot.
 
-## 📱 Вимоги
+## 📱 Requirements
 
-- Android 11 / API 30 або новіший для знімків екрана через службу спеціальних можливостей.
-- Портретна орієнтація та один із підтримуваних режимів гри.
-- JDK 17 та Android SDK Platform 35 для складання.
+- Android 11 / API 30 or later for screenshots through the AccessibilityService.
+- Portrait orientation and one of the supported game modes.
+- JDK 17 and Android SDK Platform 35 to build the project.
 
-## 🚀 Запуск
+## 🚀 Get started
 
-1. Збери APK за [інструкцією](docs/BUILDING.md) або встанови підготовлений APK.
-2. У Пелюстці відкрий **Дозвіл Android** і ввімкни службу **Пелюстка — керування грою** у системних налаштуваннях спеціальних можливостей.
-3. Повернись у застосунок, розгорни потрібний модуль і натисни **Відкрити панель**.
-4. Відкрий відповідну мінігру, дочекайся завершення анімації та натисни **Старт**.
+1. Build the APK using the [build guide](docs/BUILDING.md), or install a prepared APK.
+2. In Pelyustka, open **Android permission** and enable **Pelyustka — game control** in Android Accessibility settings.
+3. Return to the app, expand a module, and tap **Open panel**.
+4. Open the matching minigame, wait for animations to finish, and tap **Start**.
 
-Для роботи з нагородами відкрий **Налаштувати таймери**. Після отримання нагороди запусти відповідний таймер. Окреме плаваюче меню працює разом із панеллю бота. Деталі — у [документації таймерів](docs/TIMERS-1.9.42.md).
+For reward reminders, open **Set up timers** and start the relevant timer after claiming a reward. Its floating menu can run beside a bot panel. See the [timer guide](docs/TIMERS-1.9.42.md).
 
-## 🧠 Як вибирається хід
+## 🧠 Move selection
 
-Бот «Рюкзак-Бліц» моделює обміни, збіги та каскади. Базова оцінка використовує
-50 очок за прибраний самоцвіт при множнику ×1 — за спостереженими ігровими
-повідомленнями для 4, 5 і 10 фішок. Це оцінка для вибору ходу, а не обіцянка
-фактичного рахунку. Бот «Злиття Божевілля» порівнює результат чотирьох свайпів
-і моделі появи наступної плитки.
+Backpack Blitz models swaps, matches, and cascades. Its base estimate uses 50
+points per cleared gem at a ×1 multiplier, based on observed in-game messages
+for 4, 5, and 10 gems. This ranks moves; it does not guarantee the final score.
+Merge Madness compares the results of four swipe simulations and the predicted
+next-tile spawn.
 
-## ⚠️ Обмеження
+## ⚠️ Limitations
 
-- Зміни оформлення, теми чи версії гри можуть знизити точність розпізнавання.
-- Перекритий ланцюжок підказок і невідомі пізні зображення можуть завадити визначити рівень щура.
-- Напрямок смуги ракети не розпізнається з кадру й моделюється випадково.
-- Android обмежує частоту знімків екрана; мінімальний інтервал сервісу — близько 334 мс, а анімації додають час.
-- Оцінка каскадів використовує випадкове моделювання й не передбачає майбутнє поле точно.
+- Changes to the game's layout, theme, or version can reduce recognition accuracy.
+- An obscured hint chain or unrecognized late-game artwork may prevent rank detection.
+- Rocket stripe direction is not read from the screenshot and is modeled randomly.
+- Android limits screenshot frequency; the service interval is about 334 ms minimum, plus game animation time.
+- Cascade estimates use random simulation and cannot predict the future board exactly.
 
-## 🛠️ Складання
+## 🛠️ Build
 
-Інструкції для JDK, Android SDK, підпису APK і перевірок — у [docs/BUILDING.md](docs/BUILDING.md).
-Локальна конфігурація й файл ключа підпису не зберігаються в репозиторії.
-Щоб підписувати власні збірки, налаштуй свій ключ; він не дає змоги оновити
-застосунок, встановлений із APK іншого ключа.
+See [docs/BUILDING.md](docs/BUILDING.md) for JDK, Android SDK, APK signing, and verification.
+Local signing configuration and keystore files are not stored in this repository.
+Configure your own key to sign builds; it cannot update an app installed from an
+APK signed with a different key.
 
-## 🔒 Приватність і повторне використання
+## 🔒 Privacy and reuse
 
-Кадри обробляються в пам'яті пристрою; застосунок не має дозволу на мережу.
-Знімки в `app/src/test/resources` — тестові еталони ігрового поля, а не кадри,
-які застосунок зберігає під час гри. Локальні налаштування, ключі й APK
-ігноруються Git.
+Frames are processed in device memory; the app does not request network access.
+Images in `app/src/test/resources` are game-board test fixtures, not screenshots
+saved by the app during play. Git ignores local settings, signing keys, and APKs.
 
-У репозиторії немає файлу ліцензії, тому умови повторного використання коду не визначені.
+There is no license file, so code reuse terms are unspecified.
 
-## 📚 Документація
+## 📚 Documentation
 
-- [Користування застосунком](docs/USAGE.md)
-- [Архітектура](docs/ARCHITECTURE.md)
-- [Додавання модулів](docs/MODULES.md)
-- [План наступних клікерів](docs/ROADMAP.md)
-- [Алгоритми гри «Злиття Божевілля» до 15-го рівня](docs/ALGORITHMS-LEVEL15.md)
-- [Українська та чеська локалізації](docs/LOCALIZATION-1.9.44.md)
+- [User guide](docs/USAGE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Adding modules](docs/MODULES.md)
+- [Future clicker ideas](docs/ROADMAP.md)
+- [Merge Madness rank-15 strategy](docs/ALGORITHMS-LEVEL15.md)
+- [Ukrainian and Czech localization](docs/LOCALIZATION-1.9.44.md)

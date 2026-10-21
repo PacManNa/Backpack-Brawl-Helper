@@ -1,58 +1,58 @@
-# Наступні модулі та розвиток інтерфейсу
+# Future modules and interface ideas
 
-Це пропозиції після 1.9.37. У робочому каталозі зараз два ігрові модулі;
-наведені нижче можливості потребують окремої реалізації.
+These are proposals following 1.9.37. The working app currently has two game
+modules; the capabilities below need separate implementation.
 
-## Кандидати на наступний модуль
+## Candidates for future modules
 
-| Пріоритет | Модуль / пропонований ID | Поведінка | Потрібні дані |
+| Priority | Module / proposed ID | Behavior | Data needed |
 | --- | --- | --- | --- |
-| 1 | Простий тапер / `point_tapper` | Натискання у вибраній точці, інтервал, обмеження кількості повторів, ручна зупинка | Сценарій використання, вибір точки на екрані та бажані межі інтервалу |
-| 2 | Послідовність дій / `action_sequence` | Редактор точок і свайпів із паузами, обмежене повторення послідовності | Приклади послідовностей, правила прив'язки координат і завершення |
-| 3 | Натискання за зображенням / `image_trigger` | Пошук заданої іконки в області, дія при впевненому збігу, очікування зміни стану | Зразок цілі, схожі елементи, приклади появи/зникнення та перекриття |
-| За доступністю гри | Новий івент або мінігра | Окремі правила й оцінювач дій на основі кадру | Скрини поля, підказок і результатів ходів, правила гри та приклади анімацій |
-| Після збирання прикладів | Сад і нагороди | Перехід від локальних нагадувань до допомоги з конкретними видимими діями | Екрани доступної дії, виконання й завершення; перелік цілей та очікуваний результат |
+| 1 | Simple tapper / `point_tapper` | Tap a selected point, set an interval and repeat limit, allow manual stop | Use case, screen point selection, desired interval bounds |
+| 2 | Action sequence / `action_sequence` | Edit points and swipes with pauses, repeat a sequence a limited number of times | Example sequences, coordinate anchoring, completion rules |
+| 3 | Image trigger / `image_trigger` | Find an icon in a region, act on a confident match, wait for a state change | Target sample, similar elements, examples of appearance/disappearance and occlusion |
+| As games allow | New event or minigame | Separate rules and frame-based action evaluator | Board, hint, and result screenshots; game rules and animation examples |
+| After gathering examples | Garden and rewards | Move from local reminders to assistance with visible in-game actions | Screens for available action, execution, and completion; goals and expected results |
 
-Для саду вже працюють локальні таймери. Автоматизація збору або нагород ще
-не реалізована; її умови не можна визначити лише з тривалості таймера.
+Local timers already work for the garden. Automated collection or reward claiming
+has not been implemented; timer duration alone cannot determine those rules.
 
-## Архітектурні кроки перед третім типом виконання
+## Architecture before adding a third execution type
 
-1. Винести поточні два життєві цикли зі служби в адаптери сесій. Залишити
-   алгоритми полів у наявних класах; перенести лише зв'язування компонентів.
-2. Узгодити контракт сесії: запуск, зупинка, потреба в кадрі, обробка кадру,
-   опис наступної дії та діагностика для панелі. Простий тапер може працювати
-   без розпізнавання поля, тому кадр має запитуватися за потреби.
-3. Винести опис жесту в спільний об'єкт: точка/свайп, координати, тривалість
-   та очікування результату. Виконання жестів залишити в одній службі.
-4. Додати схеми параметрів для кількості повторів, інтервалу й вибору області.
-   Ключі налаштувань прив'язати до сталого ID модуля.
-5. Визначити поведінку при ручній зупинці, перемиканні модуля, закритті панелі,
-   зміні орієнтації та поверненні з фону.
+1. Move the two existing lifecycles out of the service into session adapters.
+   Keep board algorithms in their existing classes; move only the component
+   wiring.
+2. Define a session contract: start, stop, whether a frame is needed, frame
+   processing, next-action description, and panel diagnostics. A simple tapper
+   may not need board recognition, so frame capture should be optional.
+3. Define a shared gesture object for taps/swipes, coordinates, duration, and
+   expected result. Keep gesture execution in one service.
+4. Add settings schemas for repeat count, interval, and region selection. Key
+   settings by the module's stable ID.
+5. Define behavior for manual stop, module switching, panel close, orientation
+   changes, and returning from the background.
 
-Глибину пошуку, пороги розпізнавання й таймінги наявних ігор під час такого
-перенесення слід зберегти. Для порівняння вже є знімки й інструменти у `tools/`.
+Preserve existing games' search depth, recognition thresholds, and timings during
+this refactoring. Screenshots and tools for comparison are in `tools/`.
 
-## Подальший інтерфейс
+## Future interface
 
-- **Обране:** позначення всередині розгорнутої картки й підняття вибраних модулів
-  на початок каталогу. У згорнутому заголовку залишити іконку та назву.
-- **Пошук і категорії:** додати після зростання каталогу; можливі групи
-  «Мініігри», «Універсальні» й «Сценарії».
-- **Профілі налаштувань:** кілька збережених наборів для одного модуля,
-  наприклад різні послідовності чи ділянки екрана.
-- **Редактор цілей:** показ точки, області та шляху свайпу для універсальних
-  модулів; збереження прив'язки до орієнтації й розміру екрана.
-- **Діагностика:** спільний короткий статус і подробиці лише після розгортання;
-  конкретні поля діагностики задає адаптер модуля.
-- **Автоматизовані збірки:** налаштувати GitHub Actions із доступом до того самого
-  ключа через секрети репозиторію. До цього збірка використовує локальний ключ;
-  секрети й keystore в Git не додаються.
+- **Favorites:** mark an expanded card and move favorites to the top of the
+  catalog. Keep only the icon and name in the collapsed heading.
+- **Search and categories:** add as the catalog grows; possible groups include
+  “Minigames,” “Universal,” and “Scenarios.”
+- **Setting profiles:** save multiple configurations for one module, such as
+  different sequences or screen regions.
+- **Target editor:** show points, regions, and swipe paths for universal modules;
+  save screen-size and orientation anchoring.
+- **Diagnostics:** show a shared short status and details only when expanded;
+  let each module adapter define its diagnostic fields.
+- **Automated builds:** configure GitHub Actions with access to the same key via
+  repository secrets. Until then, builds use a local key; never add secrets or
+  keystores to Git.
 
-## Реалізовано в 1.9.37
+## Implemented in 1.9.37
 
-Єдиний каталог, автоматичні картки, палітри, схема доступних параметрів,
-незалежні таймаути з міграцією, спільні спойлери, компактна плаваюча панель,
-згортання до іконки, збереження ширини й положення, згорнута довідка та
-компактний стан доступу. Деталі — у [MODULES.md](MODULES.md) і
-[INTERFACE-1.9.37.md](INTERFACE-1.9.37.md).
+One catalog, automatic cards, palettes, supported-setting schemas, independent
+timeouts with migration, shared expandable sections, compact floating panel,
+icon collapse, saved width and position, collapsed help, and compact permission
+status. See [MODULES.md](MODULES.md) and [INTERFACE-1.9.37.md](INTERFACE-1.9.37.md).

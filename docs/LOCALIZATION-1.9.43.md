@@ -1,77 +1,74 @@
-# Українська та чеська мови — 1.9.43
+# Ukrainian and Czech languages — 1.9.43
 
-## Кнопка в хедері
+## Header button
 
-На головному екрані перед лічильником модулів додано **UA / CZ**.
-Позначка показує поточну мову; одне натискання перемикає її.
-Опис для служби доступності називає поточну й наступну мови.
-Після оновлення першим вибором залишається українська.
+The main screen has a **UA / CZ** button before the module count. Its label shows
+the current language; one tap switches languages. The accessibility description
+names both the current and next language. Ukrainian remains the default after
+upgrading.
 
-Вибір зберігається локально у `pelyustka_locale`, ключ `language`:
-`uk` або `cs`. Мова телефона не змінюється. Відкриті картки модулів
-зберігають свій стан під час перебудови головного екрана.
+The choice is stored locally in `pelyustka_locale`, key `language`, as `uk` or
+`cs`. The phone language is not changed. Expanded module cards retain their
+state when the main screen is rebuilt.
 
-## Обсяг перекладу
+## Translation coverage
 
-- Головний екран, назви й описи модулів, налаштування та довідка.
-- Плаваюча панель бота: кнопки, стани, діагностика, напрямки свайпів.
-- Екран таймерів, редактор, діалоги, окреме вікно нагадувань та його іконка.
-- Готові назви нагород, статуси відліків, позначення днів.
-- Сповіщення, кнопки дій і назва/опис каналу нагадувань.
-- Підписи елементів для служби доступності.
+- Main screen, module names and descriptions, settings, and help.
+- Floating bot panel: buttons, states, diagnostics, and swipe directions.
+- Timer screen, editor, dialogs, separate reminder window, and its icon.
+- Preset reward names, countdown statuses, and day units.
+- Notifications, action buttons, and reminder-channel name/description.
+- Accessibility labels.
 
-Власні назви й перейменовані готові таймери не перекладаються.
-Незмінені назви вбудованих нагород перекладаються під час відображення,
-їхні збережені визначення не переписуються. Якщо в чеському редакторі
-змінити лише інтервал або емодзі, типова назва збереже можливість
-перемикатися між мовами.
+Custom names and renamed preset timers are not translated. Unmodified built-in
+reward names are translated when displayed; their stored definitions are not
+rewritten. If only the interval or emoji is changed in the Czech editor, the
+default name remains eligible for translation when the language changes.
 
-## Реалізація
+## Implementation
 
-`values/strings.xml` містить українські значення за замовчуванням,
-`values-cs/strings.xml` — чеські. Для кількості модулів використано
-Android `plurals`, зокрема **2 МОДУЛІ / 2 MODULY**.
+`values/strings.xml` contains Ukrainian defaults and `values-cs/strings.xml`
+contains Czech values. Android `plurals` handles module counts with the correct
+forms for each supported language.
 
-`AppLanguage` формує конфігурацію ресурсів для вибраної мови та кешує
-ресурси для вікон служби й приймачів. `LocalizedActivity` застосовує
-конфігурацію до `MainActivity` та `TimerActivity`, включно з діалогами.
-Значення локалізованих рядків не використовуються як ID модулів,
-таймерів, ключі налаштувань або ідентичність будильників.
+`AppLanguage` creates and caches resources for the selected language for service
+windows and receivers. `LocalizedActivity` applies the configuration to
+`MainActivity` and `TimerActivity`, including dialogs. Translated strings are
+not used as module IDs, timer IDs, preference keys, or alarm identities.
 
-`ClickerModule` зберігає `nameRes` / `descriptionRes`, а не готові
-перекладені назви. Діагностика розпізнавачів перекладається в інтерфейсі,
-щоб не змінювати їхній чинний формат результатів.
+`ClickerModule` stores `nameRes` and `descriptionRes`, not pretranslated labels.
+Recognition diagnostics are translated at the UI boundary, preserving the
+recognizers' existing output format.
 
-Після перемикання плаваючі вікна перебудовують свій вигляд, зберігаючи
-позицію та згортання. Запущена сесія бота, черга жестів і відліки
-не перезапускаються. Видимі нагадування отримують новий текст без повторного
-звукового сигналу; уже прибрані сповіщення не показуються знову.
+After switching languages, floating windows rebuild their appearance while
+preserving position and collapsed state. The running bot session, gesture queue,
+and countdowns do not restart. Visible reminders get new text without replaying
+their sound; dismissed notifications are not shown again.
 
-Для нового модуля потрібно додати його рядки до обох наборів ресурсів.
-Для наступної мови — додати `values-<language>`, форми `plurals`
-і варіант вибору в `AppLanguage`.
+For a new module, add its strings to both resource sets. For another language,
+add `values-<language>`, plural forms, and a selection option in `AppLanguage`.
 
-## Збірка
+## Build
 
 Release: `ua.borlock.autotap`, **1.9.43**, `versionCode=74`.
-Успішно виконано `bash gradlew assembleRelease --no-daemon --max-workers=1`,
-включно з компіляцією ресурсів, Java та `lintVitalRelease`. У пакеті присутня
-конфігурація ресурсів `cs`.
-Модульні тести для цієї зміни не запускалися. Перемикання на фізичному
-телефоні в цьому середовищі не перевірялося.
+`bash gradlew assembleRelease --no-daemon --max-workers=1` succeeded, including
+resource and Java compilation and `lintVitalRelease`. The package includes the
+`cs` resource configuration. Unit tests were not run for this change, and the
+language switch was not checked on a physical phone in this environment.
 
-APK підписано наявним постійним ключем. `apksigner verify` підтвердив підпис;
-package ID та сертифікат зіставлено з APK 1.9.42; код версії збільшено з 73 до 74.
-Дані, таймери й уже виданий доступ служби зберігаються під час встановлення
-поверх попередньої release-збірки. Нових дозволів Android немає.
+The APK uses the saved persistent key. `apksigner verify` confirmed the
+signature; the package ID and certificate were matched to APK 1.9.42, and the
+version code increased from 73 to 74. App data, timers, and previously granted
+service access are retained when installing over the prior release. No Android
+permissions were added.
 
-SHA-256 сертифіката:
+Certificate SHA-256:
 
 ```text
 78b0b3adc65fdd195744113386994b80319cfd119f1221f6960dbfc02c234985
 ```
 
-SHA-256 APK 1.9.43:
+APK 1.9.43 SHA-256:
 
 ```text
 858d1935ce3f4b73891cbded5b445968320f7e5020a02e5ccc15ee1a88ae16d2

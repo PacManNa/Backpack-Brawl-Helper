@@ -1,130 +1,176 @@
-# Архітектура
+# Architecture
 
-## Потік одного ходу
+## One-move flow
 
 ```mermaid
 flowchart LR
-    A[MainActivity · вибір бота] --> B[TapAccessibilityService]
+    A[MainActivity · choose a bot] --> B[TapAccessibilityService]
     B --> C{BotMode}
-    C -->|Рюкзак-Бліц| D[BoardVision → GameBoard → GameSolver]
-    C -->|Злиття Божевілля| E[MergeMadnessVision → MergeMadnessBoard → MergeMadnessSolver]
-    D --> F[Свайп обміну]
-    E --> G[Свайп напрямку]
+    C -->|Backpack Blitz| D[BoardVision → GameBoard → GameSolver]
+    C -->|Merge Madness| E[MergeMadnessVision → MergeMadnessBoard → MergeMadnessSolver]
+    D --> F[Swap gesture]
+    E --> G[Directional swipe]
     F --> B
     G --> B
 ```
 
-Служба робить кадр через Android Accessibility API, перевіряє стабільність поля, передає його розпізнавачу, отримує оцінений хід і відправляє свайп. Після короткого очікування цикл повторюється. Android обмежує частоту знімків; сервіс не запитує кадр частіше ніж приблизно раз на 334 мс.
+The service captures a frame through the Android Accessibility API, checks board
+stability, sends the frame to a recognizer, receives a move estimate, and
+dispatches a swipe. The cycle repeats after a short wait. Android limits
+screenshot frequency; the service does not request frames more often than about
+once every 334 ms.
 
-## Основні класи
+## Main classes
 
-- `MainActivity` формує згорнуті картки та доступні налаштування з `ClickerCatalog` і веде до дозволів Android.
-- `BotMode` містить сталі ключі рушіїв. `ClickerModule` описує назву, іконку, палітру й набір параметрів; `ClickerCatalog` є єдиним джерелом цих описів.
-- `ClickerPreferences` зберігає незалежні таймаути та профілі панелі. `ExpandableSection` надає спільну поведінку згорнутих розділів. Докладніше: [MODULES.md](MODULES.md).
-- `TapAccessibilityService` керує плаваючою панеллю, кадрами, стабілізацією поля, повтором незміненого свайпу й виконанням жестів.
-- `BoardVision`, `GameBoard` і `GameSolver` працюють із полем 8×8 «Рюкзак-Бліц».
-- `MergeMadnessVision`, `MergeMadnessBoard` і `MergeMadnessSolver` працюють із полем 4×4 «Злиття Божевілля».
+- `MainActivity` builds collapsed cards and available settings from
+  `ClickerCatalog`, and links to Android permissions.
+- `BotMode` contains stable engine keys. `ClickerModule` describes a name, icon,
+  palette, and settings; `ClickerCatalog` is the single source for these entries.
+- `ClickerPreferences` stores independent timeouts and panel profiles.
+  `ExpandableSection` provides shared collapsed-section behavior. See
+  [MODULES.md](MODULES.md).
+- `TapAccessibilityService` manages the floating panel, frames, board
+  stabilization, retries after unchanged swipes, and gesture execution.
+- `BoardVision`, `GameBoard`, and `GameSolver` handle the 8×8 Backpack Blitz board.
+- `MergeMadnessVision`, `MergeMadnessBoard`, and `MergeMadnessSolver` handle the
+  4×4 Merge Madness board.
 
-## Розпізнавання
+## Recognition
 
-Координати поля «Рюкзак-Бліц» обчислюються як частки ширини й висоти кадру та прив’язані до одного портретного розташування. У кожній клітинці перевіряється сітка зразків кольору. Якщо відтінок, частка голосів або відрив від другого кандидата не проходять поріг упевненості, кадр відхиляється, і служба повторює знімок.
+Backpack Blitz board coordinates are fractions of frame width and height,
+calibrated for one portrait layout. A color-sample grid is checked in every cell.
+If hue, vote share, or the margin over the second candidate misses the
+confidence threshold, the frame is rejected and the service captures another.
 
-Для 2048-поля локатор на кожному кадрі перевіряє весь дозволений діапазон
-вертикального положення квадратної сітки 4×4. Градієнти потрібних колонок
-обчислюються один раз на кадр для всіх кандидатів. Геометрія поля прив'язує
-читання клітинок і до чотирьох рядків нижніх підказок по п'ять позицій.
-Положення об'єкта в послідовності визначає його рівень. За уточненням
-користувача, гра має 15 рівнів; технічна місткість читача — 17 позицій.
-Це запас реалізації, а не підтверджена кількість об'єктів гри. Кольорові відкриті
-іконки автоматично стають поточними зразками; чорний силует наступного рівня
-не використовується як кольоровий об'єкт. Зміни пікселів підказок або геометрії
-скидають відповідний кеш. Новий об'єкт зчитується на наступному кадрі.
+For the 2048 board, the locator checks the full supported vertical range of the
+square 4×4 grid on every frame. Required column gradients are computed once per
+frame and reused for all candidates. Board geometry anchors cell reads and the
+four rows of five hints below the board. An object's position in the sequence
+determines its rank. The game has 15 ranks; the reader can technically hold 17
+positions. That is implementation headroom, not a confirmed game count. Open,
+colored icons automatically become current samples; the next level's black
+silhouette is not used as a colored-object sample. Hint-pixel or geometry
+changes reset the relevant cache. A newly revealed object is read on the next
+frame.
 
-`MergeMadnessObjects` зіставляє контур і кольорові ознаки об'єктів. Зразки з
-`res/raw` та раніше збережені локальні зразки лишаються резервним джерелом.
-Висока впевненість прямого зразка захищається від слабшої суперечливої
-підказки. Невпевнені клітинки спричиняють повторне читання кадру. Ручні
-кнопки калібрування прибрані з панелі; збережені дані розпізнавання читаються
-як раніше.
+`MergeMadnessObjects` compares object contours and color features. Samples from
+`res/raw` and previously saved local samples remain fallback sources. A
+high-confidence direct sample is protected from a weaker conflicting hint.
+Uncertain cells trigger another frame read. Manual calibration buttons were
+removed from the panel; saved recognition data is still read as before.
 
-Кольорові самоцвіти класифікуються за HSV-відтінком. Спецфішки впізнаються за характерними ділянками кольорів: червоно-жовтий візерунок ракети, нейтрально-темний візерунок бомби й різнокольоровий візерунок порталу-вихору.
+Colored gems are classified by HSV hue. Special tiles use characteristic color
+regions: the red/yellow rocket pattern, neutral dark bomb pattern, and
+multicolored portal/whirlwind pattern.
 
-## Оцінювання ходів
+## Move scoring
 
-Поле 8×8 має 112 пар сусідніх клітинок. Для кожної пари розв’язувач моделює обмін. Звичайний обмін враховується, якщо він створює збіг; обмін зі спецфішкою оцінюється як активація цієї фішки.
+An 8×8 board has 112 adjacent-cell pairs. The solver simulates each swap.
+Regular swaps count if they create a match; swapping with a special tile is
+scored as activating that tile.
 
-Поточна логіка створення бонусів моделює:
+Current bonus creation rules model:
 
-- 4 або більше фішок у лінії — ракету;
-- збіг із перетином та компонентом щонайменше з 5 фішок — бомбу;
-- лінію щонайменше з 5 фішок — портал-вихор.
+- 4 or more tiles in a line: a rocket;
+- an intersecting match with a connected component of at least 5 tiles: a bomb;
+- a line of at least 5 tiles: a portal/whirlwind.
 
-Бомба очищає область навколо себе, ракета — ряд або стовпець, портал-вихор — фішки одного кольору. Зачеплені спецфішки активуються ланцюжком у симуляції. Напрямок смуги ракети з кадру не визначається, тому оцінювач моделює його випадково.
+A bomb clears its surrounding area, a rocket clears a row or column, and a
+portal/whirlwind clears tiles of one color. Hit special tiles activate in a
+chain in the simulation. Rocket stripe direction is not read from the frame,
+so the evaluator models it randomly.
 
-Базова вага — 50 очок за прибраний самоцвіт при множнику ×1. Вона відкалібрована за спостереженими повідомленнями гри (200 за 4, 250 за 5, 500 за 10). Поточні каскади симулюються до п’яти кроків зі спадною вагою. Для трьох найкращих початкових ходів генеруються випадкові варіанти поповнення; коли оцінки двох найкращих ходів близькі, для них додаються додаткові зразки. Ці оцінки допомагають ранжувати ходи, але не є точним прогнозом рахунку.
+The base weight is 50 points per cleared gem at a ×1 multiplier. It is calibrated
+from observed game messages (200 for 4, 250 for 5, 500 for 10). Current cascades
+are simulated up to five steps with decreasing weight. Random refills are
+generated for the three top initial moves; extra samples are added when the two
+best scores are close. These estimates rank moves but do not predict the actual
+score exactly.
 
-## «Злиття Божевілля»
+## Merge Madness
 
-`MergeMadnessBoard` має технічну місткість до 17 рангів (фактична ціль гри — 15)
-і моделює чотири напрямки:
-стискає плитки до краю та об'єднує однакові ранги один раз за хід. Хеш
-незмінного поля обчислюється при створенні; доступні напрямки визначаються
-без створення чотирьох результатів свайпу.
+`MergeMadnessBoard` supports up to 17 ranks technically (the game's actual target
+is 15) and models four directions. It compresses tiles toward an edge and merges
+equal ranks at most once per move. The immutable-board hash is computed on
+creation; available directions are found without building four swipe results.
 
-Початкове або непевне поле проходить два читання. Після виконаного свайпу
-дозволене одне читання, якщо `MergeMadnessTurnPolicy` підтверджує точний
-перехід з однією новою плиткою, стабільну геометрію, впевненість від 0.82 і
-щонайменше 180 мс після завершення жесту. Перевірка переходу й навчання
-моделі появи плиток зберігаються.
+An initial or uncertain board is read twice. After a swipe, one read is allowed
+if `MergeMadnessTurnPolicy` confirms an exact transition with one new tile,
+stable geometry, confidence of at least 0.82, and at least 180 ms since the
+gesture ended. Transition checks and learning the spawn model are retained.
 
-`MergeMadnessSolver` виконує expectimax до глибини 3 із бюджетом 120 мс,
-кешує стани й поступово завершує рівні пошуку. Початкова модель появи плиток
-90% / 10% уточнюється в межах поточного запуску лише за підтвердженими
-переходами. Оцінка враховує вільні клітинки, об'єднання, доступні напрямки,
-впорядкованість і кут із найбільшою плиткою. Заміри та порівняння еквівалентності
-наведені в [VERIFICATION-1.9.35.md](VERIFICATION-1.9.35.md).
-Попередні 600-ходові порівняння охоплювали ранню й середню гру;
-перевірка цілі 15 та її обмеження описані в [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md).
+`MergeMadnessSolver` runs expectimax to depth 3 with a 120 ms budget, caches
+states, and completes search levels incrementally. The initial 90% / 10% tile
+spawn model is refined during the current run only from confirmed transitions.
+The evaluation considers free cells, merges, available directions, ordering,
+and the corner with the largest tile. Timing and equivalence comparisons are in
+[VERIFICATION-1.9.35.md](VERIFICATION-1.9.35.md). Earlier 600-move comparisons
+covered early and mid-game; rank-15 testing and its limitations are in
+[ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md).
 
-## Панель і модульна конфігурація
+## Panel and module configuration
 
-Спільна панель має компактний вигляд, розгорнуту діагностику та іконку.
-Згортання до іконки не зупиняє сесію; закриття панелі зупиняє. Відкриття
-іншого модуля зупиняє попередній. Одна служба й одна черга обчислень
-обслуговують поточну сесію. Положення й ширина панелі зберігаються у профілі
-модуля. Таймери від 1.9.42 мають незалежне вікно `TimerOverlay` із власними
-профілями положення; відкриття цього вікна не перемикає сесію бота.
+The shared panel has a compact state, expanded diagnostics, and an icon state.
+Collapsing to the icon does not stop a session; closing the panel does. Opening
+another module stops the previous one. One service and one work queue serve the
+current session. Panel position and width are stored per module. Since 1.9.42,
+timers use an independent `TimerOverlay` window with its own position profiles;
+opening it does not switch the bot session.
 
-Налаштування таймауту мігрують зі старого спільного значення та надалі
-зберігаються незалежно. Глибина пошуку, впевненість розпізнавання й інтервали
-знімків не змінюються через оформлення панелі. Межа поточної модульності та
-подальше виділення адаптерів сесій описані в [MODULES.md](MODULES.md).
+The timeout setting migrates from the old shared value and is then stored
+independently. Panel styling does not change search depth, recognition
+confidence, or screenshot intervals. See [MODULES.md](MODULES.md) for current
+modularity boundaries and future session adapters.
 
-## Мова інтерфейсу
+## Interface language
 
-`AppLanguage` зберігає явний вибір `uk` / `cs` у `pelyustka_locale/language`.
-`LocalizedActivity` застосовує конфігурацію мови до екранів і системних діалогів
-застосунку. Рядки інтерфейсу містяться у `values/strings.xml` (українська)
-та `values-cs/strings.xml` (чеська); лічильник модулів використовує `plurals`.
-Вікна доступності та приймачі сповіщень отримують ресурси вибраної мови через
-`AppLanguage`, незалежно від мови телефона. Механізми розпізнавання лишають
-попередні діагностичні повідомлення; їх перекладає межа відображення.
-Подробиці: [LOCALIZATION-1.9.43.md](LOCALIZATION-1.9.43.md).
+`AppLanguage` stores the explicit `uk` / `cs` choice in
+`pelyustka_locale/language`. `LocalizedActivity` applies the language
+configuration to app screens and system dialogs. UI strings are in
+`values/strings.xml` (Ukrainian) and `values-cs/strings.xml` (Czech); module
+counts use Android `plurals`. Accessibility windows and notification receivers
+get the selected language through `AppLanguage`, regardless of the phone's
+language. Recognition mechanisms retain their original diagnostic messages;
+the presentation layer translates them. Details: [LOCALIZATION-1.9.43.md](LOCALIZATION-1.9.43.md).
 
-## Залежності та дані
+## Dependencies and data
 
-Застосунок реалізовано на Java 17 із Android SDK. Додаткових бібліотек розпізнавання зображень або мережевих SDK немає. Кадр копіюється в пам’ять для розбору; код не зберігає скриншоти й не надсилає їх назовні. Довідкова таблиця рівнів плиток є локальним ресурсом застосунку. У маніфесті немає дозволу `INTERNET`.
+The app is written in Java 17 with the Android SDK. It has no additional image
+recognition or networking SDKs. A frame is copied into memory for processing;
+the code does not save screenshots or send them elsewhere. The tile-rank
+reference table is a local app resource. The manifest has no `INTERNET`
+permission.
 
-## Межі сумісності
+## Compatibility limits
 
-«Рюкзак-Бліц» використовує координати показаного портретного розташування. Для «Злиття Божевілля» пошук меж допускає помірний зсув поля; інша рамка, тема або зміна оформлення плиток можуть призвести до помилок розпізнавання. Android 11+ потрібен для API знімків екрана AccessibilityService, хоча `minSdk` пакета нижчий.
-## Локальні таймери нагадувань
+Backpack Blitz uses coordinates for the shown portrait layout. Merge Madness
+allows moderate board-boundary shifts; a different frame, theme, or tile design
+may cause recognition errors. Android 11+ is required for the
+AccessibilityService screenshot API even though the package `minSdk` is lower.
 
-- `TimerPresets` додає чотири зупинені визначення нагород один раз; чинні користувацькі таймери зберігаються. Видалені визначення можна повернути явною дією.
-- `TimerActivity` дозволяє створювати й редагувати таймери, запускати, перезапускати, зупиняти та задавати одноразовий залишок із гри. Редагування інтервалу зберігає чинний відлік, якщо користувач не обрав перезапуск.
-- `TimerItem` відокремлює визначення від запуску. `TimerCodec` читає попередній JSON та зберігає нові поля в тому самому ключі `reminder_timers_v1`.
-- `TimerStore` зберігає монотонний дедлайн, резервний час завершення, номер завантаження Android і унікальний токен запуску. Зміна годинника не змінює залишок у межах завантаження; після перезавантаження залишок обчислюється за резервним часом. Оновлення APK не перезапускає відлік.
-- `TimerOverlay` — друге вікно `TYPE_ACCESSIBILITY_OVERLAY`, незалежне від панелі бота. Має власний список, іконку, позиції та оновлення раз на секунду. Закриття вікна не зупиняє таймери чи бота.
-- `TimerNotificationReceiver` доставляє одне сповіщення на запуск, перевіряє токен і відхиляє застарілі дії. Сповіщення містить перезапуск після отримання нагороди та зупинку. Без дозволу недоставлений запуск не позначається сповіщеним.
-- `TimerBootReceiver` обробляє перезавантаження, заміну APK, зміну системного часу та надання точних будильників. `AlarmManager` використовує `ELAPSED_REALTIME_WAKEUP`: точний будильник за наявності доступу, неточний — без нього. UI не тримає фонову службу лише заради відліку.
-- Таймери не отримують дані з гри. Інтервал або залишок вводить користувач; реклама й отримання нагороди залишаються ручними. Налаштування та обмеження Android: [TIMERS-1.9.42.md](TIMERS-1.9.42.md).
+## Local reminder timers
+
+- `TimerPresets` adds four stopped reward definitions once; existing custom
+  timers are retained. Deleted presets can be restored explicitly.
+- `TimerActivity` creates and edits timers, starts, restarts, and stops them, and
+  accepts a one-time remaining time from the game. Editing an interval preserves
+  the current countdown unless the user chooses to restart it.
+- `TimerItem` separates a definition from a running instance. `TimerCodec` reads
+  old JSON and stores new fields under the same `reminder_timers_v1` key.
+- `TimerStore` saves a monotonic deadline, fallback wall-clock time, Android
+  boot count, and unique run token. Changing the clock does not alter remaining
+  time during the same boot; after reboot, remaining time is calculated from the
+  fallback clock. APK updates do not restart countdowns.
+- `TimerOverlay` is a second `TYPE_ACCESSIBILITY_OVERLAY` window, independent of
+  the bot panel. It has its own list, icon, positions, and once-per-second
+  refresh. Closing the window stops neither timers nor the bot.
+- `TimerNotificationReceiver` sends one notification per run, checks tokens,
+  and rejects stale actions. The notification offers restart after claiming a
+  reward and stop. Without notification permission, a run is not marked notified.
+- `TimerBootReceiver` handles reboot, APK replacement, system-time changes, and
+  exact-alarm permission grants. `AlarmManager` uses
+  `ELAPSED_REALTIME_WAKEUP`: an exact alarm when allowed, otherwise an inexact
+  one. The UI does not keep a background service alive just for countdowns.
+- Timers receive no game data. The user enters an interval or remaining time;
+  watching ads and claiming rewards remain manual. Android settings and limits:
+  [TIMERS-1.9.42.md](TIMERS-1.9.42.md).
