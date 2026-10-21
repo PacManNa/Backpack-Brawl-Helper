@@ -48,31 +48,53 @@ public final class TimerNotificationReceiver extends BroadcastReceiver {
         if (manager == null) return;
         for (TimerItem item : timers) {
             if (!item.isReady(SystemClock.elapsedRealtime()) || TimerStore.wasNotified(context, item)) continue;
-            Intent open = new Intent(context, TimerActivity.class)
-                    .setData(TimerStore.timerUri(item.id, "open"))
-                    .putExtra(TimerStore.EXTRA_TIMER_ID, item.id)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            PendingIntent content = PendingIntent.getActivity(context, 0, open,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            Notification.Builder builder = Build.VERSION.SDK_INT >= 26
-                    ? new Notification.Builder(context, TimerStore.CHANNEL_ID)
-                    : new Notification.Builder(context);
-            Notification notification = builder.setSmallIcon(R.drawable.ic_pelyustka)
-                    .setContentTitle(item.emoji + " " + item.name + " — готово")
-                    .setContentText("Отримай нагороду в грі, потім перезапусти відлік.")
-                    .setContentIntent(content).setAutoCancel(true).setOnlyAlertOnce(true)
-                    .setCategory(Notification.CATEGORY_REMINDER).setPriority(Notification.PRIORITY_DEFAULT)
-                    .addAction(0, "Отримано · ще раз", action(context, item, TimerStore.ACTION_RESTART))
-                    .addAction(0, "Зупинити", action(context, item, TimerStore.ACTION_STOP))
-                    .build();
             try {
-                manager.notify(TimerStore.notificationId(item.id), notification);
+                manager.notify(TimerStore.notificationId(item.id), notification(context, item));
                 // Permission/channel checks happen before marking delivery, so a denied
                 // notification remains eligible when the user enables notifications.
                 TimerStore.markNotified(context, item);
                 TimerStore.cancelAlarm(context, item.id);
             } catch (SecurityException ignored) { return; }
         }
+    }
+
+    /** Update visible reminders without delivering dismissed ones again or resetting timers. */
+    static void refreshLanguage(Context context) {
+        ensureChannel(context);
+        if (!notificationsAvailable(context)) return;
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        for (android.service.notification.StatusBarNotification visible : manager.getActiveNotifications()) {
+            for (TimerItem item : TimerStore.getTimers(context)) {
+                if (visible.getId() == TimerStore.notificationId(item.id)
+                        && item.isReady(SystemClock.elapsedRealtime()) && TimerStore.wasNotified(context, item)) {
+                    try { manager.notify(visible.getId(), notification(context, item)); }
+                    catch (SecurityException ignored) { return; }
+                    break;
+                }
+            }
+        }
+    }
+
+    private static Notification notification(Context context, TimerItem item) {
+        Intent open = new Intent(context, TimerActivity.class)
+                .setData(TimerStore.timerUri(item.id, "open"))
+                .putExtra(TimerStore.EXTRA_TIMER_ID, item.id)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent content = PendingIntent.getActivity(context, 0, open,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder builder = Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(context, TimerStore.CHANNEL_ID)
+                : new Notification.Builder(context);
+        return builder.setSmallIcon(R.drawable.ic_pelyustka)
+                .setContentTitle(item.emoji + " " + AppLanguage.timerName(context, item)
+                        + t(context, R.string.timer_notification_ready_suffix))
+                .setContentText(t(context, R.string.timer_notification_body))
+                .setContentIntent(content).setAutoCancel(true).setOnlyAlertOnce(true)
+                .setCategory(Notification.CATEGORY_REMINDER).setPriority(Notification.PRIORITY_DEFAULT)
+                .addAction(0, t(context, R.string.timer_notification_restart), action(context, item, TimerStore.ACTION_RESTART))
+                .addAction(0, t(context, R.string.stop), action(context, item, TimerStore.ACTION_STOP))
+                .build();
     }
 
     private static PendingIntent action(Context context, TimerItem item, String action) {
@@ -100,8 +122,12 @@ public final class TimerNotificationReceiver extends BroadcastReceiver {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
         NotificationChannel channel = new NotificationChannel(TimerStore.CHANNEL_ID,
-                "Нагадування про нагороди", NotificationManager.IMPORTANCE_DEFAULT);
-        channel.setDescription("Завершення таймерів нагород, подій та інших дій.");
+                t(context, R.string.timer_channel_name), NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription(t(context, R.string.timer_channel_description));
         manager.createNotificationChannel(channel);
+    }
+
+    private static String t(android.content.Context context, int id, Object... args) {
+        return AppLanguage.text(context, id, args);
     }
 }

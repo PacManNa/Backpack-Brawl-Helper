@@ -1,6 +1,5 @@
 package ua.borlock.autotap;
 
-import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Color;
@@ -27,7 +26,7 @@ import java.util.Locale;
 import java.util.ArrayList;
 import java.util.EnumSet;
 
-public final class MainActivity extends Activity {
+public final class MainActivity extends LocalizedActivity {
     private static final int BG = Color.rgb(25, 21, 25);
     private static final int CARD = Color.rgb(43, 36, 43);
     private static final int CARD_SOFT = Color.rgb(55, 45, 53);
@@ -108,7 +107,7 @@ public final class MainActivity extends Activity {
         content.addView(buildTimerCard(), margin(-1, -2, 0, 0, 0, 12));
         content.addView(buildPermissionCard(), margin(-1, -2, 0, 0, 0, 12));
         content.addView(buildStepsCard(), margin(-1, -2, 0, 0, 0, 14));
-        TextView footer = text("v" + versionName() + " · Обробка на телефоні", 12, MUTED, false);
+        TextView footer = text("v" + versionName() + t(R.string.footer_local), 12, MUTED, false);
         footer.setGravity(Gravity.CENTER);
         content.addView(footer, margin(-1, -2, 0, 10, 0, 0));
         refreshStatus();
@@ -126,11 +125,23 @@ public final class MainActivity extends Activity {
 
         LinearLayout labels = column();
         labels.setPadding(dp(12), 0, 0, 0);
-        labels.addView(text("Пелюстка", 22, CREAM, true));
-        labels.addView(text("КЛІКЕРИ ТА НАГАДУВАННЯ", 10, MUTED, true), margin(-1, -2, 0, 3, 0, 0));
+        labels.addView(text(t(R.string.app_name), 22, CREAM, true));
+        labels.addView(text(t(R.string.header_tagline), 10, MUTED, true), margin(-1, -2, 0, 3, 0, 0));
         row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView badge = text(ClickerCatalog.countLabel(), 10, GOLD, true);
+        TextView language = actionText(AppLanguage.buttonLabel(this), CARD_SOFT, CREAM, BORDER, 11);
+        language.setContentDescription(t(R.string.language_switch));
+        language.setOnClickListener(view -> {
+            AppLanguage.toggle(this);
+            TapAccessibilityService.refreshLanguage();
+            TimerNotificationReceiver.refreshLanguage(this);
+            recreate();
+        });
+        LinearLayout.LayoutParams languageParams = new LinearLayout.LayoutParams(dp(42), dp(36));
+        languageParams.setMargins(dp(6), 0, dp(6), 0);
+        row.addView(language, languageParams);
+
+        TextView badge = text(AppLanguage.moduleCount(this), 10, GOLD, true);
         badge.setGravity(Gravity.CENTER);
         badge.setPadding(dp(11), dp(7), dp(11), dp(7));
         badge.setBackground(shape(CARD_SOFT, BORDER, 14));
@@ -140,10 +151,10 @@ public final class MainActivity extends Activity {
 
     private View buildBotsSection() {
         LinearLayout section = column();
-        TextView heading = text("КЛІКЕРИ", 11, GOLD, true);
+        TextView heading = text(t(R.string.section_clickers), 11, GOLD, true);
         heading.setLetterSpacing(0.08f);
         section.addView(heading, margin(-1, -2, 0, 0, 0, 4));
-        section.addView(text("Натисни назву, щоб відкрити керування.", 13, MUTED, false),
+        section.addView(text(t(R.string.clickers_hint), 13, MUTED, false),
                 margin(-1, -2, 0, 0, 0, 10));
         for (ClickerModule module : ClickerCatalog.all()) {
             section.addView(buildBotCard(module), margin(-1, -2, 0, 0, 0, 9));
@@ -169,7 +180,7 @@ public final class MainActivity extends Activity {
         icon.setBackground(shape(theme.iconFill, border, 15));
         heading.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
-        TextView name = text(module.name, 17, CREAM, true);
+        TextView name = text(t(module.nameRes), 17, CREAM, true);
         name.setPadding(dp(11), 0, 0, 0);
         name.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         heading.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -189,11 +200,11 @@ public final class MainActivity extends Activity {
         details.addView(text(module.boardLabel.toUpperCase(Locale.ROOT), 10, accent, true),
                 margin(-1, -2, 0, 12, 0, 0));
 
-        TextView summary = text(module.description, 13, MUTED, false);
+        TextView summary = text(t(module.descriptionRes), 13, MUTED, false);
         summary.setLineSpacing(dp(2), 1f);
         details.addView(summary, margin(-1, -2, 0, 8, 0, 12));
 
-        TextView launch = actionText("Відкрити панель  →", theme.buttonFill,
+        TextView launch = actionText(t(R.string.open_panel), theme.buttonFill,
                 CREAM, accent, 13);
         launch.setOnClickListener(view -> openFloatingPanel(mode));
         botLaunchButtons.add(launch);
@@ -209,7 +220,7 @@ public final class MainActivity extends Activity {
         }
         card.addView(details, new LinearLayout.LayoutParams(-1, -2));
 
-        ExpandableSection.bind(heading, details, module.name, expandedBots.contains(mode), expanded -> {
+        ExpandableSection.bind(heading, details, t(module.nameRes), expandedBots.contains(mode), expanded -> {
             if (expanded) expandedBots.add(mode);
             else expandedBots.remove(mode);
         });
@@ -220,10 +231,10 @@ public final class MainActivity extends Activity {
         LinearLayout card = column();
         card.setPadding(dp(16), dp(15), dp(16), dp(15));
         card.setBackground(shape(CARD, BORDER, 20));
-        card.addView(text("Нагадування про дію", 17, CREAM, true));
-        TextView details = text("Квитки, самоцвіти, монети та інші нагороди", 13, MUTED, false);
+        card.addView(text(t(R.string.reminder_title), 17, CREAM, true));
+        TextView details = text(t(R.string.reminder_summary), 13, MUTED, false);
         card.addView(details, margin(-1, -2, 0, 5, 0, 12));
-        TextView open = actionText("Налаштувати таймери  →", GOLD, BG, GOLD, 13);
+        TextView open = actionText(t(R.string.configure_timers), GOLD, BG, GOLD, 13);
         open.setOnClickListener(v -> startActivity(new Intent(this, TimerActivity.class)));
         card.addView(open, new LinearLayout.LayoutParams(-1, dp(44)));
         return card;
@@ -242,8 +253,8 @@ public final class MainActivity extends Activity {
         heading.addView(step, new LinearLayout.LayoutParams(dp(38), dp(38)));
         LinearLayout titles = column();
         titles.setPadding(dp(11), 0, 0, 0);
-        titles.addView(text("Дозвіл Android", 16, CREAM, true));
-        serviceState = text("Перевіряємо…", 12, GOLD, false);
+        titles.addView(text(t(R.string.android_permission), 16, CREAM, true));
+        serviceState = text(t(R.string.checking), 12, GOLD, false);
         titles.addView(serviceState, margin(-1, -2, 0, 3, 0, 0));
         heading.addView(titles, new LinearLayout.LayoutParams(0, -2, 1));
         heading.setMinimumHeight(dp(48));
@@ -251,19 +262,19 @@ public final class MainActivity extends Activity {
         LinearLayout body = column();
         body.setPadding(0, dp(6), 0, 0);
 
-        serviceDetail = text("Потрібен для читання поля й виконання свайпів.", 13, MUTED, false);
+        serviceDetail = text(t(R.string.permission_brief), 13, MUTED, false);
         body.addView(serviceDetail, margin(-1, -2, 0, 12, 0, 0));
 
-        permissionButton = actionText("Увімкнути доступ", CARD_SOFT, CREAM, BORDER, 12);
+        permissionButton = actionText(t(R.string.enable_access), CARD_SOFT, CREAM, BORDER, 12);
         permissionButton.setOnClickListener(v -> openAccessibilitySettings());
         body.addView(permissionButton, new LinearLayout.LayoutParams(-1, dp(46)));
         if (Build.VERSION.SDK_INT >= 33) {
-            appSettingsButton = actionText("Налаштування застосунку", CARD_SOFT, MUTED, 0, 12);
+            appSettingsButton = actionText(t(R.string.app_settings), CARD_SOFT, MUTED, 0, 12);
             appSettingsButton.setOnClickListener(v -> openAppSettings());
             body.addView(appSettingsButton, margin(-1, 48, 0, 7, 0, 0));
         }
 
-        helpToggle = text("Не бачиш сервіс у списку?  Показати інструкцію  ⌄", 12, GOLD, true);
+        helpToggle = text(t(R.string.show_service_help), 12, GOLD, true);
         helpToggle.setGravity(Gravity.CENTER_VERTICAL);
         helpToggle.setPadding(dp(2), dp(11), 0, dp(3));
         helpToggle.setOnClickListener(v -> {
@@ -272,12 +283,12 @@ public final class MainActivity extends Activity {
         });
         body.addView(helpToggle, margin(-1, -2, 0, 5, 0, 0));
 
-        serviceHelp = text("На Android 13+ відкрий налаштування застосунку → ⋮ → «Дозволити обмежені налаштування». Потім повернись у Доступність → встановлені програми та ввімкни «Пелюстка — керування грою».", 12, MUTED, false);
+        serviceHelp = text(t(R.string.service_help), 12, MUTED, false);
         serviceHelp.setLineSpacing(dp(3), 1f);
         serviceHelp.setVisibility(View.GONE);
         body.addView(serviceHelp, margin(-1, -2, 0, 2, 0, 0));
         card.addView(body, new LinearLayout.LayoutParams(-1, -2));
-        ExpandableSection.bind(heading, body, "Дозвіл Android", permissionExpanded,
+        ExpandableSection.bind(heading, body, t(R.string.android_permission), permissionExpanded,
                 expanded -> permissionExpanded = expanded);
         permissionCard = card;
         return card;
@@ -291,11 +302,11 @@ public final class MainActivity extends Activity {
         LinearLayout titleRow = new LinearLayout(this);
         titleRow.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout labels = column();
-        labels.addView(text("Очікування зміни поля", 14, CREAM, true));
-        labels.addView(text("Час до повтору свайпу без змін поля", 12, MUTED, false), margin(-1, -2, 0, 3, 0, 0));
+        labels.addView(text(t(R.string.wait_for_board), 14, CREAM, true));
+        labels.addView(text(t(R.string.wait_for_board_hint), 12, MUTED, false), margin(-1, -2, 0, 3, 0, 0));
         titleRow.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView intervalValue = text("0,9 с", 14, GOLD, true);
+        TextView intervalValue = text(t(R.string.interval_default), 14, GOLD, true);
         intervalValue.setGravity(Gravity.CENTER);
         intervalValue.setPadding(dp(9), dp(6), dp(9), dp(6));
         intervalValue.setBackground(shape(0x334A3540, 0, 12));
@@ -317,7 +328,7 @@ public final class MainActivity extends Activity {
                 (initial - TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS)
                 / (float) TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS)));
         intervalSlider.setProgress(progress);
-        intervalSlider.setContentDescription("Очікування зміни поля: " + module.name);
+        intervalSlider.setContentDescription(t(R.string.wait_for_board_prefix) + t(module.nameRes));
         updateIntervalLabel(intervalValue, progress);
         intervalSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
@@ -333,13 +344,13 @@ public final class MainActivity extends Activity {
         card.addView(intervalSlider, margin(-1, -2, -8, 4, -8, 0));
 
         LinearLayout range = new LinearLayout(this);
-        TextView fast = text("0,4 с", 10, MUTED, true);
-        TextView slow = text("4,0 с", 10, MUTED, true);
+        TextView fast = text(t(R.string.interval_fast), 10, MUTED, true);
+        TextView slow = text(t(R.string.interval_slow), 10, MUTED, true);
         range.addView(fast, new LinearLayout.LayoutParams(0, -2, 1));
         slow.setGravity(Gravity.RIGHT);
         range.addView(slow, new LinearLayout.LayoutParams(0, -2, 1));
         card.addView(range);
-        card.addView(text("Налаштування цього модуля. Якщо поле не змінилося, бот зачекає й повторить свайп один раз. Після успішного ходу це очікування не додається.", 11, MUTED, false),
+        card.addView(text(t(R.string.wait_for_board_explanation), 11, MUTED, false),
                 margin(-1, -2, 0, 7, 0, 0));
         return card;
     }
@@ -348,7 +359,7 @@ public final class MainActivity extends Activity {
         LinearLayout card = column();
         card.setPadding(dp(12), dp(12), dp(12), dp(12));
         card.setBackground(shape(CARD_SOFT, 0, 12));
-        card.addView(text("Плаваюча панель", 14, CREAM, true));
+        card.addView(text(t(R.string.floating_panel), 14, CREAM, true));
         TextView widthLabel = text("", 12, MUTED, false);
         card.addView(widthLabel, margin(-1, -2, 0, 6, 0, 0));
         SeekBar widthSlider = new SeekBar(this);
@@ -357,8 +368,8 @@ public final class MainActivity extends Activity {
         int width = ClickerPreferences.panelWidthDp(this, module.id);
         widthSlider.setProgress((width - ClickerPreferences.MIN_PANEL_WIDTH_DP)
                 / ClickerPreferences.PANEL_WIDTH_STEP_DP);
-        widthLabel.setText("Ширина: " + width);
-        widthSlider.setContentDescription("Ширина плаваючої панелі: " + module.name);
+        widthLabel.setText(t(R.string.panel_width_prefix) + width);
+        widthSlider.setContentDescription(t(R.string.panel_width_accessibility) + t(module.nameRes));
         widthSlider.setProgressTintList(ColorStateList.valueOf(module.theme.accent));
         widthSlider.setThumbTintList(ColorStateList.valueOf(module.theme.accent));
         widthSlider.setProgressBackgroundTintList(ColorStateList.valueOf(BORDER));
@@ -367,7 +378,7 @@ public final class MainActivity extends Activity {
                 if (!fromUser) return;
                 int widthDp = ClickerPreferences.MIN_PANEL_WIDTH_DP
                         + progress * ClickerPreferences.PANEL_WIDTH_STEP_DP;
-                widthLabel.setText("Ширина: " + widthDp);
+                widthLabel.setText(t(R.string.panel_width_prefix) + widthDp);
                 ClickerPreferences.setPanelWidthDp(MainActivity.this, module.mode, widthDp);
                 TapAccessibilityService.refreshModulePanel(module.mode);
             }
@@ -375,7 +386,7 @@ public final class MainActivity extends Activity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) { }
         });
         card.addView(widthSlider, margin(-1, -2, -8, 4, -8, 0));
-        card.addView(text("Перетягуй за назву з підписом «Перетягнути». Кнопка «Показати поле» відкриває діагностику, «В іконку» згортає меню.",
+        card.addView(text(t(R.string.panel_help),
                 11, MUTED, false), margin(-1, -2, 0, 7, 0, 0));
         return card;
     }
@@ -384,19 +395,19 @@ public final class MainActivity extends Activity {
         LinearLayout card = column();
         card.setPadding(dp(16), dp(15), dp(16), dp(15));
         card.setBackground(shape(CARD, BORDER, 20));
-        TextView heading = text("Перший запуск", 16, CREAM, true);
+        TextView heading = text(t(R.string.first_launch), 16, CREAM, true);
         heading.setGravity(Gravity.CENTER_VERTICAL);
         heading.setMinHeight(dp(48));
         card.addView(heading, new LinearLayout.LayoutParams(-1, -2));
         LinearLayout body = column();
-        body.addView(stepRow("01", "Увімкни дозвіл", "Натисни «Дозвіл Android» та ввімкни службу доступності."),
+        body.addView(stepRow("01", t(R.string.step_permission_title), t(R.string.step_permission_body)),
                 margin(-1, -2, 0, 12, 0, 0));
-        body.addView(stepRow("02", "Обери потрібного бота", "Натисни назву, потім «Відкрити панель»."),
+        body.addView(stepRow("02", t(R.string.step_bot_title), t(R.string.step_bot_body)),
                 margin(-1, -2, 0, 10, 0, 0));
-        body.addView(stepRow("03", "Натисни ▶ Старт", "Відкрий відповідну мінігру й дочекайся стабільного поля."),
+        body.addView(stepRow("03", t(R.string.step_start_title), t(R.string.step_start_body)),
                 margin(-1, -2, 0, 10, 0, 0));
         card.addView(body, new LinearLayout.LayoutParams(-1, -2));
-        ExpandableSection.bind(heading, body, "Перший запуск", stepsExpanded,
+        ExpandableSection.bind(heading, body, t(R.string.first_launch), stepsExpanded,
                 expanded -> stepsExpanded = expanded);
         return card;
     }
@@ -404,16 +415,16 @@ public final class MainActivity extends Activity {
     private void refreshStatus() {
         if (serviceState == null) return;
         boolean enabled = isAccessibilityServiceEnabled();
-        serviceState.setText(enabled ? "Доступ активний" : "Потрібен дозвіл доступності");
+        serviceState.setText(enabled ? t(R.string.access_enabled) : t(R.string.access_needed));
         serviceState.setTextColor(enabled ? GREEN : GOLD);
         serviceDetail.setText(enabled
-                ? "Можна відкрити панель і запустити бота поверх гри."
-                : "Дозвіл потрібен для читання поля й виконання свайпів.");
-        permissionButton.setText(enabled ? "Керувати дозволом" : "Увімкнути доступ");
+                ? t(R.string.access_ready_help)
+                : t(R.string.access_needed_help));
+        permissionButton.setText(enabled ? t(R.string.manage_access) : t(R.string.enable_access));
         if (appSettingsButton != null) appSettingsButton.setVisibility(enabled ? View.GONE : View.VISIBLE);
         helpToggle.setVisibility(enabled ? View.GONE : View.VISIBLE);
         for (TextView button : botLaunchButtons) {
-            button.setText(enabled ? "Відкрити панель  →" : "Налаштувати доступ  →");
+            button.setText(enabled ? t(R.string.open_panel) : t(R.string.configure_access));
         }
         permissionCard.setBackground(shape(enabled ? 0xFF252D28 : CARD,
                 enabled ? 0xFF526850 : BORDER, 20));
@@ -427,8 +438,8 @@ public final class MainActivity extends Activity {
         serviceHelp.setVisibility(showHelp ? View.VISIBLE : View.GONE);
         if (helpToggle != null) {
             helpToggle.setText(serviceHelpExpanded
-                    ? "Сховати інструкцію  ⌃"
-                    : "Не бачиш сервіс у списку?  Показати інструкцію  ⌄");
+                    ? t(R.string.hide_service_help)
+                    : t(R.string.show_service_help));
         }
     }
 
@@ -446,7 +457,7 @@ public final class MainActivity extends Activity {
         try {
             startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
         } catch (Exception e) {
-            Toast.makeText(this, "Відкрий налаштування доступності Android", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, t(R.string.open_accessibility_toast), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -456,7 +467,7 @@ public final class MainActivity extends Activity {
             intent.setData(android.net.Uri.parse("package:" + getPackageName()));
             startActivity(intent);
         } catch (Exception e) {
-            Toast.makeText(this, "Відкрий налаштування Пелюстки зі списку програм", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, t(R.string.open_app_settings_toast), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -466,16 +477,16 @@ public final class MainActivity extends Activity {
             return;
         }
         if (!TapAccessibilityService.showControlPanel(mode)) {
-            Toast.makeText(this, "Повернись сюди після ввімкнення сервісу й відкрий панель ще раз", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, t(R.string.return_after_access), Toast.LENGTH_LONG).show();
             return;
         }
-        Toast.makeText(this, "Панель відкрито — можна переходити до гри", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, t(R.string.panel_open_toast), Toast.LENGTH_SHORT).show();
     }
 
     private void updateIntervalLabel(TextView value, int progress) {
         long ms = TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS
                 + progress * TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS;
-        String label = String.format(Locale.getDefault(), "%.1f с", ms / 1000f);
+        String label = String.format(AppLanguage.locale(this), t(R.string.interval_seconds), ms / 1000f);
         value.setText(label);
     }
 
@@ -513,6 +524,7 @@ public final class MainActivity extends Activity {
 
     private TextView text(String value, int sp, int color, boolean bold) {
         TextView view = new TextView(this);
+        view.setTextLocale(AppLanguage.locale(this));
         view.setText(value);
         view.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         view.setTextColor(color);
@@ -558,5 +570,9 @@ public final class MainActivity extends Activity {
 
     private int dp(float value) {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private String t(int id, Object... args) {
+        return AppLanguage.text(this, id, args);
     }
 }

@@ -142,7 +142,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (timerOverlay != null) timerOverlay.onConfigurationChanged();
     }
 
-    @Override public void onInterrupt() { stopAutoPlay("Призупинено Android"); }
+    @Override public void onInterrupt() { stopAutoPlay(t(R.string.paused_by_android)); }
 
     @Override public boolean onUnbind(android.content.Intent intent) {
         closePanel();
@@ -173,6 +173,27 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     static void minimizeTimerPanel() {
         if (instance != null && instance.timerOverlay != null) instance.timerOverlay.minimize();
+    }
+
+    static void refreshLanguage() {
+        if (instance == null) return;
+        instance.rebuildPanelForLanguage();
+        if (instance.timerOverlay != null) instance.timerOverlay.refreshLanguage();
+    }
+
+    /** Rebuild presentation only; keep the active run, queued reads and gesture state. */
+    private void rebuildPanelForLanguage() {
+        if (panel == null || windowManager == null) return;
+        savePanelPlacement();
+        try { windowManager.removeView(panel); } catch (IllegalArgumentException ignored) { }
+        panel = createPanel();
+        try {
+            windowManager.addView(panel, panelParams);
+            restorePanelPlacement();
+            updatePanel();
+        } catch (WindowManager.BadTokenException | IllegalStateException error) {
+            panel = null;
+        }
     }
 
     static void refreshModulePanel(BotMode mode) {
@@ -226,7 +247,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     private void selectBot(BotMode mode) {
         if (mode == null) mode = BotMode.BACKPACK_BLITZ;
         savePanelPlacement();
-        if (autoPlaying && activeMode != mode) stopAutoPlay("Зупинено");
+        if (autoPlaying && activeMode != mode) stopAutoPlay(t(R.string.stopped));
         activeMode = mode;
         panelProfile = mode.id;
         collapsedToBubble = false;
@@ -238,14 +259,14 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void updateBotModeViews() {
         ClickerModule module = ClickerCatalog.get(activeMode);
-        if (panelTitle != null) panelTitle.setText(module.name);
+        if (panelTitle != null) panelTitle.setText(t(module.nameRes));
         if (panelIcon != null) {
             panelIcon.setText(module.icon);
             panelIcon.setTextColor(module.theme.accent);
         }
         if (bubbleButton != null) {
             bubbleButton.setText(bubbleLabel(module.icon));
-            bubbleButton.setContentDescription("Розгорнути панель: " + (module.name));
+            bubbleButton.setContentDescription(t(R.string.expand_panel_prefix) + (t(module.nameRes)));
         }
         if (blitzBoardGrid != null) {
             blitzBoardGrid.setVisibility(activeMode == BotMode.BACKPACK_BLITZ ? View.VISIBLE : View.GONE);
@@ -258,17 +279,17 @@ public final class TapAccessibilityService extends AccessibilityService {
                     ? View.VISIBLE : View.GONE);
         }
         if (playButton != null) {
-            playButton.setContentDescription((autoPlaying ? "Зупинити" : "Запустити")
-                    + " бота «" + module.name + "»");
+            playButton.setContentDescription(t(autoPlaying ? R.string.bot_stop_description
+                    : R.string.bot_start_description, t(module.nameRes)));
             playButton.setVisibility(View.VISIBLE);
         }
         if (boardInfoView != null && !autoPlaying) {
             boardInfoView.setText(activeMode == BotMode.BACKPACK_BLITZ
-                    ? "Поле ще не прочитане · 8×8" : "Поле ще не прочитане · 4×4");
+                    ? t(R.string.board_unread_blitz) : t(R.string.board_unread_merge));
         }
         if (scoreView != null && !autoPlaying) {
             scoreView.setText(activeMode == BotMode.BACKPACK_BLITZ
-                    ? "Шукаю сусідні заміни" : "Шукаю найкращий напрямок");
+                    ? t(R.string.search_swaps) : t(R.string.search_direction));
         }
     }
 
@@ -299,34 +320,34 @@ public final class TapAccessibilityService extends AccessibilityService {
         dragHandle.setGravity(Gravity.CENTER_VERTICAL);
         dragHandle.setMinimumHeight(dp(48));
         dragHandle.setOnTouchListener(createDragListener(false));
-        panelTitle = button(ClickerCatalog.get(activeMode).name, CREAM, 12);
+        panelTitle = button(t(ClickerCatalog.get(activeMode).nameRes), CREAM, 12);
         panelTitle.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         panelTitle.setMaxLines(2);
         panelTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
         panelTitle.setClickable(false);
         panelTitle.setFocusable(false);
         dragHandle.addView(panelTitle, new LinearLayout.LayoutParams(-1, -2));
-        TextView dragHint = smallInfoText("⠿ Перетягнути");
+        TextView dragHint = smallInfoText(t(R.string.drag_handle));
         dragHint.setPadding(dp(5), dp(2), 0, 0);
         dragHint.setSingleLine(true);
         dragHint.setTextColor(0xFFD4B7BF);
         dragHandle.addView(dragHint, new LinearLayout.LayoutParams(-1, -2));
         titleRow.addView(dragHandle, new LinearLayout.LayoutParams(0, -2, 1f));
 
-        TextView minimize = button("В іконку", CREAM, 10);
+        TextView minimize = button(t(R.string.minimize), CREAM, 10);
         minimize.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
-        minimize.setContentDescription("Згорнути панель до іконки; бот продовжить роботу");
+        minimize.setContentDescription(t(R.string.bot_minimize_description));
         minimize.setBackground(round(0xFF49353C, 10));
         minimize.setOnClickListener(view -> setCollapsedToBubble(true));
         titleRow.addView(minimize, new LinearLayout.LayoutParams(dp(68), -2));
         TextView close = button("×", CREAM, 30);
         close.setMinHeight(dp(48));
-        close.setContentDescription("Зупинити бота й закрити панель");
+        close.setContentDescription(t(R.string.bot_close_description));
         close.setOnClickListener(view -> closePanel());
         titleRow.addView(close, new LinearLayout.LayoutParams(dp(48), -2));
         panelBody.addView(titleRow, new LinearLayout.LayoutParams(-1, -2));
 
-        stateChip = button("Готовий", CREAM, 10);
+        stateChip = button(t(R.string.ready), CREAM, 10);
         stateChip.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
         stateChip.setBackground(round(0xFF49353C, 10));
         stateChip.setSingleLine(true);
@@ -339,16 +360,16 @@ public final class TapAccessibilityService extends AccessibilityService {
 
         LinearLayout controlRow = new LinearLayout(this);
         controlRow.setGravity(Gravity.CENTER_VERTICAL);
-        detailsToggle = button("▼ Показати поле", CREAM, 11);
+        detailsToggle = button(t(R.string.show_board), CREAM, 11);
         detailsToggle.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
         detailsToggle.setBackground(round(0xFF49353C, 10));
         detailsToggle.setOnClickListener(view -> setDiagnosticsExpanded(!diagnosticsExpanded));
         controlRow.addView(detailsToggle, new LinearLayout.LayoutParams(0, -2, 1f));
-        playButton = button("▶ Старт", CREAM, 11);
+        playButton = button(t(R.string.start_short), CREAM, 11);
         playButton.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
         playButton.setBackground(round(0xFF526A4D, 10));
         playButton.setOnClickListener(view -> {
-            if (autoPlaying) stopAutoPlay("Зупинено");
+            if (autoPlaying) stopAutoPlay(t(R.string.stopped));
             else startAutoPlay();
         });
         LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(84), -2);
@@ -403,14 +424,14 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
         diagnosticsPanel.addView(mergeBoardGrid, new LinearLayout.LayoutParams(-1, -2));
 
-        boardInfoView = smallInfoText("Поле ще не прочитане");
+        boardInfoView = smallInfoText(t(R.string.board_unread));
         boardInfoView.setSingleLine(true);
         boardInfoView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams infoParams = new LinearLayout.LayoutParams(-1, -2);
         infoParams.setMargins(dp(2), dp(2), dp(2), 0);
         diagnosticsPanel.addView(boardInfoView, infoParams);
 
-        mergeDetailsView = smallInfoText("Зсув поля · ланцюжок · впевненість");
+        mergeDetailsView = smallInfoText(t(R.string.merge_diagnostics_hint));
         mergeDetailsView.setMinLines(2);
         mergeDetailsView.setMaxLines(2);
         mergeDetailsView.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -420,7 +441,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         mergeDetailsParams.setMargins(dp(2), dp(1), dp(2), 0);
         diagnosticsPanel.addView(mergeDetailsView, mergeDetailsParams);
 
-        messageView = smallInfoText("Відкрий гру й натисни «Старт»");
+        messageView = smallInfoText(t(R.string.open_game_start));
         messageView.setTextColor(CREAM);
         messageView.setMinLines(1);
         messageView.setMaxLines(1);
@@ -429,7 +450,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         messageParams.setMargins(dp(2), dp(1), dp(2), 0);
         diagnosticsPanel.addView(messageView, messageParams);
 
-        scoreView = smallInfoText("Бот шукає найкращий збіг");
+        scoreView = smallInfoText(t(R.string.bot_search_match));
         scoreView.setTypeface(Typeface.MONOSPACE);
         scoreView.setSingleLine(true);
         scoreView.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -469,12 +490,12 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void updatePanelContentVisibility() {
         if (detailsToggle != null) {
-            String label = (diagnosticsExpanded ? "▲ Сховати " : "▼ Показати ")
-                    + "поле";
+            String label = (diagnosticsExpanded ? t(R.string.hide_prefix) : t(R.string.show_prefix))
+                    + t(R.string.board);
             detailsToggle.setText(label);
             detailsToggle.setContentDescription(label);
             if (Build.VERSION.SDK_INT >= 30) {
-                detailsToggle.setStateDescription(diagnosticsExpanded ? "Показано" : "Сховано");
+                detailsToggle.setStateDescription(diagnosticsExpanded ? t(R.string.shown) : t(R.string.hidden));
             }
         }
         if (panelBody != null) panelBody.setVisibility(collapsedToBubble ? View.GONE : View.VISIBLE);
@@ -604,13 +625,14 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
     private CharSequence bubbleLabel(String icon) {
-        SpannableString label = new SpannableString(icon + "\nВідкрити");
+        SpannableString label = new SpannableString(icon + t(R.string.open_bubble_suffix));
         label.setSpan(new RelativeSizeSpan(2.2f), 0, icon.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         return label;
     }
 
     private TextView smallInfoText(String initialText) {
         TextView view = new TextView(this);
+        view.setTextLocale(AppLanguage.locale(this));
         view.setText(initialText);
         view.setTextSize(9);
         view.setTextColor(0xFFE0CDD0);
@@ -622,7 +644,7 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void startAutoPlay() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            Toast.makeText(this, "Автогра потребує Android 11 або новішу версію", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, t(R.string.autoplay_android_required), Toast.LENGTH_LONG).show();
             return;
         }
         if (autoPlaying) return;
@@ -648,8 +670,8 @@ public final class TapAccessibilityService extends AccessibilityService {
         mergeSpawnModel.reset();
         noMoveReads = 0;
         clearBoardPreview();
-        updatePanel("АНАЛІЗ ПОЛЯ");
-        updateDiagnosticMessage("Очікую на стабільне поле…");
+        updatePanel(t(R.string.analyzing_board));
+        updateDiagnosticMessage(t(R.string.wait_stable_board));
         handler.postDelayed(() -> readBoardAndMove(currentRun), MIN_POST_SWIPE_SETTLE_MS);
     }
 
@@ -676,12 +698,12 @@ public final class TapAccessibilityService extends AccessibilityService {
             }
         }
         if (activeMode == BotMode.MERGE_MADNESS) {
-            if (boardInfoView != null) boardInfoView.setText("Чекаю на поле 4×4");
-            if (scoreView != null) scoreView.setText("Шукаю найкращий напрямок");
-            if (mergeDetailsView != null) mergeDetailsView.setText("Зсув поля · ланцюжок · впевненість");
+            if (boardInfoView != null) boardInfoView.setText(t(R.string.wait_merge_board));
+            if (scoreView != null) scoreView.setText(t(R.string.search_direction));
+            if (mergeDetailsView != null) mergeDetailsView.setText(t(R.string.merge_diagnostics_hint));
         } else {
-            if (boardInfoView != null) boardInfoView.setText("Чекаю на поле 8×8");
-            if (scoreView != null) scoreView.setText("Шукаю сусідні заміни");
+            if (boardInfoView != null) boardInfoView.setText(t(R.string.wait_blitz_board));
+            if (scoreView != null) scoreView.setText(t(R.string.search_swaps));
         }
     }
 
@@ -701,7 +723,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 Bitmap bitmap = copyScreenshot(screenshot);
                 if (bitmap == null) {
                     screenshotPending = false;
-                    stopAutoPlay("Не вдалося прочитати екран");
+                    stopAutoPlay(t(R.string.screen_read_failed));
                     return;
                 }
                 BoardVision.Geometry geometryAnchor = activeMode == BotMode.MERGE_MADNESS
@@ -712,7 +734,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 solverExecutor.execute(() -> {
                     if (activeMode == BotMode.MERGE_MADNESS) {
                         MergeMadnessVision.Result result = mergeMadnessVision == null
-                                ? MergeMadnessVision.Result.error("Розпізнавач 2048 не готовий.")
+                                ? MergeMadnessVision.Result.error(t(R.string.recognizer_not_ready))
                                 : mergeMadnessVision.recognize(bitmap, geometryAnchor,
                                 calibratedGeometry);
                         bitmap.recycle();
@@ -734,7 +756,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                     handler.postDelayed(() -> readBoardAndMove(currentRun), wait);
                     return;
                 }
-                stopAutoPlay("Android не дозволив зняти екран (" + errorCode + ")");
+                stopAutoPlay(t(R.string.screenshot_denied_prefix) + errorCode + ")");
             }
         });
     }
@@ -760,8 +782,8 @@ public final class TapAccessibilityService extends AccessibilityService {
         screenshotPending = false;
         if (!result.isSuccess()) {
             lastRecognitionError = result.error;
-            updateDiagnosticMessage("КАДР НЕЧІТКИЙ · " + stabilizationReads + "/"
-                    + MAX_STABILIZATION_READS + " · " + result.error);
+            updateDiagnosticMessage(t(R.string.unclear_frame_prefix) + stabilizationReads + "/"
+                    + MAX_STABILIZATION_READS + " · " + AppLanguage.recognitionError(this, result.error));
             scheduleStabilityRead(currentRun);
             return;
         }
@@ -773,7 +795,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             stableCandidateBoard = result.board;
             stableCandidateReads = STABLE_FRAME_COUNT;
             stabilizationReads = 0;
-            updateDiagnostic(result.board, result.similarity, "ПОЛЕ ЗМІНИЛОСЯ");
+            updateDiagnostic(result.board, result.similarity, t(R.string.board_changed));
             chooseMoveForStableBoard(currentRun, result);
             return;
         }
@@ -782,7 +804,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             stableCandidateBoard = result.board;
             stableCandidateReads = 1;
         }
-        String phase = stableCandidateReads >= STABLE_FRAME_COUNT ? "СТАБІЛЬНЕ" : "ПЕРЕВІРКА";
+        String phase = stableCandidateReads >= STABLE_FRAME_COUNT ? t(R.string.stable) : t(R.string.checking_frame);
         updateDiagnostic(result.board, result.similarity, phase);
         if (stableCandidateReads < STABLE_FRAME_COUNT) {
             scheduleStabilityRead(currentRun);
@@ -802,10 +824,10 @@ public final class TapAccessibilityService extends AccessibilityService {
                     && result.recognizedCells != null) {
                 updateMergePartialDiagnostic(result);
             } else {
-                clearMergeDiagnostic("Кадр не розпізнано");
+                clearMergeDiagnostic(t(R.string.frame_unrecognized));
             }
-            updateDiagnosticMessage("КАДР НЕЧІТКИЙ · " + stabilizationReads + "/"
-                    + MAX_STABILIZATION_READS + " · " + result.error);
+            updateDiagnosticMessage(t(R.string.unclear_frame_prefix) + stabilizationReads + "/"
+                    + MAX_STABILIZATION_READS + " · " + AppLanguage.recognitionError(this, result.error));
             scheduleStabilityRead(currentRun);
             return;
         }
@@ -832,8 +854,8 @@ public final class TapAccessibilityService extends AccessibilityService {
             stableCandidateMergeGeometry = result.geometry;
             stableCandidateReads = 1;
         }
-        String phase = verifiedMove ? "ХІД ПІДТВЕРДЖЕНО"
-                : stableCandidateReads >= STABLE_FRAME_COUNT ? "СТАБІЛЬНЕ" : "ПЕРЕВІРКА";
+        String phase = verifiedMove ? t(R.string.move_confirmed)
+                : stableCandidateReads >= STABLE_FRAME_COUNT ? t(R.string.stable) : t(R.string.checking_frame);
         updateMergeDiagnostic(result, phase);
         if (stableCandidateReads < STABLE_FRAME_COUNT) {
             scheduleStabilityRead(currentRun);
@@ -842,9 +864,9 @@ public final class TapAccessibilityService extends AccessibilityService {
 
         if (transition != null) {
             if (!transition.expected) {
-                lastRecognitionError = "Зміна поля не відповідає свайпу й одній новій плитці";
-                updateMergeDiagnostic(result, "ПЕРЕВІРЯЮ ПЕРЕХІД");
-                updateDiagnosticMessage("Перевіряю, чи завершилося переміщення плиток…");
+                lastRecognitionError = t(R.string.unexpected_transition);
+                updateMergeDiagnostic(result, t(R.string.checking_transition));
+                updateDiagnosticMessage(t(R.string.wait_tile_movement));
                 scheduleStabilityRead(currentRun);
                 return;
             }
@@ -866,12 +888,12 @@ public final class TapAccessibilityService extends AccessibilityService {
         stabilizationReads++;
         if (stabilizationReads >= MAX_STABILIZATION_READS) {
             String message = lastRecognitionError == null
-                    ? "Поле не стабілізувалося після свайпу"
-                    : "Не вдалося впевнено прочитати поле: " + lastRecognitionError;
+                    ? t(R.string.board_not_stable)
+                    : t(R.string.board_read_uncertain_prefix) + AppLanguage.recognitionError(this, lastRecognitionError);
             stopAutoPlay(message);
             return;
         }
-        updatePanel("ЧЕКАЮ НА КАДР");
+        updatePanel(t(R.string.waiting_for_frame));
         handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
     }
 
@@ -879,8 +901,8 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (result.board.hasAnyMatch()) {
             previousBoard = null;
             lastChoice = null;
-            updateDiagnostic(result.board, result.similarity, "ЗБІГИ ОЧИЩУЮТЬСЯ");
-            updateDiagnosticMessage("Чекаю, поки гра завершить анімацію…");
+            updateDiagnostic(result.board, result.similarity, t(R.string.clearing_matches));
+            updateDiagnosticMessage(t(R.string.wait_animation));
             handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
             return;
         }
@@ -889,30 +911,30 @@ public final class TapAccessibilityService extends AccessibilityService {
             if (lastChoice == null && noMoveReads > 0) {
                 noMoveReads++;
                 if (noMoveReads <= 4) {
-                    updatePanel("ШУКАЮ ХІД");
-                    updateDiagnosticMessage("Немає готового збігу · чекаю перемішування");
+                    updatePanel(t(R.string.searching_move));
+                    updateDiagnosticMessage(t(R.string.wait_shuffle));
                     handler.postDelayed(() -> readBoardAndMove(currentRun), 500L);
                 } else {
-                    stopAutoPlay("Не знайшов заміну, що створює збіг");
+                    stopAutoPlay(t(R.string.no_matching_swap));
                 }
                 return;
             }
             long elapsedSinceSwipe = SystemClock.uptimeMillis() - lastSwipeCompletedAtMs;
             if (lastSwipeCompletedAtMs > 0L
                     && elapsedSinceSwipe < ClickerPreferences.timeoutMs(this, activeMode)) {
-                updatePanel("ОЧІКУЮ ЗМІНУ ПОЛЯ");
-                updateDiagnosticMessage("Чекаю, поки гра перемістить клітинки…");
+                updatePanel(t(R.string.waiting_board_change));
+                updateDiagnosticMessage(t(R.string.wait_cell_movement));
                 handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
                 return;
             }
             if (lastChoice == null || lastGeometry == null || unchangedSwipeRetries >= 1) {
-                stopAutoPlay("Обмін не змінив поле. Перевір гру та повтори запуск.");
+                stopAutoPlay(t(R.string.swap_unchanged));
                 return;
             }
 
             unchangedSwipeRetries++;
-            updateDiagnostic(result.board, result.similarity, "ПОВТОР ОБМІНУ");
-            updatePanel("ПОВТОР ОБМІНУ");
+            updateDiagnostic(result.board, result.similarity, t(R.string.retry_swap));
+            updatePanel(t(R.string.retry_swap));
             dispatchSwap(lastChoice, lastGeometry, currentRun, true);
             return;
         }
@@ -931,19 +953,19 @@ public final class TapAccessibilityService extends AccessibilityService {
             long elapsedSinceSwipe = SystemClock.uptimeMillis() - lastSwipeCompletedAtMs;
             if (lastSwipeCompletedAtMs > 0L
                     && elapsedSinceSwipe < ClickerPreferences.timeoutMs(this, activeMode)) {
-                updatePanel("ОЧІКУЮ ЗМІНУ ПОЛЯ");
-                updateDiagnosticMessage("Чекаю, поки плитки посунуться…");
+                updatePanel(t(R.string.waiting_board_change));
+                updateDiagnosticMessage(t(R.string.wait_tiles_slide));
                 handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
                 return;
             }
             if (lastMergeMove == null || lastMergeGeometry == null || unchangedSwipeRetries >= 1) {
-                stopAutoPlay("Свайп не змінив поле. Перевір гру та повтори запуск.");
+                stopAutoPlay(t(R.string.swipe_unchanged));
                 return;
             }
 
             unchangedSwipeRetries++;
-            updateMergeDiagnostic(result, "ПОВТОР СВАЙПУ");
-            updatePanel("ПОВТОР СВАЙПУ");
+            updateMergeDiagnostic(result, t(R.string.retry_swipe));
+            updatePanel(t(R.string.retry_swipe));
             lastMergeGeometry = result.geometry;
             dispatchMergeSwipe(lastMergeMove, result.geometry, currentRun, true);
             return;
@@ -963,8 +985,8 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (choice.waitingForResolution) {
             previousBoard = null;
             lastChoice = null;
-            updateDiagnostic(result.board, result.similarity, "ЗБІГИ ОЧИЩУЮТЬСЯ");
-            updateDiagnosticMessage("На полі ще " + choice.unresolvedMatches + " самоцвітів у збігах");
+            updateDiagnostic(result.board, result.similarity, t(R.string.clearing_matches));
+            updateDiagnosticMessage(t(R.string.board_still_has_prefix) + choice.unresolvedMatches + t(R.string.matched_gems_suffix));
             handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
             return;
         }
@@ -974,33 +996,33 @@ public final class TapAccessibilityService extends AccessibilityService {
             lastGeometry = null;
             noMoveReads++;
             if (noMoveReads <= 4) {
-                updatePanel("ШУКАЮ ХІД");
-                updateDiagnosticMessage("Немає готового збігу · чекаю перемішування");
+                updatePanel(t(R.string.searching_move));
+                updateDiagnosticMessage(t(R.string.wait_shuffle));
                 handler.postDelayed(() -> readBoardAndMove(currentRun), 500L);
             } else {
-                stopAutoPlay("Не знайшов заміну, що створює збіг");
+                stopAutoPlay(t(R.string.no_matching_swap));
             }
             return;
         }
 
-        updateDiagnostic(result.board, result.similarity, "НАСТУПНИЙ ОБМІН");
+        updateDiagnostic(result.board, result.similarity, t(R.string.next_swap));
         if (messageView != null) {
             int firstRow = choice.firstCell / GameBoard.SIDE + 1;
             int firstColumn = choice.firstCell % GameBoard.SIDE + 1;
             int secondRow = choice.secondCell / GameBoard.SIDE + 1;
             int secondColumn = choice.secondCell % GameBoard.SIDE + 1;
             String action = choice.specialType == 0
-                    ? "збіг " + choice.matchedCount
-                    : "активація " + specialName(choice.specialType) + " · ~" + choice.matchedCount;
-            messageView.setText("Обмін " + firstRow + "," + firstColumn + " ↔ "
+                    ? t(R.string.match_prefix) + choice.matchedCount
+                    : t(R.string.activation_prefix) + specialName(choice.specialType) + " · ~" + choice.matchedCount;
+            messageView.setText(t(R.string.swap_prefix) + firstRow + "," + firstColumn + " ↔ "
                     + secondRow + "," + secondColumn + " · " + action
-                    + "\nОцінка " + Math.round(choice.score)
-                    + (choice.cascadeCount > 0 ? " · каскади " + choice.cascadeCount : ""));
+                    + t(R.string.score_newline_prefix) + Math.round(choice.score)
+                    + (choice.cascadeCount > 0 ? t(R.string.cascades_prefix) + choice.cascadeCount : ""));
         }
         appendChoiceSummary(choice);
         lastChoice = choice;
         lastGeometry = result.geometry;
-        updatePanel((choice.specialType == 0 ? "ХІД " : "АКТИВАЦІЯ ")
+        updatePanel((choice.specialType == 0 ? t(R.string.move_counter_prefix) : t(R.string.activation_counter_prefix))
                 + (moveCount + 1) + " · " + choice.matchedCount);
         dispatchSwap(choice, result.geometry, currentRun, false);
     }
@@ -1009,43 +1031,43 @@ public final class TapAccessibilityService extends AccessibilityService {
                                      MergeMadnessSolver.Move move) {
         if (!isCurrentRun(currentRun)) return;
         if (move == null) {
-            updateMergeDiagnostic(result, "НЕМАЄ ДОСТУПНОГО ХОДУ");
-            stopAutoPlay("На полі більше немає доступних свайпів.");
+            updateMergeDiagnostic(result, t(R.string.no_moves_heading));
+            stopAutoPlay(t(R.string.no_swipes));
             return;
         }
 
-        updateMergeDiagnostic(result, "НАСТУПНИЙ СВАЙП");
+        updateMergeDiagnostic(result, t(R.string.next_swipe));
         if (messageView != null) {
-            messageView.setText("Свайп " + move.direction.label + " · злиттів " + move.mergedCount
-                    + "\nРозрахункова оцінка " + Math.round(move.value));
+            messageView.setText(t(R.string.swipe_prefix) + AppLanguage.direction(this, move.direction) + t(R.string.merges_prefix) + move.mergedCount
+                    + t(R.string.estimated_score_prefix) + Math.round(move.value));
         }
         if (scoreView != null) {
-            scoreView.setText("Глибина " + move.searchDepth + "/"
-                    + MergeMadnessSolver.MAX_SEARCH_DEPTH + " · " + move.elapsedMs + " мс");
+            scoreView.setText(t(R.string.depth_prefix) + move.searchDepth + "/"
+                    + MergeMadnessSolver.MAX_SEARCH_DEPTH + " · " + move.elapsedMs + t(R.string.milliseconds_suffix));
         }
         lastMergeMove = move;
         lastMergeGeometry = result.geometry;
-        updatePanel("СВАЙП " + move.direction.label.toUpperCase(java.util.Locale.ROOT));
+        updatePanel(t(R.string.swipe_heading_prefix) + AppLanguage.direction(this, move.direction).toUpperCase(java.util.Locale.ROOT));
         dispatchMergeSwipe(move, result.geometry, currentRun, false);
     }
 
     private String specialName(int specialType) {
-        if (specialType == GameBoard.ROCKET) return "ракети";
-        if (specialType == GameBoard.BOMB) return "бомби";
-        if (specialType == GameBoard.PORTAL) return "вихору";
-        return "спецфішки";
+        if (specialType == GameBoard.ROCKET) return t(R.string.rocket_genitive);
+        if (specialType == GameBoard.BOMB) return t(R.string.bomb_genitive);
+        if (specialType == GameBoard.PORTAL) return t(R.string.portal_genitive);
+        return t(R.string.special_genitive);
     }
 
     private void appendChoiceSummary(GameSolver.Choice choice) {
         if (scoreView == null) return;
-        scoreView.setText("Збіг " + choice.matchedCount + " · оцінка "
-                + Math.round(choice.score) + " · варіантів " + choice.candidateCount);
+        scoreView.setText(t(R.string.match_summary_prefix) + choice.matchedCount + t(R.string.score_prefix)
+                + Math.round(choice.score) + t(R.string.candidates_prefix) + choice.candidateCount);
     }
 
     private void dispatchSwap(GameSolver.Choice choice, BoardVision.Geometry geometry,
                               int currentRun, boolean retry) {
         if (choice == null || geometry == null) {
-            stopAutoPlay("Немає координат для обміну");
+            stopAutoPlay(t(R.string.swap_coordinates_missing));
             return;
         }
         int firstRow = choice.firstCell / GameBoard.SIDE;
@@ -1062,7 +1084,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     private void dispatchMergeSwipe(MergeMadnessSolver.Move move, BoardVision.Geometry geometry,
                                     int currentRun, boolean retry) {
         if (move == null || geometry == null) {
-            stopAutoPlay("Немає координат для свайпу");
+            stopAutoPlay(t(R.string.swipe_coordinates_missing));
             return;
         }
         float startX;
@@ -1122,7 +1144,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 stabilizationReads = 0;
                 lastRecognitionError = null;
                 if (activeMode == BotMode.MERGE_MADNESS) awaitingMergeTransition = true;
-                updatePanel("ЧЕКАЮ НА КАДР");
+                updatePanel(t(R.string.waiting_for_frame));
                 long settleDelay = activeMode == BotMode.MERGE_MADNESS
                         ? MergeMadnessTurnPolicy.MIN_SETTLE_MS : MIN_POST_SWIPE_SETTLE_MS;
                 long scanDelay = Math.max(settleDelay,
@@ -1131,10 +1153,10 @@ public final class TapAccessibilityService extends AccessibilityService {
             }
 
             @Override public void onCancelled(GestureDescription cancelledGesture) {
-                if (isCurrentRun(currentRun)) stopAutoPlay("Свайп не виконано");
+                if (isCurrentRun(currentRun)) stopAutoPlay(t(R.string.swipe_failed));
             }
         }, handler);
-        if (!accepted && isCurrentRun(currentRun)) stopAutoPlay("Android відхилив свайп");
+        if (!accepted && isCurrentRun(currentRun)) stopAutoPlay(t(R.string.swipe_rejected));
     }
 
     private boolean isCurrentRun(int currentRun) {
@@ -1164,7 +1186,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             }
         }
         if (boardInfoView != null) {
-            boardInfoView.setText(occupied + "/64 · розпізнано до "
+            boardInfoView.setText(occupied + t(R.string.blitz_recognition_suffix)
                     + Math.round(similarity * 100) + "%");
         }
         if (messageView != null) {
@@ -1195,14 +1217,14 @@ public final class TapAccessibilityService extends AccessibilityService {
             }
         }
         if (boardInfoView != null) {
-            boardInfoView.setText(occupied + "/16 плиток · макс. рівень " + maxRank
+            boardInfoView.setText(occupied + t(R.string.merge_tiles_suffix) + maxRank
                     + " · " + Math.round(result.similarity * 100) + "%");
         }
         if (mergeDetailsView != null) {
-            mergeDetailsView.setText("Підказки: " + result.unlockedProgressionRanks + " відкрито"
-                    + (result.nextLockedRank > 0 ? " · наступний " + result.nextLockedRank : "")
-                    + "\nПоле Y=" + Math.round(result.geometry.firstCenterY)
-                    + " px · крок " + Math.round(result.geometry.cellStepPx) + " px");
+            mergeDetailsView.setText(t(R.string.hints_prefix) + result.unlockedProgressionRanks + t(R.string.unlocked_suffix)
+                    + (result.nextLockedRank > 0 ? t(R.string.next_rank_prefix) + result.nextLockedRank : "")
+                    + t(R.string.board_y_newline) + Math.round(result.geometry.firstCenterY)
+                    + t(R.string.grid_step_prefix) + Math.round(result.geometry.cellStepPx) + " px");
         }
         if (messageView != null) messageView.setText(phase);
     }
@@ -1238,17 +1260,17 @@ public final class TapAccessibilityService extends AccessibilityService {
             }
         }
         if (boardInfoView != null) {
-            boardInfoView.setText(known + "/16 клітинок · прочитано " + occupied
-                    + " мишей · макс. рівень " + maxRank);
+            boardInfoView.setText(known + t(R.string.cells_read_suffix) + occupied
+                    + t(R.string.rats_max_rank_suffix) + maxRank);
         }
         if (mergeDetailsView != null) {
-            mergeDetailsView.setText("Поле Y=" + Math.round(result.geometry.firstCenterY)
-                    + " px · крок " + Math.round(result.geometry.cellStepPx)
-                    + " px · ланцюжок "
-                    + result.progressionRows + " ряди, " + result.progressionRanks
-                    + " рівнів\nНевизначені клітинки позначені «?»");
+            mergeDetailsView.setText(t(R.string.board_y_prefix) + Math.round(result.geometry.firstCenterY)
+                    + t(R.string.grid_step_prefix) + Math.round(result.geometry.cellStepPx)
+                    + t(R.string.chain_prefix)
+                    + result.progressionRows + t(R.string.rows_suffix) + result.progressionRanks
+                    + t(R.string.ranks_unknown_hint));
         }
-        if (scoreView != null) scoreView.setText("Очікую на чіткий кадр 4×4");
+        if (scoreView != null) scoreView.setText(t(R.string.wait_clear_merge_frame));
     }
 
     private void clearMergeDiagnostic(String status) {
@@ -1261,9 +1283,9 @@ public final class TapAccessibilityService extends AccessibilityService {
                 }
             }
         }
-        if (boardInfoView != null) boardInfoView.setText(status + " · дані поля невідомі");
-        if (scoreView != null) scoreView.setText("Очікую на чіткий кадр 4×4");
-        if (mergeDetailsView != null) mergeDetailsView.setText("Зсув поля невідомий · ланцюжок нечиткий");
+        if (boardInfoView != null) boardInfoView.setText(status + t(R.string.board_data_unknown_suffix));
+        if (scoreView != null) scoreView.setText(t(R.string.wait_clear_merge_frame));
+        if (mergeDetailsView != null) mergeDetailsView.setText(t(R.string.geometry_unknown));
     }
 
     private int mergeRankColor(int rank) {
@@ -1291,22 +1313,22 @@ public final class TapAccessibilityService extends AccessibilityService {
         runGeneration++;
         screenshotPending = false;
         updatePanel(message);
-        updateDiagnosticMessage("Зупинено".equals(message) ? "Автогру зупинено" : message);
-        if (panel != null && !"Зупинено".equals(message)) Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        updateDiagnosticMessage(t(R.string.stopped).equals(message) ? t(R.string.autoplay_stopped) : message);
+        if (panel != null && !t(R.string.stopped).equals(message)) Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
 
     private void updatePanel() {
-        if (autoPlaying) updatePanel("АВТО · ХІД " + moveCount);
-        else updatePanel("Готовий");
+        if (autoPlaying) updatePanel(t(R.string.auto_move_prefix) + moveCount);
+        else updatePanel(t(R.string.ready));
     }
 
     private void updatePanel(String label) {
-        if (stateChip != null) stateChip.setText("Стан: " + label);
+        if (stateChip != null) stateChip.setText(t(R.string.state_prefix) + label);
         if (playButton != null) {
-            playButton.setText(autoPlaying ? "■ Стоп" : "▶ Старт");
+            playButton.setText(autoPlaying ? t(R.string.stop_short) : t(R.string.start_short));
             playButton.setBackground(round(autoPlaying ? 0xFF78504E : 0xFF526A4D, 10));
-            playButton.setContentDescription((autoPlaying ? "Зупинити" : "Запустити")
-                    + " бота «" + ClickerCatalog.get(activeMode).name + "»");
+            playButton.setContentDescription(t(autoPlaying ? R.string.bot_stop_description
+                    : R.string.bot_start_description, t(ClickerCatalog.get(activeMode).nameRes)));
             playButton.setVisibility(View.VISIBLE);
         }
         updatePanelAppearance();
@@ -1320,14 +1342,14 @@ public final class TapAccessibilityService extends AccessibilityService {
         panel.setBackground(background);
         if (stateChip != null) stateChip.setBackground(round(autoPlaying ? 0xFF3D5540 : 0xFF49353C, 10));
         if (bubbleButton != null) {
-            bubbleButton.setContentDescription((module.name) + ". "
-                    + (autoPlaying ? "Бот працює" : "Бот зупинений") + ". Натисни, щоб розгорнути панель.");
+            bubbleButton.setContentDescription((t(module.nameRes)) + ". "
+                    + (autoPlaying ? t(R.string.bot_running) : t(R.string.bot_stopped)) + t(R.string.expand_panel_hint_suffix));
         }
     }
 
     private void closePanel() {
         savePanelPlacement();
-        stopAutoPlay("Зупинено");
+        stopAutoPlay(t(R.string.stopped));
         if (panel != null && windowManager != null) {
             try { windowManager.removeView(panel); } catch (IllegalArgumentException ignored) { }
         }
@@ -1357,6 +1379,7 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private TextView button(String label, int color, int sizeSp) {
         TextView view = new TextView(this);
+        view.setTextLocale(AppLanguage.locale(this));
         view.setText(label);
         view.setTextColor(color);
         view.setTextSize(sizeSp);
@@ -1377,4 +1400,8 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
     private int dp(float value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
+
+    private String t(int id, Object... args) {
+        return AppLanguage.text(this, id, args);
+    }
 }

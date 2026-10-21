@@ -79,8 +79,8 @@ final class CalibrationOverlay {
     private LinearLayout createActions() {
         LinearLayout actions = new LinearLayout(context);
         actions.setGravity(Gravity.CENTER_VERTICAL);
-        addAction(actions, "Ще раз", PURPLE, drawView::clearSelection, 0);
-        saveButton = text("Зберегти", CREAM, 10);
+        addAction(actions, t(R.string.calibration_retry), PURPLE, drawView::clearSelection, 0);
+        saveButton = text(t(R.string.save), CREAM, 10);
         saveButton.setBackground(round(GREEN, 9));
         saveButton.setEnabled(false);
         saveButton.setAlpha(0.45f);
@@ -88,7 +88,7 @@ final class CalibrationOverlay {
         LinearLayout.LayoutParams saveParams = actionParams();
         saveParams.setMargins(dp(6), 0, dp(6), 0);
         actions.addView(saveButton, saveParams);
-        addAction(actions, "Скасувати", ROSE, this::cancel, 0);
+        addAction(actions, t(R.string.cancel), ROSE, this::cancel, 0);
         return actions;
     }
 
@@ -133,6 +133,7 @@ final class CalibrationOverlay {
 
     private TextView text(String value, int color, int sizeSp) {
         TextView view = new TextView(context);
+        view.setTextLocale(AppLanguage.locale(context));
         view.setText(value);
         view.setTextColor(color);
         view.setTextSize(sizeSp);
@@ -160,4 +161,8 @@ final class CalibrationOverlay {
     private static final int GREEN = 0xFF526A4D;
     private static final int ROSE = 0xFF78504E;
     private static final int PURPLE = 0xFF59445B;
+
+    private String t(int id, Object... args) {
+        return AppLanguage.text(context, id, args);
+    }
 }

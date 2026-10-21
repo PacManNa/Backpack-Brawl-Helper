@@ -58,7 +58,7 @@ gradle/wrapper/                         версія Gradle Wrapper
 ## Поточна конфігурація
 
 - `applicationId`: `ua.borlock.autotap`.
-- Версія застосунку: `1.9.42` (`versionCode` 73).
+- Версія застосунку: `1.9.43` (`versionCode` 74).
 - `minSdk`: 24; для знімків екрана AccessibilityService потрібен Android 11 / API 30 або новіший.
 - `targetSdk` / `compileSdk`: 35.
 
@@ -106,5 +106,6 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ціль автогри «Рюкзак-Бліц» — у [BLITZ-AUTOPLAY-1.9.40.md](BLITZ-AUTOPLAY-1.9.40.md),
 прискорення пошуку й точніші каскади — у [BLITZ-AUTOPLAY-1.9.41.md](BLITZ-AUTOPLAY-1.9.41.md),
 окреме вікно нагород і перевірки таймерів — у [TIMERS-1.9.42.md](TIMERS-1.9.42.md),
+українська/чеська локалізація — у [LOCALIZATION-1.9.43.md](LOCALIZATION-1.9.43.md),
 уточнення цілі до рівня 15 — у [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md),
 ідеї наступних клікерів — у [ROADMAP.md](ROADMAP.md).

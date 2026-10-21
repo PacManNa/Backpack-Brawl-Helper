@@ -55,7 +55,7 @@ final class ExpandableSection {
     private void setExpanded(boolean value) {
         expanded = value;
         body.setVisibility(value ? View.VISIBLE : View.GONE);
-        String state = value ? "Розгорнуто" : "Згорнуто";
+        String state = value ? t(R.string.expanded) : t(R.string.collapsed);
         if (Build.VERSION.SDK_INT >= 30) {
             header.setContentDescription(label);
             header.setStateDescription(state);
@@ -63,5 +63,9 @@ final class ExpandableSection {
             header.setContentDescription(label + ". " + state);
         }
         onChange.accept(value);
+    }
+
+    private String t(int id, Object... args) {
+        return AppLanguage.text(header.getContext(), id, args);
     }
 }

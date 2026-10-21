@@ -7,18 +7,22 @@ import java.util.Locale;
 
 /** Reward definitions; adding a definition never starts an unclaimed reward cycle. */
 final class TimerPresets {
+    static final String NAME_TICKETS = "Квитки події";
+    static final String NAME_GEMS = "Самоцвіти крамниці";
+    static final String NAME_COINS = "Монети крамниці";
+    static final String NAME_BONES = "Мішок кісток";
     private static final long HOUR = 3_600_000L;
     private TimerPresets() { }
 
     static List<TimerItem> mergeMissing(List<TimerItem> existing) {
         ArrayList<TimerItem> result = new ArrayList<>(existing);
-        add(result, "event_tickets", "Квитки події", "🎟️", 4 * HOUR,
+        add(result, "event_tickets", NAME_TICKETS, "🎟️", 4 * HOUR,
                 "Квитки на події", "Квитки", "Квиток події");
-        add(result, "shop_gems", "Самоцвіти крамниці", "💎", HOUR,
+        add(result, "shop_gems", NAME_GEMS, "💎", HOUR,
                 "Безплатні самоцвіти", "Безкоштовні самоцвіти", "Самоцвіти");
-        add(result, "shop_coins", "Монети крамниці", "🪙", HOUR,
+        add(result, "shop_coins", NAME_COINS, "🪙", HOUR,
                 "Безплатні монети", "Безкоштовні монети", "Монети");
-        add(result, "event_bones", "Мішок кісток", "🦴", 3 * HOUR,
+        add(result, "event_bones", NAME_BONES, "🦴", 3 * HOUR,
                 "Івентовий мішок кісток");
         return result;
     }

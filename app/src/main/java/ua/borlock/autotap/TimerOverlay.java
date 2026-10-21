@@ -81,6 +81,13 @@ final class TimerOverlay {
         if (root != null && !collapsed) collapse(true);
     }
 
+    void refreshLanguage() {
+        if (root == null) return;
+        boolean wasCollapsed = collapsed;
+        close();
+        if (show() && wasCollapsed) collapse(true);
+    }
+
     void close() {
         savePlacement();
         handler.removeCallbacks(ticker);
@@ -110,18 +117,18 @@ final class TimerOverlay {
         body = column();
         LinearLayout header = new LinearLayout(service);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = text("⏱ Нагадування", 13, CREAM);
+        TextView title = text(t(R.string.timer_overlay_title), 13, CREAM);
         title.setGravity(Gravity.CENTER_VERTICAL);
         title.setMinHeight(dp(34));
-        title.setContentDescription("Перетягнути меню нагадувань");
+        title.setContentDescription(t(R.string.timer_drag_description));
         title.setOnTouchListener(drag(false));
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView minimize = button("В іконку", 10, MUTED);
-        minimize.setContentDescription("Згорнути нагадування в іконку");
+        TextView minimize = button(t(R.string.minimize), 10, MUTED);
+        minimize.setContentDescription(t(R.string.timer_minimize_description));
         minimize.setOnClickListener(v -> collapse(true));
         header.addView(minimize, new LinearLayout.LayoutParams(dp(59), dp(30)));
         TextView close = button("×", 27, CREAM);
-        close.setContentDescription("Закрити меню. Таймери продовжать відлік");
+        close.setContentDescription(t(R.string.timer_close_description));
         close.setOnClickListener(v -> close());
         header.addView(close, new LinearLayout.LayoutParams(dp(32), dp(32)));
         body.addView(header);
@@ -130,7 +137,7 @@ final class TimerOverlay {
         list = column();
         scroll.addView(list, new ScrollView.LayoutParams(-1, -2));
         body.addView(scroll, new LinearLayout.LayoutParams(-1, dp(276)));
-        TextView manage = button("✎ Керувати таймерами", 11, GOLD);
+        TextView manage = button(t(R.string.manage_timers), 11, GOLD);
         manage.setBackground(shape(0xFF49353C, 9));
         manage.setOnClickListener(v -> {
             collapse(true);
@@ -175,7 +182,7 @@ final class TimerOverlay {
             list.removeAllViews();
             for (TimerItem item : timers) addRow(item);
             if (timers.isEmpty()) {
-                TextView empty = text("Додай таймер у застосунку", 12, MUTED);
+                TextView empty = text(t(R.string.timer_overlay_empty), 12, MUTED);
                 empty.setPadding(dp(6), dp(18), dp(6), dp(18));
                 list.addView(empty);
             }
@@ -184,16 +191,16 @@ final class TimerOverlay {
         TimerItem next = null;
         int readyCount = 0;
         for (Row row : rows) {
-            row.countdown.setText(TimerDisplay.status(row.item, now));
+            row.countdown.setText(AppLanguage.timerStatus(service, row.item, now));
             row.countdown.setTextColor(row.item.isReady(now) ? GREEN : row.item.isActive() ? GOLD : MUTED);
             if (row.item.isReady(now)) readyCount++;
             if (row.item.isActive() && (next == null || row.item.deadlineElapsedMs < next.deadlineElapsedMs)) next = row.item;
         }
-        bubble.setText(readyCount > 0 ? "⏱ Готово: " + readyCount
-                : next != null ? "⏱\n" + TimerDisplay.duration(next.remainingMs(now)) : "⏱\nЗупинено");
+        bubble.setText(readyCount > 0 ? t(R.string.timers_ready_prefix) + readyCount
+                : next != null ? "⏱\n" + AppLanguage.timerDuration(service, next.remainingMs(now)) : t(R.string.timers_stopped_bubble));
         bubble.setTextColor(readyCount > 0 ? GREEN : CREAM);
-        bubble.setContentDescription("Відкрити нагадування. " + (next == null ? "Немає активних таймерів"
-                : next.name + ": " + TimerDisplay.status(next, now)));
+        bubble.setContentDescription(t(R.string.open_timers_prefix) + (next == null ? t(R.string.no_active_timers)
+                : AppLanguage.timerName(service, next) + ": " + AppLanguage.timerStatus(service, next, now)));
     }
 
     private void addRow(TimerItem item) {
@@ -202,7 +209,7 @@ final class TimerOverlay {
         row.setPadding(dp(7), dp(6), dp(5), dp(6));
         row.setBackground(shape(0xFF392B31, 10));
         LinearLayout labels = column();
-        TextView name = text(item.emoji + " " + item.name, 11, CREAM);
+        TextView name = text(item.emoji + " " + AppLanguage.timerName(service, item), 11, CREAM);
         name.setMaxLines(2);
         TextView countdown = text("", 11, GOLD);
         countdown.setSingleLine(true);
@@ -212,16 +219,16 @@ final class TimerOverlay {
         countdownParams.topMargin = dp(4);
         labels.addView(countdown, countdownParams);
         row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView start = button(item.isActive() ? "↻ Заново" : "▶ Старт", 10, CREAM);
+        TextView start = button(item.isActive() ? t(R.string.restart_short) : t(R.string.start_short), 10, CREAM);
         start.setBackground(shape(0xFF526A4D, 8));
-        start.setContentDescription((item.isActive() ? "Перезапустити " : "Запустити ") + item.name);
+        start.setContentDescription((item.isActive() ? t(R.string.restart_prefix) : t(R.string.start_prefix)) + AppLanguage.timerName(service, item));
         start.setOnClickListener(v -> { TimerStore.restartTimer(service, item.id); refresh(); });
         LinearLayout.LayoutParams startParams = new LinearLayout.LayoutParams(dp(61), dp(34));
         startParams.leftMargin = dp(4);
         row.addView(start, startParams);
-        TextView stop = button("■ Стоп", 10, CREAM);
+        TextView stop = button(t(R.string.stop_short), 10, CREAM);
         stop.setBackground(shape(0xFF78504E, 8));
-        stop.setContentDescription("Зупинити " + item.name);
+        stop.setContentDescription(t(R.string.stop_prefix) + AppLanguage.timerName(service, item));
         stop.setEnabled(item.isActive());
         stop.setAlpha(item.isActive() ? 1f : .35f);
         stop.setOnClickListener(v -> { TimerStore.stopTimer(service, item.id); refresh(); });
@@ -332,6 +339,7 @@ final class TimerOverlay {
     }
     private TextView text(String label, int size, int color) {
         TextView view = new TextView(service);
+        view.setTextLocale(AppLanguage.locale(service));
         view.setText(label); view.setTextSize(size); view.setTextColor(color);
         view.setTypeface(Typeface.DEFAULT, Typeface.BOLD); view.setIncludeFontPadding(false);
         return view;
@@ -351,5 +359,9 @@ final class TimerOverlay {
         final TimerItem item;
         final TextView countdown;
         Row(TimerItem item, TextView countdown) { this.item = item; this.countdown = countdown; }
+    }
+
+    private String t(int id, Object... args) {
+        return AppLanguage.text(service, id, args);
     }
 }

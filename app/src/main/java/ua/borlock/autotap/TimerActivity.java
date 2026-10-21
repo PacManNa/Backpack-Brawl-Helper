@@ -1,7 +1,6 @@
 package ua.borlock.autotap;
 
 import android.Manifest;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -31,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Reward timer definitions, countdown controls and notification setup. */
-public final class TimerActivity extends Activity {
+public final class TimerActivity extends LocalizedActivity {
     private static final int BG = 0xFF191519, CARD = 0xFF2B242B, SOFT = 0xFF372D35;
     private static final int BORDER = 0xFF52404B, CREAM = 0xFFF8EFE4, MUTED = 0xFFBEB1B9;
     private static final int ROSE = 0xFFE48F99, GOLD = 0xFFF4C27E, GREEN = 0xFF99CCA0;
@@ -51,7 +50,7 @@ public final class TimerActivity extends Activity {
             refreshListIfNeeded();
             long now = SystemClock.elapsedRealtime();
             for (TimerRow row : rows) {
-                row.countdown.setText(TimerDisplay.status(row.item, now));
+                row.countdown.setText(AppLanguage.timerStatus(TimerActivity.this, row.item, now));
                 row.countdown.setTextColor(row.item.isReady(now) ? GREEN : row.item.isActive() ? GOLD : MUTED);
             }
             TimerNotificationReceiver.deliverDue(TimerActivity.this);
@@ -109,42 +108,42 @@ public final class TimerActivity extends Activity {
                 return insets;
             });
         }
-        content.addView(text("⏱ Нагадування про дію", 23, CREAM, true));
-        content.addView(text("Отримай нагороду в грі та запусти відлік. Після наступного отримання натисни ↻. Повторний відлік починаєш ти.",
+        content.addView(text(t(R.string.timer_screen_title), 23, CREAM, true));
+        content.addView(text(t(R.string.timer_screen_hint),
                 13, MUTED, false), margin(-1, -2, 0, 9, 0, 14));
 
         LinearLayout settings = column();
         settings.setPadding(dp(12), dp(12), dp(12), dp(12));
         settings.setBackground(shape(CARD, BORDER, 14));
-        TextView heading = text("Сповіщення та точний час", 14, CREAM, true);
+        TextView heading = text(t(R.string.timer_setup), 14, CREAM, true);
         settings.addView(heading);
         LinearLayout settingsBody = column();
         notificationHint = text("", 12, MUTED, false);
         precisionHint = text("", 12, MUTED, false);
         settingsBody.addView(notificationHint, margin(-1, -2, 0, 10, 0, 6));
-        TextView notifications = action("Дозволити / налаштувати сповіщення", SOFT, CREAM, 12);
+        TextView notifications = action(t(R.string.timer_notifications_settings), SOFT, CREAM, 12);
         notifications.setOnClickListener(v -> openNotificationSettings());
         settingsBody.addView(notifications, new LinearLayout.LayoutParams(-1, dp(40)));
         settingsBody.addView(precisionHint, margin(-1, -2, 0, 10, 0, 6));
-        TextView exact = action("Налаштувати точний час нагадувань", SOFT, CREAM, 12);
+        TextView exact = action(t(R.string.timer_precision_settings), SOFT, CREAM, 12);
         exact.setOnClickListener(v -> openExactAlarmSettings());
         settingsBody.addView(exact, new LinearLayout.LayoutParams(-1, dp(40)));
         settings.addView(settingsBody);
-        ExpandableSection.bind(heading, settingsBody, "Сповіщення та точний час",
+        ExpandableSection.bind(heading, settingsBody, t(R.string.timer_setup),
                 getSharedPreferences(TapAccessibilityService.PREFS, MODE_PRIVATE).getBoolean("timer_setup_expanded",
                         !TimerNotificationReceiver.notificationsAvailable(this) || !TimerStore.canScheduleExactly(this)),
                 expanded -> {
-                    heading.setText((expanded ? "▴ " : "▾ ") + "Сповіщення та точний час");
+                    heading.setText((expanded ? "▴ " : "▾ ") + t(R.string.timer_setup));
                     getSharedPreferences(TapAccessibilityService.PREFS, MODE_PRIVATE).edit()
                             .putBoolean("timer_setup_expanded", expanded).apply();
                 });
         content.addView(settings, margin(-1, -2, 0, 0, 0, 12));
 
         LinearLayout actions = new LinearLayout(this);
-        TextView add = action("＋ Додати таймер", ROSE, BG, 13);
+        TextView add = action(t(R.string.add_timer), ROSE, BG, 13);
         add.setOnClickListener(v -> showEditor(null));
         actions.addView(add, new LinearLayout.LayoutParams(0, dp(46), 1));
-        TextView floating = action("⏱ Плаваюче меню", SOFT, CREAM, 12);
+        TextView floating = action(t(R.string.timer_floating_menu), SOFT, CREAM, 12);
         floating.setOnClickListener(v -> openFloatingPanel());
         LinearLayout.LayoutParams floatingParams = new LinearLayout.LayoutParams(0, dp(46), 1);
         floatingParams.leftMargin = dp(8);
@@ -152,13 +151,13 @@ public final class TimerActivity extends Activity {
         content.addView(actions, margin(-1, -2, 0, 0, 0, 14));
         list = column();
         content.addView(list);
-        TextView presets = action("＋ Додати відсутні таймери гри", SOFT, GOLD, 12);
+        TextView presets = action(t(R.string.restore_timer_presets), SOFT, GOLD, 12);
         presets.setOnClickListener(v -> {
             TimerStore.addMissingPresets(this);
             refreshListIfNeeded();
         });
         content.addView(presets, margin(-1, 40, 0, 8, 0, 12));
-        TextView back = action("← Назад", SOFT, CREAM, 13);
+        TextView back = action(t(R.string.back), SOFT, CREAM, 13);
         back.setOnClickListener(v -> finish());
         content.addView(back, new LinearLayout.LayoutParams(-1, dp(44)));
         return screen;
@@ -172,7 +171,7 @@ public final class TimerActivity extends Activity {
         rows.clear();
         list.removeAllViews();
         if (timers.isEmpty()) {
-            list.addView(text("Додай власний таймер або віднови готові таймери гри.", 14, MUTED, false));
+            list.addView(text(t(R.string.timers_empty_hint), 14, MUTED, false));
         }
         for (TimerItem item : timers) {
             TimerRow row = createTimerRow(item);
@@ -197,37 +196,37 @@ public final class TimerActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout labels = column();
-        TextView name = text(item.emoji + " " + item.name, 16, CREAM, true);
+        TextView name = text(item.emoji + " " + AppLanguage.timerName(this, item), 16, CREAM, true);
         name.setOnClickListener(v -> showEditor(item));
         labels.addView(name);
-        labels.addView(text("Інтервал · " + TimerDisplay.duration(item.durationMs), 11, MUTED, false),
+        labels.addView(text(t(R.string.timer_interval_prefix) + AppLanguage.timerDuration(this, item.durationMs), 11, MUTED, false),
                 margin(-1, -2, 0, 4, 0, 0));
         header.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
         TextView edit = action("✎", SOFT, CREAM, 21);
-        edit.setContentDescription("Редагувати таймер " + item.name);
+        edit.setContentDescription(t(R.string.edit_timer_accessibility) + AppLanguage.timerName(this, item));
         edit.setOnClickListener(v -> showEditor(item));
         header.addView(edit, new LinearLayout.LayoutParams(dp(36), dp(36)));
         TextView more = action("⋮", CARD, MUTED, 23);
-        more.setContentDescription("Інші дії з таймером " + item.name);
-        more.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle(item.name)
-                .setItems(new String[]{"Задати залишок часу з гри", "Видалити таймер"},
+        more.setContentDescription(t(R.string.timer_more_actions) + AppLanguage.timerName(this, item));
+        more.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle(AppLanguage.timerName(this, item))
+                .setItems(new String[]{t(R.string.set_remaining), t(R.string.delete_timer)},
                         (dialog, index) -> { if (index == 0) showRemaining(item); else confirmDelete(item); })
                 .show());
         header.addView(more, new LinearLayout.LayoutParams(dp(32), dp(36)));
         card.addView(header);
-        TextView countdown = text(TimerDisplay.status(item, SystemClock.elapsedRealtime()), 17, GOLD, true);
+        TextView countdown = text(AppLanguage.timerStatus(TimerActivity.this, item, SystemClock.elapsedRealtime()), 17, GOLD, true);
         card.addView(countdown, margin(-1, -2, 0, 10, 0, 10));
         LinearLayout controls = new LinearLayout(this);
-        TextView start = action(item.isActive() ? "↻ Перезапустити" : "▶ Запустити", 0xFF41533F, CREAM, 12);
-        start.setContentDescription((item.isActive() ? "Перезапустити " : "Запустити ") + item.name);
+        TextView start = action(item.isActive() ? t(R.string.restart_timer) : t(R.string.start_timer), 0xFF41533F, CREAM, 12);
+        start.setContentDescription((item.isActive() ? t(R.string.restart_prefix) : t(R.string.start_prefix)) + AppLanguage.timerName(this, item));
         start.setOnClickListener(v -> {
             TimerStore.restartTimer(this, item.id);
             refreshListIfNeeded();
             requestNotificationsOnce();
         });
         controls.addView(start, new LinearLayout.LayoutParams(0, dp(40), 1));
-        TextView stop = action("■ Зупинити", SOFT, CREAM, 12);
-        stop.setContentDescription("Зупинити " + item.name);
+        TextView stop = action(t(R.string.stop_timer), SOFT, CREAM, 12);
+        stop.setContentDescription(t(R.string.stop_prefix) + AppLanguage.timerName(this, item));
         stop.setEnabled(item.isActive());
         stop.setAlpha(item.isActive() ? 1f : .4f);
         stop.setOnClickListener(v -> { TimerStore.stopTimer(this, item.id); refreshListIfNeeded(); });
@@ -241,48 +240,49 @@ public final class TimerActivity extends Activity {
     private void showEditor(TimerItem old) {
         LinearLayout form = column();
         form.setPadding(dp(16), dp(8), dp(16), dp(8));
-        EditText name = field("Назва таймера", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        EditText name = field(t(R.string.timer_name_hint), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         name.setFilters(new InputFilter[]{new InputFilter.LengthFilter(48)});
-        if (old != null) name.setText(old.name);
+        if (old != null) name.setText(AppLanguage.timerName(this, old));
         form.addView(name, margin(-1, 48, 0, 0, 0, 10));
         LinearLayout emojiRow = new LinearLayout(this);
-        EditText emoji = field("Емодзі", InputType.TYPE_CLASS_TEXT);
+        EditText emoji = field(t(R.string.emoji), InputType.TYPE_CLASS_TEXT);
         emoji.setText(old == null ? "⏱️" : old.emoji);
         emoji.setGravity(Gravity.CENTER);
         emoji.setFilters(new InputFilter[]{new InputFilter.LengthFilter(8)});
         emojiRow.addView(emoji, new LinearLayout.LayoutParams(dp(66), dp(46)));
-        TextView choose = action("Обрати емодзі", SOFT, CREAM, 12);
-        choose.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle("Емодзі")
+        TextView choose = action(t(R.string.choose_emoji), SOFT, CREAM, 12);
+        choose.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle(t(R.string.emoji))
                 .setItems(EMOJIS, (dialog, index) -> emoji.setText(EMOJIS[index])).show());
         LinearLayout.LayoutParams chooseParams = new LinearLayout.LayoutParams(0, dp(46), 1);
         chooseParams.leftMargin = dp(8);
         emojiRow.addView(choose, chooseParams);
         form.addView(emojiRow);
-        form.addView(text("ІНТЕРВАЛ", 11, MUTED, true), margin(-1, -2, 0, 14, 0, 6));
+        form.addView(text(t(R.string.timer_interval_heading), 11, MUTED, true), margin(-1, -2, 0, 14, 0, 6));
         DurationFields duration = new DurationFields(old == null ? 3_600_000L : old.durationMs);
         form.addView(duration.view);
         CheckBox startNow = new CheckBox(this);
-        startNow.setText(old == null ? "Запустити одразу" : "Зберегти й перезапустити відлік");
+        startNow.setText(old == null ? t(R.string.timer_start_now) : t(R.string.timer_save_and_restart));
         startNow.setTextColor(CREAM);
         startNow.setTextSize(12);
         form.addView(startNow, margin(-1, -2, 0, 10, 0, 0));
         form.addView(text(old != null && old.isActive()
-                ? "Поточний відлік продовжиться, якщо не обрати перезапуск. Новий інтервал застосовується до наступного запуску."
-                : "Можна зберегти таймер і запустити його після отримання нагороди. Від 1 секунди до 365 днів.",
+                ? t(R.string.timer_edit_hint)
+                : t(R.string.timer_create_hint),
                 11, MUTED, false));
         ScrollView scroll = new ScrollView(this);
         scroll.addView(form);
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(old == null ? "Новий таймер" : "Редагувати таймер")
-                .setView(scroll).setNegativeButton("Скасувати", null).setPositiveButton("Зберегти", null).create();
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(old == null ? t(R.string.new_timer) : t(R.string.edit_timer))
+                .setView(scroll).setNegativeButton(t(R.string.cancel), null).setPositiveButton(t(R.string.save), null).create();
         dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String title = name.getText().toString().trim();
-            if (title.isEmpty()) { name.setError("Введи назву"); return; }
+            title = AppLanguage.savedTimerName(this, old, title);
+            if (title.isEmpty()) { name.setError(t(R.string.enter_name)); return; }
             long interval = duration.value();
             if (interval < 0) return;
             boolean saved = old == null
                     ? TimerStore.addTimer(this, title, emoji.getText().toString(), interval, startNow.isChecked())
                     : TimerStore.updateTimer(this, old.id, title, emoji.getText().toString(), interval);
-            if (!saved) { Toast.makeText(this, "Не вдалося зберегти таймер", Toast.LENGTH_SHORT).show(); return; }
+            if (!saved) { Toast.makeText(this, t(R.string.timer_save_failed), Toast.LENGTH_SHORT).show(); return; }
             if (old != null && startNow.isChecked()) TimerStore.restartTimer(this, old.id);
             refreshListIfNeeded();
             if (startNow.isChecked()) requestNotificationsOnce();
@@ -296,13 +296,13 @@ public final class TimerActivity extends Activity {
         if (current == null) return;
         LinearLayout form = column();
         form.setPadding(dp(18), dp(8), dp(18), dp(8));
-        form.addView(text("Вкажи залишок, показаний у грі. Після наступного перезапуску діятиме звичайний інтервал таймера.",
+        form.addView(text(t(R.string.remaining_hint),
                 13, CREAM, false), margin(-1, -2, 0, 0, 0, 10));
         long remaining = current.remainingMs(SystemClock.elapsedRealtime());
         DurationFields value = new DurationFields(remaining > 0 ? remaining : current.durationMs);
         form.addView(value.view);
-        AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Залишок · " + current.name).setView(form)
-                .setNegativeButton("Скасувати", null).setPositiveButton("Почати відлік", null).create();
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(t(R.string.remaining_title_prefix) + AppLanguage.timerName(this, current)).setView(form)
+                .setNegativeButton(t(R.string.cancel), null).setPositiveButton(t(R.string.start_countdown), null).create();
         dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             long delay = value.value();
             if (delay < 0) return;
@@ -315,8 +315,8 @@ public final class TimerActivity extends Activity {
     }
 
     private void confirmDelete(TimerItem item) {
-        new AlertDialog.Builder(this).setMessage("Видалити таймер «" + item.name + "»?")
-                .setNegativeButton("Залишити", null).setPositiveButton("Видалити", (dialog, which) -> {
+        new AlertDialog.Builder(this).setMessage(t(R.string.timer_delete_question, AppLanguage.timerName(this, item)))
+                .setNegativeButton(t(R.string.keep), null).setPositiveButton(t(R.string.delete), (dialog, which) -> {
                     TimerStore.deleteTimer(this, item.id);
                     refreshListIfNeeded();
                 }).show();
@@ -324,12 +324,12 @@ public final class TimerActivity extends Activity {
 
     private void refreshPermissionHints() {
         boolean enabled = TimerNotificationReceiver.notificationsAvailable(this);
-        notificationHint.setText(enabled ? "Сповіщення ввімкнені. Працюють і після закриття меню."
-                : "Дозволь сповіщення, щоб отримувати нагадування у фоні.");
+        notificationHint.setText(enabled ? t(R.string.notifications_enabled_hint)
+                : t(R.string.notifications_disabled_hint));
         notificationHint.setTextColor(enabled ? GREEN : GOLD);
         boolean exact = TimerStore.canScheduleExactly(this);
-        precisionHint.setText(exact ? "Точний час нагадувань дозволений."
-                : "Для точного часу дозволь «Будильники й нагадування». Зараз Android може затримувати сповіщення.");
+        precisionHint.setText(exact ? t(R.string.exact_alarms_enabled_hint)
+                : t(R.string.exact_alarms_disabled_hint));
         precisionHint.setTextColor(exact ? GREEN : GOLD);
     }
 
@@ -366,7 +366,7 @@ public final class TimerActivity extends Activity {
 
     private void openExactAlarmSettings() {
         if (TimerStore.canScheduleExactly(this)) {
-            Toast.makeText(this, "Точні нагадування вже дозволені", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, t(R.string.exact_alarms_already_allowed), Toast.LENGTH_SHORT).show();
         } else if (Build.VERSION.SDK_INT >= 31) {
             try {
                 startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
@@ -389,10 +389,10 @@ public final class TimerActivity extends Activity {
 
     private void openFloatingPanel() {
         if (TapAccessibilityService.showTimerPanel()) finish();
-        else new AlertDialog.Builder(this).setTitle("Плаваюче меню")
-                .setMessage("Для вікна поверх гри ввімкни службу Пелюстки в налаштуваннях доступності. Звичайні таймери й сповіщення працюють окремо.")
-                .setNegativeButton("Пізніше", null)
-                .setPositiveButton("Відкрити налаштування", (dialog, which) ->
+        else new AlertDialog.Builder(this).setTitle(t(R.string.floating_menu))
+                .setMessage(t(R.string.timer_accessibility_help))
+                .setNegativeButton(t(R.string.later), null)
+                .setPositiveButton(t(R.string.open_settings), (dialog, which) ->
                         startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))).show();
     }
 
@@ -401,9 +401,9 @@ public final class TimerActivity extends Activity {
         final EditText hours, minutes, seconds;
         DurationFields(long value) {
             long total = (value + 999) / 1000;
-            hours = part("Години", total / 3600);
-            minutes = part("Хвилини", total / 60 % 60);
-            seconds = part("Секунди", total % 60);
+            hours = part(t(R.string.hours), total / 3600);
+            minutes = part(t(R.string.minutes), total / 60 % 60);
+            seconds = part(t(R.string.seconds), total % 60);
         }
         private EditText part(String label, long value) {
             LinearLayout group = column();
@@ -423,11 +423,11 @@ public final class TimerActivity extends Activity {
         }
         long value() {
             long h = number(hours), m = number(minutes), s = number(seconds);
-            if (h < 0 || h > 8760) { hours.setError("Від 0 до 8760"); return -1; }
-            if (m < 0 || m > 59) { minutes.setError("Від 0 до 59"); return -1; }
-            if (s < 0 || s > 59) { seconds.setError("Від 0 до 59"); return -1; }
+            if (h < 0 || h > 8760) { hours.setError(t(R.string.hours_range)); return -1; }
+            if (m < 0 || m > 59) { minutes.setError(t(R.string.minute_second_range)); return -1; }
+            if (s < 0 || s > 59) { seconds.setError(t(R.string.minute_second_range)); return -1; }
             long result = (h * 3600 + m * 60 + s) * 1000;
-            if (!TimerCodec.validDuration(result)) { seconds.setError("Від 1 с до 365 днів"); return -1; }
+            if (!TimerCodec.validDuration(result)) { seconds.setError(t(R.string.timer_duration_range)); return -1; }
             return result;
         }
         private long number(EditText field) {
@@ -459,6 +459,7 @@ public final class TimerActivity extends Activity {
     }
     private TextView text(String value, int size, int color, boolean bold) {
         TextView view = new TextView(this);
+        view.setTextLocale(AppLanguage.locale(this));
         view.setText(value);
         view.setTextSize(TypedValue.COMPLEX_UNIT_SP, size);
         view.setTextColor(color);
@@ -491,5 +492,9 @@ public final class TimerActivity extends Activity {
         TimerRow(TimerItem item, LinearLayout card, TextView countdown) {
             this.item = item; this.card = card; this.countdown = countdown;
         }
+    }
+
+    private String t(int id, Object... args) {
+        return AppLanguage.text(this, id, args);
     }
 }

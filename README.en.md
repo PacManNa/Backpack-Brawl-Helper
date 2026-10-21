@@ -6,6 +6,7 @@ An Android app with two independent modes: a match bot for Backpack Blitz and a 
 
 ## Features
 
+- Ukrainian and Czech interface languages. The **UA / CZ** button before the module count in the header switches languages and remembers the selection.
 - Collapsed icon-and-name cards with descriptions, launch buttons and settings inside.
 - Independent retry timeout and panel width per module, with migration of previous settings.
 - Compact floating controls, optional diagnostics, an icon mode and saved panel positions.

@@ -8,22 +8,22 @@ import java.util.Set;
 final class ClickerModule {
     final BotMode mode;
     final String id;
-    final String name;
+    final int nameRes;
     final String icon;
-    final String description;
+    final int descriptionRes;
     final String boardLabel;
     final Theme theme;
     final Set<Setting> settings;
 
     enum Setting { NO_CHANGE_TIMEOUT, PANEL_WIDTH }
 
-    ClickerModule(BotMode mode, String name, String icon, String description,
+    ClickerModule(BotMode mode, int nameRes, String icon, int descriptionRes,
                   String boardLabel, Theme theme, Setting... settings) {
         this.mode = mode;
         this.id = mode.id;
-        this.name = name;
+        this.nameRes = nameRes;
         this.icon = icon;
-        this.description = description;
+        this.descriptionRes = descriptionRes;
         this.boardLabel = boardLabel;
         this.theme = theme;
         EnumSet<Setting> available = EnumSet.noneOf(Setting.class);
