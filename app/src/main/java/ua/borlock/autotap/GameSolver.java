@@ -5,7 +5,7 @@ import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Random;
 
-/** Scores every adjacent swap that creates a match and prefers large bonuses/cascades. */
+/** Prefers the largest immediate clear, then bonuses and cascades. */
 final class GameSolver {
     private static final int MAX_CASCADE_STEPS = 5;
     private static final double CASCADE_WEIGHT = 0.62;
@@ -34,7 +34,7 @@ final class GameSolver {
                     Candidate candidate = scoreSwap(board, first, first + 1);
                     if (candidate != null) {
                         candidateMoves++;
-                        if (best == null || candidate.choice.score > best.choice.score) {
+                        if (isBetterImmediate(candidate, best)) {
                             best = candidate;
                         }
                         keepRefillCandidate(refillCandidates, candidate);
@@ -44,7 +44,7 @@ final class GameSolver {
                     Candidate candidate = scoreSwap(board, first, first + GameBoard.SIDE);
                     if (candidate != null) {
                         candidateMoves++;
-                        if (best == null || candidate.choice.score > best.choice.score) {
+                        if (isBetterImmediate(candidate, best)) {
                             best = candidate;
                         }
                         keepRefillCandidate(refillCandidates, candidate);
@@ -53,6 +53,12 @@ final class GameSolver {
             }
         }
         if (best == null) return Choice.noMove(candidateMoves);
+
+        // A smaller current clear must not win because of speculative refill luck.
+        // Only model refills when candidates clear the same number of gems now.
+        int largestImmediateClear = best.choice.matchedCount;
+        refillCandidates.removeIf(candidate ->
+                candidate.choice.matchedCount < largestImmediateClear);
         List<Candidate> ranked = new ArrayList<>(refillCandidates.size());
         for (Candidate candidate : refillCandidates) {
             candidate.rankedChoice = candidate.choice.withScore(candidate.choice.score
@@ -64,7 +70,8 @@ final class GameSolver {
         if (ranked.size() > 1) {
             double firstScore = ranked.get(0).rankedChoice.score;
             double secondScore = ranked.get(1).rankedChoice.score;
-            if (firstScore - secondScore <= Math.max(CLOSE_SCORE_MINIMUM,
+            if (ranked.get(0).choice.matchedCount == ranked.get(1).choice.matchedCount
+                    && firstScore - secondScore <= Math.max(CLOSE_SCORE_MINIMUM,
                     Math.abs(firstScore) * CLOSE_SCORE_RATIO)) {
                 for (int index = 0; index < Math.min(2, ranked.size()); index++) {
                     Candidate candidate = ranked.get(index);
@@ -75,9 +82,14 @@ final class GameSolver {
             }
         }
         Choice selected = best.choice;
+        double selectedScore = selected.score;
         for (Candidate candidate : refillCandidates) {
-            if (candidate.rankedChoice != null && candidate.rankedChoice.score > selected.score) {
-                selected = candidate.rankedChoice;
+            Choice rankedChoice = candidate.rankedChoice;
+            if (rankedChoice != null && (rankedChoice.matchedCount > selected.matchedCount
+                    || (rankedChoice.matchedCount == selected.matchedCount
+                    && rankedChoice.score > selectedScore))) {
+                selected = rankedChoice;
+                selectedScore = rankedChoice.score;
             }
         }
         return selected.withCandidateCount(candidateMoves);
@@ -87,8 +99,8 @@ final class GameSolver {
         for (int i = 1; i < candidates.size(); i++) {
             Candidate candidate = candidates.get(i);
             int index = i;
-            while (index > 0 && candidate.rankedChoice.score
-                    > candidates.get(index - 1).rankedChoice.score) {
+            while (index > 0 && isBetterRanked(candidate,
+                    candidates.get(index - 1))) {
                 candidates.set(index, candidates.get(index - 1));
                 index--;
             }
@@ -99,12 +111,27 @@ final class GameSolver {
     private void keepRefillCandidate(List<Candidate> candidates, Candidate candidate) {
         int insertion = 0;
         while (insertion < candidates.size()
-                && candidates.get(insertion).choice.score >= candidate.choice.score) insertion++;
+                && !isBetterImmediate(candidate, candidates.get(insertion))) insertion++;
         if (insertion >= REFILL_LOOKAHEAD_CANDIDATES) return;
         candidates.add(insertion, candidate);
         if (candidates.size() > REFILL_LOOKAHEAD_CANDIDATES) {
             candidates.remove(candidates.size() - 1);
         }
+    }
+
+    private boolean isBetterImmediate(Candidate candidate, Candidate current) {
+        if (current == null) return true;
+        if (candidate.choice.matchedCount != current.choice.matchedCount) {
+            return candidate.choice.matchedCount > current.choice.matchedCount;
+        }
+        return candidate.choice.score > current.choice.score;
+    }
+
+    private boolean isBetterRanked(Candidate candidate, Candidate current) {
+        if (candidate.rankedChoice.matchedCount != current.rankedChoice.matchedCount) {
+            return candidate.rankedChoice.matchedCount > current.rankedChoice.matchedCount;
+        }
+        return candidate.rankedChoice.score > current.rankedChoice.score;
     }
 
     private double expectedRefillCascadeScore(Candidate candidate, int sampleCount) {
