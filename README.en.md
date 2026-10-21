@@ -1,80 +1,95 @@
-# Pelyustka — clicker catalog and reminders
+# 🌸 Pelyustka
 
-An Android app with two independent modes: a match bot for Backpack Blitz and a 2048 bot for Merge Madness. Their cards, settings and floating controls are built from a shared module catalog. Both read the board through an AccessibilityService and play locally on the device.
+**On-device Android game bots and reward timers for Backpack Brawl.**
+Pelyustka recognizes the game board on the phone and automates moves in two modes.
 
-[Українська версія README](README.md)
+[🇺🇦 Українська версія README](README.md)
 
-## Features
+## 🎮 Game modes
 
-- Ukrainian and Czech interface languages. The **UA / CZ** button before the module count in the header switches languages and remembers the selection.
-- Collapsed icon-and-name cards with descriptions, launch buttons and settings inside.
-- Independent retry timeout and panel width per module, with migration of previous settings.
-- Compact floating controls, optional diagnostics, an icon mode and saved panel positions.
+| Mode | What the bot does |
+| --- | --- |
+| **Backpack Blitz** | Reads an 8×8 board, evaluates adjacent swaps, special gems, and possible cascades. |
+| **Merge Madness** | Reads a 4×4 board and its hint chain, then models merges and the next tile spawn. |
+
+### Backpack Blitz
 
 - Recognizes seven gem colors, rockets, bombs, and portal/whirlwind specials.
-- Evaluates up to 112 adjacent swaps on an 8×8 board.
-- Prefers the largest immediate clear, then special items and cascades. The first random-refill match has an exact expectation under the uniform seven-color model.
-- Identifies object ranks on Merge Madness's 4×4 board using templates and the hint chain below it, then selects a swipe direction using a search that models new tiles. The game has 15 ranks; recognizing all late-game artwork still needs real screenshots for verification.
-- Provides a floating **Start / Stop** panel with status and diagnostics.
-- Includes four stopped reward presets: event tickets (4 hours), shop gems (1 hour), shop coins (1 hour), and the event bone bag (3 hours). An independent floating window provides start/restart/stop controls; custom timers, editing, and notification actions are available.
-- Processes screenshots in device memory; the app does not request network access.
+- Evaluates up to 112 adjacent swaps per move and prefers larger immediate clears.
+- Breaks ties using special gems and estimated cascades after the board refills.
 
-## Requirements
+### Merge Madness
 
-- Android 11 or later for screenshots through the AccessibilityService.
-- Portrait orientation and one of the supported board layouts: Backpack Blitz or Merge Madness.
+- Locates the grid and matches tile images to the rank sequence shown below it.
+- Checks four swipe directions, simulates equal-rank merges, and models the next tile.
+- If a cell is uncertain or an animation is in progress, it captures another frame instead of swiping.
+- The game has 15 ranks; real screenshots are still needed to verify recognition of every late-game object.
+
+## 🔔 Reward timers
+
+Four presets are included: event tickets (4 hours), shop gems (1 hour), shop coins
+(1 hour), and the event bone bag (3 hours). Start, restart, or stop them from a
+separate floating menu. Custom timers, editing, and notifications are supported.
+
+## ✨ Interface
+
+- Ukrainian and Czech. The button before the module count shows the flag and code
+  of the language it switches to: 🇨🇿 CZ or 🇺🇦 UA.
+- Module cards start with an icon and name; tap to open descriptions and settings.
+- Each module has independent timing and floating-panel settings.
+- Panels can be collapsed and moved; the timer menu can run alongside a game bot.
+
+## 📱 Requirements
+
+- Android 11 / API 30 or later for screenshots through the AccessibilityService.
+- Portrait orientation and one of the supported game modes.
 - JDK 17 and Android SDK Platform 35 to build the project.
 
-## Install and run
+## 🚀 Get started
 
-1. Build a debug APK using [docs/BUILDING.md](docs/BUILDING.md), or install the generated `app/build/outputs/apk/debug/app-debug.apk`.
-2. Open **Pelyustka**, expand **Android permission**, tap **Enable access**, and enable **Pelyustka — game control** in Android Accessibility settings.
-3. Return to the app, tap a module name, then tap **Open panel**.
-4. Open the matching minigame, wait for animations to finish, and tap **Start**. Tap **Stop** to halt automated moves.
+1. Build the APK using the [build guide](docs/BUILDING.md), or install a prepared APK.
+2. In Pelyustka, open **Android permission** and enable **Pelyustka — game control** in Android Accessibility settings.
+3. Return to the app, expand a module, and tap **Open panel**.
+4. Open the matching minigame, wait for animations to finish, and tap **Start**.
 
-To use reminders, open **Set up timers**, claim a game reward, then start its timer. **Floating panel** opens a separate timer window that can coexist with the bot window. Restart a timer after claiming the next reward, or use the notification's **Claimed · restart** action. The **⋮** menu accepts the remaining time shown in the game for one countdown without changing the usual interval. Use **✎** to edit a timer and **Add timer** for custom reminders; starting a new custom timer immediately is optional.
+For reward reminders, open **Set up timers** and start the relevant timer after claiming a reward. Its floating menu can run beside a bot panel. See the [timer guide](docs/TIMERS-1.9.42.md).
 
-Enable notifications and, when needed, Android's **Alarms & reminders** access in the timer settings section. Without exact-alarm access Android may delay background notifications. Timers persist through reboots and APK updates. See [docs/TIMERS-1.9.42.md](docs/TIMERS-1.9.42.md) for implementation and verification details.
+## 🧠 Move selection
 
-Merge Madness requires the full 4×4 board to be visible. It detects the grid borders and anchors both board recognition and the merge chain below it to that grid. Tiles are matched to templates. If a frame is unclear or a rank cannot be identified confidently, the bot takes another screenshot and does not swipe.
+Backpack Blitz models swaps, matches, and cascades. Its base estimate uses 50
+points per cleared gem at a ×1 multiplier, based on observed in-game messages
+for 4, 5, and 10 gems. This ranks moves; it does not guarantee the final score.
+Merge Madness compares the results of four swipe simulations and the predicted
+next-tile spawn.
 
-The accessibility access is used to capture frames and dispatch swipes. The service does not inspect the game's accessibility view tree. See [docs/USAGE.md](docs/USAGE.md) for details.
+## ⚠️ Limitations
 
-## Move selection
+- Changes to the game's layout, theme, or version can reduce recognition accuracy.
+- An obscured hint chain or unrecognized late-game artwork may prevent rank detection.
+- Rocket stripe direction is not read from the screenshot and is modeled randomly.
+- Android limits screenshot frequency; the service interval is about 334 ms minimum, plus game animation time.
+- Cascade estimates use random simulation and cannot predict the future board exactly.
 
-The Backpack Blitz solver checks horizontal and vertical swaps, simulates matches and cascades, and estimates possible refills. The Merge Madness solver checks four directions, simulates merges of equal ranks, and models the next tile spawn. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for both modes.
+## 🛠️ Build
 
-The base score uses 50 points per cleared gem at a ×1 multiplier, based on observed in-game popups for 4, 5, and 10 gems. This is a move-selection estimate, not a guarantee of the actual game score.
+See [docs/BUILDING.md](docs/BUILDING.md) for JDK, Android SDK, APK signing, and verification.
+Local signing configuration and keystore files are not stored in this repository.
+Configure your own key to sign builds; it cannot update an app installed from an
+APK signed with a different key.
 
-## Limitations
+## 🔒 Privacy and reuse
 
-- Board coordinates and color palette are calibrated for one portrait game layout. Changes to the board position, theme, or game version can reduce recognition accuracy.
-- Merge Madness locates moderate board shifts from the grid borders, but current hint icons are learned automatically; obscured hints and major artwork changes may reduce recognition confidence.
-- If a cell is uncertain or an animation is still running, the bot retries capture instead of swiping.
-- Rocket stripe direction is not recognized from the screenshot; the solver models it randomly.
-- Android limits screenshot frequency. The service enforces a minimum interval of about 334 ms, and game animations add more time.
-- Cascade ranking uses random simulation and cannot predict future refills exactly.
+Frames are processed in device memory; the app does not request network access.
+Images in `app/src/test/resources` are game-board test fixtures, not screenshots
+saved by the app during play. Git ignores local settings, signing keys, and APKs.
 
-## Build
+There is no license file, so code reuse terms are unspecified.
 
-From the project root in Windows PowerShell:
+## 📚 Documentation
 
-```powershell
-.\gradlew.bat assembleDebug --no-daemon --max-workers=1
-```
-
-The APK is written to `app/build/outputs/apk/debug/app-debug.apk`. See [docs/BUILDING.md](docs/BUILDING.md) for build and development notes.
-
-## Privacy and reuse
-
-Frames are processed in device memory and are not saved by the app. The manifest has no network permission, and app data backup is disabled. Reference screenshots live in `app/src/test/resources`; runtime screenshots are not recorded. Signing keys, local settings and build outputs are ignored by Git.
-
-No license file is included, so reuse terms for the code are not specified.
-
-## Modules and roadmap
-
-Implementation and registration guide (Ukrainian): [docs/MODULES.md](docs/MODULES.md).
-Proposed future modules: [docs/ROADMAP.md](docs/ROADMAP.md).
-Current interface: [docs/USAGE.md](docs/USAGE.md).
-Algorithm review: [docs/ALGORITHMS-1.9.39.md](docs/ALGORITHMS-1.9.39.md).
-Rank 15 target and late-game verification: [docs/ALGORITHMS-LEVEL15.md](docs/ALGORITHMS-LEVEL15.md).
+- [User guide](docs/USAGE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Adding modules](docs/MODULES.md)
+- [Future clicker ideas](docs/ROADMAP.md)
+- [Merge Madness rank-15 strategy](docs/ALGORITHMS-LEVEL15.md)
+- [Ukrainian and Czech localization](docs/LOCALIZATION-1.9.44.md)
