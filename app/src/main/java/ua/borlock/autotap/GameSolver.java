@@ -21,44 +21,52 @@ final class GameSolver {
     private static final double CLOSE_SCORE_MINIMUM = 75.0;
 
     Choice chooseMove(GameBoard board) {
-        MatchAnalysis current = findMatches(board.copyTiles());
-        if (current.count > 0) return Choice.waitForResolution(current.count);
+        if (board.hasAnyMatch()) {
+            return Choice.waitForResolution(findMatches(board.copyTiles()).count);
+        }
 
-        Candidate best = null;
-        List<Candidate> refillCandidates = new ArrayList<>(REFILL_LOOKAHEAD_CANDIDATES);
+        int[] tiles = board.copyTiles();
+        long boardSeed = board.hashCode();
+        List<ImmediateSwap> largestSwaps = new ArrayList<>();
+        int largestImmediateClear = -1;
         int candidateMoves = 0;
         for (int row = 0; row < GameBoard.SIDE; row++) {
             for (int column = 0; column < GameBoard.SIDE; column++) {
                 int first = row * GameBoard.SIDE + column;
-                if (column + 1 < GameBoard.SIDE) {
-                    Candidate candidate = scoreSwap(board, first, first + 1);
-                    if (candidate != null) {
-                        candidateMoves++;
-                        if (isBetterImmediate(candidate, best)) {
-                            best = candidate;
-                        }
-                        keepRefillCandidate(refillCandidates, candidate);
+                for (int direction = 0; direction < 2; direction++) {
+                    if (direction == 0 && column + 1 == GameBoard.SIDE) continue;
+                    if (direction == 1 && row + 1 == GameBoard.SIDE) continue;
+                    int second = first + (direction == 0 ? 1 : GameBoard.SIDE);
+                    ImmediateSwap swap = inspectSwap(board, tiles, boardSeed, first, second);
+                    if (swap == null) continue;
+                    candidateMoves++;
+                    if (swap.matchedCount > largestImmediateClear) {
+                        largestImmediateClear = swap.matchedCount;
+                        largestSwaps.clear();
                     }
-                }
-                if (row + 1 < GameBoard.SIDE) {
-                    Candidate candidate = scoreSwap(board, first, first + GameBoard.SIDE);
-                    if (candidate != null) {
-                        candidateMoves++;
-                        if (isBetterImmediate(candidate, best)) {
-                            best = candidate;
-                        }
-                        keepRefillCandidate(refillCandidates, candidate);
+                    if (swap.matchedCount == largestImmediateClear) {
+                        largestSwaps.add(swap);
                     }
                 }
             }
         }
-        if (best == null) return Choice.noMove(candidateMoves);
+        if (largestSwaps.isEmpty()) return Choice.noMove(candidateMoves);
 
-        // A smaller current clear must not win because of speculative refill luck.
-        // Only model refills when candidates clear the same number of gems now.
-        int largestImmediateClear = best.choice.matchedCount;
-        refillCandidates.removeIf(candidate ->
-                candidate.choice.matchedCount < largestImmediateClear);
+        Candidate best = null;
+        List<Candidate> refillCandidates = new ArrayList<>(REFILL_LOOKAHEAD_CANDIDATES);
+        for (ImmediateSwap swap : largestSwaps) {
+            Candidate candidate = swap.scored != null ? swap.scored
+                    : scoreSwap(board, boardSeed, swap.firstCell, swap.secondCell);
+            if (isBetterImmediate(candidate, best)) best = candidate;
+            if (largestSwaps.size() > 1) {
+                candidate.preliminaryScore = candidate.choice.score
+                        + firstRefillScore(candidate) * REFILL_LOOKAHEAD_SCORE_WEIGHT;
+            }
+            keepRefillCandidate(refillCandidates, candidate);
+        }
+        // A unique largest clear is already decided; refill simulations cannot change it.
+        if (largestSwaps.size() == 1) return best.choice.withCandidateCount(candidateMoves);
+
         List<Candidate> ranked = new ArrayList<>(refillCandidates.size());
         for (Candidate candidate : refillCandidates) {
             candidate.rankedChoice = candidate.choice.withScore(candidate.choice.score
@@ -95,6 +103,50 @@ final class GameSolver {
         return selected.withCandidateCount(candidateMoves);
     }
 
+    private ImmediateSwap inspectSwap(GameBoard board, int[] tiles, long boardSeed,
+                                      int first, int second) {
+        int firstType = tiles[first];
+        int secondType = tiles[second];
+        if (firstType == secondType) return null;
+        if (isSpecial(firstType) || isSpecial(secondType)) {
+            Candidate candidate = scoreSwap(board, boardSeed, first, second);
+            return new ImmediateSwap(first, second, candidate.choice.matchedCount, candidate);
+        }
+        tiles[first] = secondType;
+        tiles[second] = firstType;
+        long matched = matchMaskAt(tiles, first) | matchMaskAt(tiles, second);
+        tiles[first] = firstType;
+        tiles[second] = secondType;
+        int count = Long.bitCount(matched);
+        return count == 0 ? null : new ImmediateSwap(first, second, count, null);
+    }
+
+    /** On a stable board every new match must pass through a swapped cell. */
+    private long matchMaskAt(int[] tiles, int cell) {
+        int color = tiles[cell];
+        if (!isGemColor(color)) return 0L;
+        int row = cell / GameBoard.SIDE;
+        int column = cell % GameBoard.SIDE;
+        int left = column;
+        int right = column;
+        while (left > 0 && tiles[row * GameBoard.SIDE + left - 1] == color) left--;
+        while (right + 1 < GameBoard.SIDE
+                && tiles[row * GameBoard.SIDE + right + 1] == color) right++;
+        long mask = 0L;
+        if (right - left >= 2) {
+            for (int c = left; c <= right; c++) mask |= 1L << (row * GameBoard.SIDE + c);
+        }
+        int top = row;
+        int bottom = row;
+        while (top > 0 && tiles[(top - 1) * GameBoard.SIDE + column] == color) top--;
+        while (bottom + 1 < GameBoard.SIDE
+                && tiles[(bottom + 1) * GameBoard.SIDE + column] == color) bottom++;
+        if (bottom - top >= 2) {
+            for (int r = top; r <= bottom; r++) mask |= 1L << (r * GameBoard.SIDE + column);
+        }
+        return mask;
+    }
+
     private void sortByRankedScore(List<Candidate> candidates) {
         for (int i = 1; i < candidates.size(); i++) {
             Candidate candidate = candidates.get(i);
@@ -111,7 +163,7 @@ final class GameSolver {
     private void keepRefillCandidate(List<Candidate> candidates, Candidate candidate) {
         int insertion = 0;
         while (insertion < candidates.size()
-                && !isBetterImmediate(candidate, candidates.get(insertion))) insertion++;
+                && candidates.get(insertion).preliminaryScore >= candidate.preliminaryScore) insertion++;
         if (insertion >= REFILL_LOOKAHEAD_CANDIDATES) return;
         candidates.add(insertion, candidate);
         if (candidates.size() > REFILL_LOOKAHEAD_CANDIDATES) {
@@ -138,23 +190,77 @@ final class GameSolver {
         int remainingSteps = MAX_CASCADE_STEPS - candidate.steps;
         if (remainingSteps <= 0) return 0;
 
-        Random random = new Random(candidate.seed ^ 0x9E3779B97F4A7C15L);
-        double totalScore = 0;
-        for (int sample = 0; sample < sampleCount; sample++) {
+        if (candidate.refillRandom == null) {
+            candidate.refillRandom = new Random(candidate.seed ^ 0x9E3779B97F4A7C15L);
+        }
+        for (int sample = candidate.refillSamples; sample < sampleCount; sample++) {
             int[] tiles = candidate.settledTiles.clone();
-            fillEmptyCells(tiles, random);
+            fillEmptyCells(tiles, candidate.refillRandom);
             double weight = Math.pow(CASCADE_WEIGHT, candidate.steps);
             for (int step = 0; step < remainingSteps; step++) {
                 MatchAnalysis matches = findMatches(tiles);
                 if (matches.count == 0) break;
                 MatchResolution resolution = resolveMatches(tiles, matches, -1, -1);
-                totalScore += resolution.score * weight;
+                // The first clear has an exact expectation. Sample only bonuses and
+                // later cascades, so four lucky refills cannot distort this part.
+                double sampledScore = resolution.score;
+                if (step == 0) sampledScore -= matches.count * POINTS_PER_JEWEL;
+                candidate.refillResidualTotal += sampledScore * weight;
                 tiles = dropMatches(tiles, resolution.clearedCells);
-                fillEmptyCells(tiles, random);
+                fillEmptyCells(tiles, candidate.refillRandom);
                 weight *= CASCADE_WEIGHT;
             }
+            candidate.refillSamples++;
         }
-        return totalScore / sampleCount;
+        return firstRefillScore(candidate)
+                + candidate.refillResidualTotal / candidate.refillSamples;
+    }
+
+    private double firstRefillScore(Candidate candidate) {
+        if (candidate.steps >= MAX_CASCADE_STEPS) return 0;
+        if (Double.isNaN(candidate.firstRefillScore)) {
+            candidate.firstRefillScore = expectedRefillMatchCount(candidate.settledTiles)
+                    * POINTS_PER_JEWEL * Math.pow(CASCADE_WEIGHT, candidate.steps);
+        }
+        return candidate.firstRefillScore;
+    }
+
+    /** Exact expected unique matched gems after independent uniform seven-color refills. */
+    static double expectedRefillMatchCount(int[] tiles) {
+        double expected = 0;
+        for (int cell = 0; cell < GameBoard.CELL_COUNT; cell++) {
+            int tile = tiles[cell];
+            if (tile != 0 && !isGemColor(tile)) continue;
+            int firstColor = tile == 0 ? GameBoard.RED : tile;
+            int lastColor = tile == 0 ? GameBoard.ORANGE : tile;
+            double colorProbability = tile == 0 ? 1.0 / 7 : 1.0;
+            int row = cell / GameBoard.SIDE;
+            int column = cell % GameBoard.SIDE;
+            for (int color = firstColor; color <= lastColor; color++) {
+                double horizontal = lineMatchProbability(
+                        column >= 2 ? equalColorProbability(tiles[cell - 2], color) : 0,
+                        column >= 1 ? equalColorProbability(tiles[cell - 1], color) : 0,
+                        column + 1 < GameBoard.SIDE ? equalColorProbability(tiles[cell + 1], color) : 0,
+                        column + 2 < GameBoard.SIDE ? equalColorProbability(tiles[cell + 2], color) : 0);
+                double vertical = lineMatchProbability(
+                        row >= 2 ? equalColorProbability(tiles[cell - 16], color) : 0,
+                        row >= 1 ? equalColorProbability(tiles[cell - 8], color) : 0,
+                        row + 1 < GameBoard.SIDE ? equalColorProbability(tiles[cell + 8], color) : 0,
+                        row + 2 < GameBoard.SIDE ? equalColorProbability(tiles[cell + 16], color) : 0);
+                expected += colorProbability * (horizontal + vertical - horizontal * vertical);
+            }
+        }
+        return expected;
+    }
+
+    private static double equalColorProbability(int tile, int color) {
+        return tile == 0 ? 1.0 / 7 : tile == color ? 1.0 : 0.0;
+    }
+
+    private static double lineMatchProbability(double left2, double left1,
+                                                double right1, double right2) {
+        return left1 * right1 + left1 * (1 - right1) * left2
+                + (1 - left1) * right1 * right2;
     }
 
     private void fillEmptyCells(int[] tiles, Random random) {
@@ -166,12 +272,14 @@ final class GameSolver {
         }
     }
 
-    private Candidate scoreSwap(GameBoard board, int firstCell, int secondCell) {
+    private Candidate scoreSwap(GameBoard board, long boardSeed, int firstCell, int secondCell) {
         int firstType = board.colorAt(firstCell);
         int secondType = board.colorAt(secondCell);
         if (firstType == secondType) return null;
-        int[] swapped = board.swapped(firstCell, secondCell).copyTiles();
-        long seed = board.hashCode();
+        int[] swapped = board.copyTiles();
+        swapped[firstCell] = secondType;
+        swapped[secondCell] = firstType;
+        long seed = boardSeed;
         seed = seed * 31 + firstCell;
         seed = seed * 31 + secondCell;
         Random random = new Random(seed);
@@ -181,6 +289,7 @@ final class GameSolver {
         int steps = 0;
         double weight = 1.0;
         int primarySpecial = 0;
+        MatchAnalysis matches;
 
         if (isSpecial(firstType) || isSpecial(secondType)) {
             primarySpecial = isSpecial(firstType) ? firstType : secondType;
@@ -199,13 +308,13 @@ final class GameSolver {
             swapped = dropMatches(swapped, activation.clearedCells);
             steps = 1;
             weight = CASCADE_WEIGHT;
+            matches = findMatches(swapped);
         } else {
-            MatchAnalysis firstMatches = findMatches(swapped);
-            if (firstMatches.count == 0) return null;
-            matchedCount = firstMatches.count;
+            matches = findMatches(swapped);
+            if (matches.count == 0) return null;
+            matchedCount = matches.count;
         }
 
-        MatchAnalysis matches = findMatches(swapped);
         while (steps < MAX_CASCADE_STEPS && matches.count > 0) {
             if (steps > 0) cascadeCount++;
             MatchResolution resolution = resolveMatches(swapped, matches,
@@ -292,7 +401,7 @@ final class GameSolver {
         boolean[] cleared = matches.matchedCells.clone();
         boolean[] spawned = new boolean[GameBoard.CELL_COUNT];
         double score = matches.count * POINTS_PER_JEWEL;
-        for (SpecialSpawn spawn : findSpecialSpawns(matches, preferredFirst, preferredSecond)) {
+        for (SpecialSpawn spawn : findSpecialSpawns(tiles, matches, preferredFirst, preferredSecond)) {
             if (spawned[spawn.cell]) continue;
             spawned[spawn.cell] = true;
             cleared[spawn.cell] = false;
@@ -303,7 +412,7 @@ final class GameSolver {
         return new MatchResolution(cleared, score);
     }
 
-    private List<SpecialSpawn> findSpecialSpawns(MatchAnalysis matches,
+    private List<SpecialSpawn> findSpecialSpawns(int[] tiles, MatchAnalysis matches,
                                                  int preferredFirst, int preferredSecond) {
         List<SpecialSpawn> spawns = new ArrayList<>();
         boolean[] visited = new boolean[GameBoard.CELL_COUNT];
@@ -315,6 +424,7 @@ final class GameSolver {
             int tail = 0;
             queue[tail++] = start;
             visited[start] = true;
+            int color = tiles[start];
             int componentSize = 0;
             while (head < tail) {
                 int cell = queue[head++];
@@ -322,10 +432,20 @@ final class GameSolver {
                 componentSize++;
                 int row = cell / GameBoard.SIDE;
                 int column = cell % GameBoard.SIDE;
-                if (column > 0) tail = enqueueMatchCell(cell - 1, matches, visited, queue, tail);
-                if (column + 1 < GameBoard.SIDE) tail = enqueueMatchCell(cell + 1, matches, visited, queue, tail);
-                if (row > 0) tail = enqueueMatchCell(cell - GameBoard.SIDE, matches, visited, queue, tail);
-                if (row + 1 < GameBoard.SIDE) tail = enqueueMatchCell(cell + GameBoard.SIDE, matches, visited, queue, tail);
+                // Runs form one shape only where they overlap. Merely touching
+                // rows or different colors must keep their independent bonuses.
+                if (column > 0 && matches.horizontal[cell] && matches.horizontal[cell - 1]) {
+                    tail = enqueueMatchCell(cell - 1, color, tiles, matches, visited, queue, tail);
+                }
+                if (column + 1 < GameBoard.SIDE && matches.horizontal[cell] && matches.horizontal[cell + 1]) {
+                    tail = enqueueMatchCell(cell + 1, color, tiles, matches, visited, queue, tail);
+                }
+                if (row > 0 && matches.vertical[cell] && matches.vertical[cell - GameBoard.SIDE]) {
+                    tail = enqueueMatchCell(cell - GameBoard.SIDE, color, tiles, matches, visited, queue, tail);
+                }
+                if (row + 1 < GameBoard.SIDE && matches.vertical[cell] && matches.vertical[cell + GameBoard.SIDE]) {
+                    tail = enqueueMatchCell(cell + GameBoard.SIDE, color, tiles, matches, visited, queue, tail);
+                }
             }
 
             int longestRun = 0;
@@ -366,9 +486,9 @@ final class GameSolver {
         return spawns;
     }
 
-    private int enqueueMatchCell(int cell, MatchAnalysis matches, boolean[] visited,
+    private int enqueueMatchCell(int cell, int color, int[] tiles, MatchAnalysis matches, boolean[] visited,
                                  int[] queue, int tail) {
-        if (matches.matchedCells[cell] && !visited[cell]) {
+        if (matches.matchedCells[cell] && tiles[cell] == color && !visited[cell]) {
             visited[cell] = true;
             queue[tail++] = cell;
         }
@@ -617,6 +737,11 @@ final class GameSolver {
         final int[] settledTiles;
         final int steps;
         final long seed;
+        double preliminaryScore;
+        double firstRefillScore = Double.NaN;
+        Random refillRandom;
+        int refillSamples;
+        double refillResidualTotal;
         Choice rankedChoice;
 
         Candidate(Choice choice, int[] settledTiles, int steps, long seed) {
@@ -624,6 +749,21 @@ final class GameSolver {
             this.settledTiles = settledTiles;
             this.steps = steps;
             this.seed = seed;
+            this.preliminaryScore = choice.score;
+        }
+    }
+
+    private static final class ImmediateSwap {
+        final int firstCell;
+        final int secondCell;
+        final int matchedCount;
+        final Candidate scored;
+
+        ImmediateSwap(int firstCell, int secondCell, int matchedCount, Candidate scored) {
+            this.firstCell = firstCell;
+            this.secondCell = secondCell;
+            this.matchedCount = matchedCount;
+            this.scored = scored;
         }
     }
 

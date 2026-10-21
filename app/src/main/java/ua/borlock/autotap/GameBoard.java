@@ -61,7 +61,18 @@ final class GameBoard {
     }
 
     boolean hasAnyMatch() {
-        return GameSolver.findMatches(copyTiles()).count > 0;
+        for (int row = 0; row < SIDE; row++) {
+            for (int column = 0; column < SIDE; column++) {
+                int index = row * SIDE + column;
+                int color = tiles[index];
+                if (color < RED || color > ORANGE) continue;
+                if (column + 2 < SIDE && tiles[index + 1] == color
+                        && tiles[index + 2] == color) return true;
+                if (row + 2 < SIDE && tiles[index + SIDE] == color
+                        && tiles[index + 2 * SIDE] == color) return true;
+            }
+        }
+        return false;
     }
 
     @Override public boolean equals(Object other) {

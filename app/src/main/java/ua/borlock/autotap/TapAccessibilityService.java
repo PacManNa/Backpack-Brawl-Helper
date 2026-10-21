@@ -33,6 +33,7 @@ import android.graphics.drawable.GradientDrawable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /** Runs the selected board bot and the shared local timer overlay. */
@@ -94,6 +95,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     private TextView scoreView;
     private TextView mergeDetailsView;
     private TextView[][] boardCells;
+    private final int[] displayedBlitzColors = new int[GameBoard.CELL_COUNT];
     private TextView[][] mergeBoardCells;
     private LinearLayout blitzBoardGrid;
     private LinearLayout mergeBoardGrid;
@@ -376,6 +378,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         diagnosticsPanel.setPadding(0, dp(5), 0, 0);
 
         boardCells = new TextView[GameBoard.SIDE][GameBoard.SIDE];
+        Arrays.fill(displayedBlitzColors, -1);
         blitzBoardGrid = new LinearLayout(this);
         blitzBoardGrid.setOrientation(LinearLayout.VERTICAL);
         blitzBoardGrid.setPadding(dp(2), dp(1), dp(2), dp(1));
@@ -900,6 +903,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                     cell.setText("·");
                     cell.setTextColor(0xFF937D80);
                     cell.setBackground(round(EMPTY_CELL, 5));
+                    displayedBlitzColors[row * GameBoard.SIDE + column] = 0;
                 }
             }
         }
@@ -1385,17 +1389,20 @@ public final class TapAccessibilityService extends AccessibilityService {
         for (int row = 0; row < GameBoard.SIDE; row++) {
             for (int column = 0; column < GameBoard.SIDE; column++) {
                 int color = board.get(row, column);
+                if (color != 0) occupied++;
+                int index = row * GameBoard.SIDE + column;
+                if (displayedBlitzColors[index] == color) continue;
                 TextView cell = boardCells[row][column];
                 if (color == 0) {
                     cell.setText("·");
                     cell.setTextColor(0xFF937D80);
                     cell.setBackground(round(EMPTY_CELL, 5));
                 } else {
-                    occupied++;
                     cell.setText(GEM_LABELS[color]);
                     cell.setTextColor(CREAM);
                     cell.setBackground(round(GEM_COLORS[color], 5));
                 }
+                displayedBlitzColors[index] = color;
             }
         }
         if (boardInfoView != null) {

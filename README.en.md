@@ -12,7 +12,7 @@ An Android app with two independent modes: a match bot for Backpack Blitz and a 
 
 - Recognizes seven gem colors, rockets, bombs, and portal/whirlwind specials.
 - Evaluates up to 112 adjacent swaps on an 8×8 board.
-- Estimates matches, special items, chained activations, and possible cascades after refills.
+- Prefers the largest immediate clear, then special items and cascades. The first random-refill match has an exact expectation under the uniform seven-color model.
 - Identifies object ranks on Merge Madness's 4×4 board using templates and the hint chain below it, then selects a swipe direction using a search that models new tiles. The game has 15 ranks; recognizing all late-game artwork still needs real screenshots for verification.
 - Provides a floating **Start / Stop** panel with status and diagnostics.
 - Creates local garden, chest, and reward timers with completion notifications and one-tap restart.
