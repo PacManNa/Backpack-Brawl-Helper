@@ -36,7 +36,9 @@ final class AppLanguage {
                 .putString(KEY_LANGUAGE, next).apply();
     }
 
-    static String buttonLabel(Context context) { return "cs".equals(language(context)) ? "CZ" : "UA"; }
+    static String buttonLabel(Context context) {
+        return "cs".equals(language(context)) ? "🇺🇦 UA" : "🇨🇿 CZ";
+    }
 
     private static Configuration configuration(Context context) {
         Configuration desired = new Configuration(context.getResources().getConfiguration());

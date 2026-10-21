@@ -137,7 +137,7 @@ public final class MainActivity extends LocalizedActivity {
             TimerNotificationReceiver.refreshLanguage(this);
             recreate();
         });
-        LinearLayout.LayoutParams languageParams = new LinearLayout.LayoutParams(dp(42), dp(36));
+        LinearLayout.LayoutParams languageParams = new LinearLayout.LayoutParams(dp(58), dp(36));
         languageParams.setMargins(dp(6), 0, dp(6), 0);
         row.addView(language, languageParams);
 
