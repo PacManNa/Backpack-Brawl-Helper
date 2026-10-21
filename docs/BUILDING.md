@@ -58,14 +58,14 @@ gradle/wrapper/                         версія Gradle Wrapper
 ## Поточна конфігурація
 
 - `applicationId`: `ua.borlock.autotap`.
-- Версія застосунку: `1.9.41` (`versionCode` 72).
+- Версія застосунку: `1.9.42` (`versionCode` 73).
 - `minSdk`: 24; для знімків екрана AccessibilityService потрібен Android 11 / API 30 або новіший.
 - `targetSdk` / `compileSdk`: 35.
 
 ## Перевірки
 
 ```bash
-./gradlew testDebugUnitTest --no-daemon --max-workers=1
+bash gradlew testDebugUnitTest --no-daemon --max-workers=1
 bash tools/check-merge-madness.sh
 ```
 
@@ -78,6 +78,24 @@ bash tools/check-merge-madness.sh
 ці штучні зразки не підтверджують розпізнавання всіх реальних пізніх об'єктів.
 Тести JVM не виконують фізичний жест на Android; його перевіряють на телефоні.
 
+Тести таймерів використовують Robolectric 4.14.1 з Android API 33;
+`unitTests.includeAndroidResources` увімкнено. Перший запуск завантажує
+залежності Gradle та образ Android для Robolectric і потребує мережі.
+У середовищі з обов’язковим HTTP-проксі передай його налаштування JVM
+згідно з політикою середовища. Ключ підпису потрібен і для конфігурації тестів;
+не створюй новий ключ для виправлення відсутньої локальної конфігурації.
+
+Для APK, що оновлює основний застосунок, використовуй release:
+
+```bash
+bash gradlew testDebugUnitTest assembleRelease --no-daemon --max-workers=1
+apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+Перед поширенням звіряй package ID та SHA-256 сертифіката з попереднім APK,
+а `versionCode` збільшуй. Debug із суфіксом `.newkey` не оновлює release.
+
 Заміри прискорення та порівняння з попереднім рушієм описані в
 [VERIFICATION-1.9.35.md](VERIFICATION-1.9.35.md).
 
@@ -87,5 +105,6 @@ bash tools/check-merge-madness.sh
 компактніші кнопки та перевірка алгоритмів — у [ALGORITHMS-1.9.39.md](ALGORITHMS-1.9.39.md),
 ціль автогри «Рюкзак-Бліц» — у [BLITZ-AUTOPLAY-1.9.40.md](BLITZ-AUTOPLAY-1.9.40.md),
 прискорення пошуку й точніші каскади — у [BLITZ-AUTOPLAY-1.9.41.md](BLITZ-AUTOPLAY-1.9.41.md),
+окреме вікно нагород і перевірки таймерів — у [TIMERS-1.9.42.md](TIMERS-1.9.42.md),
 уточнення цілі до рівня 15 — у [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md),
 ідеї наступних клікерів — у [ROADMAP.md](ROADMAP.md).

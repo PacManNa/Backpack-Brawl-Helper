@@ -15,7 +15,7 @@ An Android app with two independent modes: a match bot for Backpack Blitz and a 
 - Prefers the largest immediate clear, then special items and cascades. The first random-refill match has an exact expectation under the uniform seven-color model.
 - Identifies object ranks on Merge Madness's 4×4 board using templates and the hint chain below it, then selects a swipe direction using a search that models new tiles. The game has 15 ranks; recognizing all late-game artwork still needs real screenshots for verification.
 - Provides a floating **Start / Stop** panel with status and diagnostics.
-- Creates local garden, chest, and reward timers with completion notifications and one-tap restart.
+- Includes four stopped reward presets: event tickets (4 hours), shop gems (1 hour), shop coins (1 hour), and the event bone bag (3 hours). An independent floating window provides start/restart/stop controls; custom timers, editing, and notification actions are available.
 - Processes screenshots in device memory; the app does not request network access.
 
 ## Requirements
@@ -31,7 +31,9 @@ An Android app with two independent modes: a match bot for Backpack Blitz and a 
 3. Return to the app, tap a module name, then tap **Open panel**.
 4. Open the matching minigame, wait for animations to finish, and tap **Start**. Tap **Stop** to halt automated moves.
 
-To use reminders, open **Set up timers** and create one with a name and duration. A timer starts as soon as it is created. To show the countdown in the floating panel, tap **Floating panel** on the timer screen. After completing the game action, tap **↻** to start the same duration again.
+To use reminders, open **Set up timers**, claim a game reward, then start its timer. **Floating panel** opens a separate timer window that can coexist with the bot window. Restart a timer after claiming the next reward, or use the notification's **Claimed · restart** action. The **⋮** menu accepts the remaining time shown in the game for one countdown without changing the usual interval. Use **✎** to edit a timer and **Add timer** for custom reminders; starting a new custom timer immediately is optional.
+
+Enable notifications and, when needed, Android's **Alarms & reminders** access in the timer settings section. Without exact-alarm access Android may delay background notifications. Timers persist through reboots and APK updates. See [docs/TIMERS-1.9.42.md](docs/TIMERS-1.9.42.md) for implementation and verification details.
 
 Merge Madness requires the full 4×4 board to be visible. It detects the grid borders and anchors both board recognition and the merge chain below it to that grid. Tiles are matched to templates. If a frame is unclear or a rank cannot be identified confidently, the bot takes another screenshot and does not swipe.
 

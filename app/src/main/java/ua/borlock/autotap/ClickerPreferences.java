@@ -58,10 +58,14 @@ final class ClickerPreferences {
     }
 
     static Position position(Context context, String profile, String orientation) {
+        return position(context, profile, orientation, 1f, .04f);
+    }
+
+    static Position position(Context context, String profile, String orientation, float defaultX, float defaultY) {
         SharedPreferences preferences = store(context);
         String prefix = "panel." + profile + "." + orientation + ".";
-        return new Position(ratio(preferences.getFloat(prefix + "x", 1f)),
-                ratio(preferences.getFloat(prefix + "y", 0.04f)));
+        return new Position(ratio(preferences.getFloat(prefix + "x", defaultX)),
+                ratio(preferences.getFloat(prefix + "y", defaultY)));
     }
 
     static void savePosition(Context context, String profile, String orientation, float x, float y) {

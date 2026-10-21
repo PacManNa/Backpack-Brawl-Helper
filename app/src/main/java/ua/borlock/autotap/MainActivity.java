@@ -221,7 +221,7 @@ public final class MainActivity extends Activity {
         card.setPadding(dp(16), dp(15), dp(16), dp(15));
         card.setBackground(shape(CARD, BORDER, 20));
         card.addView(text("Нагадування про дію", 17, CREAM, true));
-        TextView details = text("Сад, скрині та безкоштовні нагороди", 13, MUTED, false);
+        TextView details = text("Квитки, самоцвіти, монети та інші нагороди", 13, MUTED, false);
         card.addView(details, margin(-1, -2, 0, 5, 0, 12));
         TextView open = actionText("Налаштувати таймери  →", GOLD, BG, GOLD, 13);
         open.setOnClickListener(v -> startActivity(new Intent(this, TimerActivity.class)));

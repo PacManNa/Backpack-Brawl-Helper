@@ -25,8 +25,8 @@ android {
         applicationId 'ua.borlock.autotap'
         minSdk 24
         targetSdk 35
-        versionCode 72
-        versionName '1.9.41'
+        versionCode 73
+        versionName '1.9.42'
     }
 
     buildTypes {
@@ -44,8 +44,12 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
 }
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
 }

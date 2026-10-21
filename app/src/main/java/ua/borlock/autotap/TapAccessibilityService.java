@@ -36,7 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/** Runs the selected board bot and the shared local timer overlay. */
+/** Runs the board bot and hosts an independent reward timer window. */
 public final class TapAccessibilityService extends AccessibilityService {
     static final String PREFS = "pelyustka_settings";
     static final String KEY_NO_CHANGE_TIMEOUT = "move_delay_ms";
@@ -76,6 +76,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     private final MergeMadnessSpawnModel mergeSpawnModel = new MergeMadnessSpawnModel();
     private MergeMadnessVision mergeMadnessVision;
     private WindowManager windowManager;
+    private TimerOverlay timerOverlay;
     private LinearLayout panel;
     private LinearLayout panelBody;
     private TextView panelIcon;
@@ -100,17 +101,7 @@ public final class TapAccessibilityService extends AccessibilityService {
     private LinearLayout blitzBoardGrid;
     private LinearLayout mergeBoardGrid;
     private LinearLayout diagnosticsPanel;
-    private LinearLayout timerPanel;
-    private LinearLayout timerRowsContainer;
-    private LinearLayout compactTimerPreview;
-    private TextView compactTimerTitle;
-    private TextView compactTimerCountdown;
-    private TextView compactTimerRestart;
-    private String compactTimerSelectedId;
-    private final ArrayList<TimerRow> timerRows = new ArrayList<>();
-    private long renderedTimerRevision = -1L;
     private boolean diagnosticsExpanded;
-    private boolean timerMode;
     private boolean autoPlaying;
     private volatile BotMode activeMode = BotMode.BACKPACK_BLITZ;
     private boolean screenshotPending;
@@ -133,18 +124,11 @@ public final class TapAccessibilityService extends AccessibilityService {
     private BoardVision.Geometry lastMergeGeometry;
     private boolean awaitingMergeTransition;
     private int noMoveReads;
-    private final Runnable timerTicker = new Runnable() {
-        @Override public void run() {
-            if (panel == null || panel.getVisibility() != View.VISIBLE) return;
-            refreshTimerPanel();
-            handler.postDelayed(this, 1_000L);
-        }
-    };
-
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        timerOverlay = new TimerOverlay(this);
         mergeMadnessVision = new MergeMadnessVision(this);
         TimerStore.rescheduleAll(this);
     }
@@ -155,18 +139,21 @@ public final class TapAccessibilityService extends AccessibilityService {
         savePanelPlacement();
         super.onConfigurationChanged(configuration);
         restorePanelPlacement();
+        if (timerOverlay != null) timerOverlay.onConfigurationChanged();
     }
 
     @Override public void onInterrupt() { stopAutoPlay("Призупинено Android"); }
 
     @Override public boolean onUnbind(android.content.Intent intent) {
         closePanel();
+        if (timerOverlay != null) timerOverlay.close();
         if (instance == this) instance = null;
         return super.onUnbind(intent);
     }
 
     @Override public void onDestroy() {
         closePanel();
+        if (timerOverlay != null) timerOverlay.close();
         solverExecutor.shutdownNow();
         if (instance == this) instance = null;
         super.onDestroy();
@@ -181,14 +168,15 @@ public final class TapAccessibilityService extends AccessibilityService {
     }
 
     static boolean showTimerPanel() {
-        if (instance == null || instance.panel == null) return false;
-        instance.setTimerMode(true);
-        instance.setDiagnosticsExpanded(true);
-        return true;
+        return instance != null && instance.timerOverlay != null && instance.timerOverlay.show();
+    }
+
+    static void minimizeTimerPanel() {
+        if (instance != null && instance.timerOverlay != null) instance.timerOverlay.minimize();
     }
 
     static void refreshModulePanel(BotMode mode) {
-        if (instance != null && instance.activeMode == mode && !instance.timerMode) {
+        if (instance != null && instance.activeMode == mode) {
             instance.savePanelPlacement();
             instance.restorePanelPlacement();
         }
@@ -212,8 +200,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (panel != null) {
             panel.setVisibility(View.VISIBLE);
             updatePanel();
-            refreshTimerPanel();
-            startTimerTicker();
             return true;
         }
         panel = createPanel();
@@ -230,8 +216,6 @@ public final class TapAccessibilityService extends AccessibilityService {
             windowManager.addView(panel, panelParams);
             restorePanelPlacement();
             updatePanel();
-            refreshTimerPanel();
-            startTimerTicker();
             return true;
         } catch (WindowManager.BadTokenException | IllegalStateException error) {
             panel = null;
@@ -245,7 +229,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (autoPlaying && activeMode != mode) stopAutoPlay("Зупинено");
         activeMode = mode;
         panelProfile = mode.id;
-        timerMode = false;
         collapsedToBubble = false;
         diagnosticsExpanded = ClickerPreferences.diagnosticsExpanded(this, panelProfile);
         updateBotModeViews();
@@ -255,14 +238,14 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void updateBotModeViews() {
         ClickerModule module = ClickerCatalog.get(activeMode);
-        if (panelTitle != null) panelTitle.setText(timerMode ? "Таймери" : module.name);
+        if (panelTitle != null) panelTitle.setText(module.name);
         if (panelIcon != null) {
-            panelIcon.setText(timerMode ? "⏱" : module.icon);
+            panelIcon.setText(module.icon);
             panelIcon.setTextColor(module.theme.accent);
         }
         if (bubbleButton != null) {
-            bubbleButton.setText(bubbleLabel(timerMode ? "⏱" : module.icon));
-            bubbleButton.setContentDescription("Розгорнути панель: " + (timerMode ? "Таймери" : module.name));
+            bubbleButton.setText(bubbleLabel(module.icon));
+            bubbleButton.setContentDescription("Розгорнути панель: " + (module.name));
         }
         if (blitzBoardGrid != null) {
             blitzBoardGrid.setVisibility(activeMode == BotMode.BACKPACK_BLITZ ? View.VISIBLE : View.GONE);
@@ -277,7 +260,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (playButton != null) {
             playButton.setContentDescription((autoPlaying ? "Зупинити" : "Запустити")
                     + " бота «" + module.name + "»");
-            playButton.setVisibility(timerMode && !autoPlaying ? View.GONE : View.VISIBLE);
+            playButton.setVisibility(View.VISIBLE);
         }
         if (boardInfoView != null && !autoPlaying) {
             boardInfoView.setText(activeMode == BotMode.BACKPACK_BLITZ
@@ -453,14 +436,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         LinearLayout.LayoutParams scoreParams = new LinearLayout.LayoutParams(-1, -2);
         scoreParams.setMargins(dp(2), dp(1), dp(2), dp(1));
         diagnosticsPanel.addView(scoreView, scoreParams);
-        timerPanel = createTimerPanel();
-
-        compactTimerPreview = createCompactTimerPreview();
-        compactTimerPreview.setVisibility(View.GONE);
-
         panelBody.addView(diagnosticsPanel, new LinearLayout.LayoutParams(-1, -2));
-        panelBody.addView(timerPanel, new LinearLayout.LayoutParams(-1, -2));
-        panelBody.addView(compactTimerPreview, new LinearLayout.LayoutParams(-1, dp(38)));
 
         bubbleButton = button("", CREAM, 10);
         bubbleButton.setText(bubbleLabel(ClickerCatalog.get(activeMode).icon));
@@ -491,89 +467,10 @@ public final class TapAccessibilityService extends AccessibilityService {
         return root;
     }
 
-    private LinearLayout createTimerPanel() {
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.VERTICAL);
-        body.setPadding(dp(2), dp(1), dp(2), dp(2));
-
-        TextView heading = smallInfoText("ТАЙМЕРИ · НАГАДУВАННЯ");
-        heading.setTextColor(0xFFFFD99B);
-        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        LinearLayout.LayoutParams headingParams = new LinearLayout.LayoutParams(-1, dp(20));
-        headingParams.bottomMargin = dp(3);
-        body.addView(heading, headingParams);
-
-        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
-        scroll.setFillViewport(false);
-        scroll.setClipToPadding(false);
-        scroll.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-        timerRowsContainer = new LinearLayout(this);
-        timerRowsContainer.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(timerRowsContainer, new android.widget.ScrollView.LayoutParams(-1, -2));
-        body.addView(scroll, new LinearLayout.LayoutParams(-1, dp(55)));
-
-        TextView manage = button("＋ Налаштувати таймери", 0xFFE8D6C7, 8);
-        manage.setBackground(round(0xFF48343B, 8));
-        manage.setOnClickListener(view -> {
-            android.content.Intent intent = new android.content.Intent(this, TimerActivity.class)
-                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        });
-        LinearLayout.LayoutParams manageParams = new LinearLayout.LayoutParams(-1, dp(27));
-        manageParams.topMargin = dp(4);
-        body.addView(manage, manageParams);
-        return body;
-    }
-
-    private LinearLayout createCompactTimerPreview() {
-        LinearLayout preview = new LinearLayout(this);
-        preview.setGravity(Gravity.CENTER_VERTICAL);
-        preview.setPadding(dp(6), dp(3), dp(4), dp(3));
-        preview.setBackground(round(0xFF35272D, 9));
-
-        LinearLayout labels = new LinearLayout(this);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        compactTimerTitle = button("Немає таймерів", 0xFFF4E7D8, 9);
-        compactTimerTitle.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        compactTimerTitle.setSingleLine(true);
-        compactTimerTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        compactTimerCountdown = button("Додай таймер у застосунку", 0xFFD4B7BF, 8);
-        compactTimerCountdown.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        compactTimerCountdown.setSingleLine(true);
-        compactTimerTitle.setClickable(false);
-        compactTimerTitle.setFocusable(false);
-        compactTimerCountdown.setClickable(false);
-        compactTimerCountdown.setFocusable(false);
-        labels.addView(compactTimerTitle, new LinearLayout.LayoutParams(-1, dp(15)));
-        labels.addView(compactTimerCountdown, new LinearLayout.LayoutParams(-1, dp(14)));
-        preview.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        compactTimerRestart = button("↻", CREAM, 14);
-        compactTimerRestart.setBackground(round(0xFF526A4D, 8));
-        compactTimerRestart.setVisibility(View.GONE);
-        compactTimerRestart.setContentDescription("Перезапустити готовий таймер");
-        compactTimerRestart.setOnClickListener(view -> restartCompactTimer());
-        preview.addView(compactTimerRestart, new LinearLayout.LayoutParams(dp(34), dp(30)));
-        return preview;
-    }
-
-    private void setTimerMode(boolean enabled) {
-        if (timerMode != enabled) savePanelPlacement();
-        timerMode = enabled;
-        panelProfile = enabled ? ClickerPreferences.TIMERS_PROFILE : activeMode.id;
-        collapsedToBubble = false;
-        diagnosticsExpanded = enabled || ClickerPreferences.diagnosticsExpanded(this, panelProfile);
-        updateBotModeViews();
-        refreshTimerPanel();
-        updatePanelContentVisibility();
-        restorePanelPlacement();
-        updatePanel();
-    }
-
     private void updatePanelContentVisibility() {
         if (detailsToggle != null) {
             String label = (diagnosticsExpanded ? "▲ Сховати " : "▼ Показати ")
-                    + (timerMode ? "таймери" : "поле");
+                    + "поле";
             detailsToggle.setText(label);
             detailsToggle.setContentDescription(label);
             if (Build.VERSION.SDK_INT >= 30) {
@@ -583,13 +480,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (panelBody != null) panelBody.setVisibility(collapsedToBubble ? View.GONE : View.VISIBLE);
         if (bubbleButton != null) bubbleButton.setVisibility(collapsedToBubble ? View.VISIBLE : View.GONE);
         if (diagnosticsPanel != null) {
-            diagnosticsPanel.setVisibility(!timerMode && diagnosticsExpanded ? View.VISIBLE : View.GONE);
-        }
-        if (timerPanel != null) {
-            timerPanel.setVisibility(timerMode && diagnosticsExpanded ? View.VISIBLE : View.GONE);
-        }
-        if (compactTimerPreview != null) {
-            compactTimerPreview.setVisibility(timerMode && !diagnosticsExpanded ? View.VISIBLE : View.GONE);
+            diagnosticsPanel.setVisibility(diagnosticsExpanded ? View.VISIBLE : View.GONE);
         }
         if (panel != null) panel.requestLayout();
     }
@@ -661,137 +552,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         catch (IllegalArgumentException ignored) { }
     }
 
-    private void startTimerTicker() {
-        handler.removeCallbacks(timerTicker);
-        if (panel != null && panel.getVisibility() == View.VISIBLE) handler.post(timerTicker);
-    }
-
-    private void refreshTimerPanel() {
-        if (panel == null || timerRowsContainer == null) return;
-        long revision = TimerStore.getRevision(this);
-        if (revision != renderedTimerRevision) rebuildTimerRows();
-
-        long now = SystemClock.elapsedRealtime();
-        for (TimerRow row : timerRows) {
-            boolean ready = row.item.isReady(now);
-            row.countdown.setText(ready ? "ГОТОВО" : formatTimerDuration(row.item.deadlineElapsedMs - now));
-            row.countdown.setTextColor(ready ? 0xFF9DD09E : 0xFFFFD99B);
-            row.restart.setVisibility(ready ? View.VISIBLE : View.GONE);
-        }
-        updateCompactTimerPreview(now);
-    }
-
-    private void rebuildTimerRows() {
-        timerRowsContainer.removeAllViews();
-        timerRows.clear();
-        List<TimerItem> items = TimerStore.getTimers(this);
-        for (TimerItem item : items) {
-            LinearLayout row = new LinearLayout(this);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(5), dp(3), dp(4), dp(3));
-            row.setBackground(round(0xFF392B31, 8));
-
-            LinearLayout labels = new LinearLayout(this);
-            labels.setOrientation(LinearLayout.VERTICAL);
-            TextView name = button(item.emoji + " " + item.name, 0xFFF1E5D9, 9);
-            name.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-            name.setSingleLine(true);
-            name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            TextView countdown = smallInfoText("");
-            countdown.setSingleLine(true);
-            LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(-1, dp(17));
-            labels.addView(name, nameParams);
-            labels.addView(countdown, new LinearLayout.LayoutParams(-1, dp(15)));
-            row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
-
-            TextView restart = button("↻", CREAM, 13);
-            restart.setBackground(round(0xFF526A4D, 8));
-            restart.setVisibility(View.GONE);
-            restart.setContentDescription("Виконавши дію, перезапусти таймер «" + item.name + "»");
-            restart.setOnClickListener(view -> {
-                TimerStore.restartTimer(this, item.id);
-                refreshTimerPanel();
-            });
-            row.addView(restart, new LinearLayout.LayoutParams(dp(32), dp(30)));
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
-            rowParams.bottomMargin = dp(4);
-            timerRowsContainer.addView(row, rowParams);
-            timerRows.add(new TimerRow(item, countdown, restart));
-        }
-
-        if (items.isEmpty()) {
-            TextView empty = smallInfoText("Немає таймерів · додай їх у застосунку");
-            empty.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
-            timerRowsContainer.addView(empty, new LinearLayout.LayoutParams(-1, dp(43)));
-        }
-        int visibleCount = Math.max(1, Math.min(3, items.size()));
-        View scroll = timerRowsContainer.getParent() instanceof View ? (View) timerRowsContainer.getParent() : null;
-        if (scroll != null && scroll.getLayoutParams() != null) {
-            scroll.getLayoutParams().height = dp(items.isEmpty() ? 42 : visibleCount * 42);
-            scroll.requestLayout();
-        }
-        renderedTimerRevision = TimerStore.getRevision(this);
-    }
-
-    private void updateCompactTimerPreview(long now) {
-        List<TimerItem> items = TimerStore.getTimers(this);
-        TimerItem selected = null;
-        for (TimerItem item : items) {
-            if (item.isReady(now)) {
-                if (selected == null || !selected.isReady(now)
-                        || item.deadlineElapsedMs < selected.deadlineElapsedMs) selected = item;
-            } else if (selected == null || (!selected.isReady(now)
-                    && item.deadlineElapsedMs < selected.deadlineElapsedMs)) {
-                selected = item;
-            }
-        }
-        if (selected == null) {
-            compactTimerSelectedId = null;
-            compactTimerTitle.setText("Немає таймерів");
-            compactTimerCountdown.setText("Додай таймер у застосунку");
-            compactTimerRestart.setVisibility(View.GONE);
-            compactTimerRestart.setOnClickListener(null);
-            return;
-        }
-        compactTimerSelectedId = selected.id;
-        boolean ready = selected.isReady(now);
-        compactTimerTitle.setText(selected.emoji + " " + selected.name);
-        compactTimerCountdown.setText(ready ? "ГОТОВО · виконай дію"
-                : formatTimerDuration(selected.deadlineElapsedMs - now));
-        compactTimerCountdown.setTextColor(ready ? 0xFF9DD09E : 0xFFD4B7BF);
-        compactTimerRestart.setVisibility(ready ? View.VISIBLE : View.GONE);
-        compactTimerRestart.setOnClickListener(view -> restartCompactTimer());
-    }
-
-    private void restartCompactTimer() {
-        String selectedId = compactTimerSelectedId;
-        if (selectedId != null && TimerStore.restartTimer(this, selectedId)) refreshTimerPanel();
-    }
-
-    private String formatTimerDuration(long durationMs) {
-        long seconds = Math.max(0L, (durationMs + 999L) / 1_000L);
-        long days = seconds / 86_400L;
-        long hours = (seconds % 86_400L) / 3_600L;
-        long minutes = (seconds % 3_600L) / 60L;
-        long remainder = seconds % 60L;
-        if (days > 0L) return String.format(java.util.Locale.ROOT, "%dд %02d:%02d:%02d", days, hours, minutes, remainder);
-        if (hours > 0L) return String.format(java.util.Locale.ROOT, "%02d:%02d:%02d", hours, minutes, remainder);
-        return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes, remainder);
-    }
-
-    private static final class TimerRow {
-        final TimerItem item;
-        final TextView countdown;
-        final TextView restart;
-
-        TimerRow(TimerItem item, TextView countdown, TextView restart) {
-            this.item = item;
-            this.countdown = countdown;
-            this.restart = restart;
-        }
-    }
-
-
     private View.OnTouchListener createDragListener(boolean clickOnTap) {
         return new View.OnTouchListener() {
             private float downX;
@@ -840,7 +600,6 @@ public final class TapAccessibilityService extends AccessibilityService {
     private void setDiagnosticsExpanded(boolean expanded) {
         diagnosticsExpanded = expanded;
         ClickerPreferences.setDiagnosticsExpanded(this, panelProfile, expanded);
-        if (expanded) refreshTimerPanel();
         updatePanelContentVisibility();
     }
 
@@ -866,7 +625,6 @@ public final class TapAccessibilityService extends AccessibilityService {
             Toast.makeText(this, "Автогра потребує Android 11 або новішу версію", Toast.LENGTH_LONG).show();
             return;
         }
-        if (timerMode) setTimerMode(false);
         if (autoPlaying) return;
         int currentRun = ++runGeneration;
         autoPlaying = true;
@@ -1539,7 +1297,7 @@ public final class TapAccessibilityService extends AccessibilityService {
 
     private void updatePanel() {
         if (autoPlaying) updatePanel("АВТО · ХІД " + moveCount);
-        else updatePanel(timerMode ? "Таймери" : "Готовий");
+        else updatePanel("Готовий");
     }
 
     private void updatePanel(String label) {
@@ -1549,7 +1307,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             playButton.setBackground(round(autoPlaying ? 0xFF78504E : 0xFF526A4D, 10));
             playButton.setContentDescription((autoPlaying ? "Зупинити" : "Запустити")
                     + " бота «" + ClickerCatalog.get(activeMode).name + "»");
-            playButton.setVisibility(timerMode && !autoPlaying ? View.GONE : View.VISIBLE);
+            playButton.setVisibility(View.VISIBLE);
         }
         updatePanelAppearance();
     }
@@ -1562,14 +1320,13 @@ public final class TapAccessibilityService extends AccessibilityService {
         panel.setBackground(background);
         if (stateChip != null) stateChip.setBackground(round(autoPlaying ? 0xFF3D5540 : 0xFF49353C, 10));
         if (bubbleButton != null) {
-            bubbleButton.setContentDescription((timerMode ? "Таймери" : module.name) + ". "
+            bubbleButton.setContentDescription((module.name) + ". "
                     + (autoPlaying ? "Бот працює" : "Бот зупинений") + ". Натисни, щоб розгорнути панель.");
         }
     }
 
     private void closePanel() {
         savePanelPlacement();
-        handler.removeCallbacks(timerTicker);
         stopAutoPlay("Зупинено");
         if (panel != null && windowManager != null) {
             try { windowManager.removeView(panel); } catch (IllegalArgumentException ignored) { }
@@ -1595,16 +1352,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         blitzBoardGrid = null;
         mergeBoardGrid = null;
         diagnosticsPanel = null;
-        timerPanel = null;
-        timerRowsContainer = null;
-        compactTimerPreview = null;
-        compactTimerTitle = null;
-        compactTimerCountdown = null;
-        compactTimerRestart = null;
-        compactTimerSelectedId = null;
-        timerRows.clear();
-        renderedTimerRevision = -1L;
-        timerMode = false;
         diagnosticsExpanded = false;
     }
 
