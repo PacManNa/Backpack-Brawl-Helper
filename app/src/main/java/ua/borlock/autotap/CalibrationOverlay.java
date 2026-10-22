@@ -158,8 +158,8 @@ final class CalibrationOverlay {
     }
 
     private static final int CREAM = 0xFFF8ECDA;
-    private static final int GREEN = 0xFF526A4D;
-    private static final int ROSE = 0xFF78504E;
+    private static final int GREEN = 0xFF347451;
+    private static final int ROSE = 0xFF71414D;
     private static final int PURPLE = 0xFF59445B;
 
     private String t(int id, Object... args) {

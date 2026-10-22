@@ -3,10 +3,10 @@
     <string name="bot_start_description">Запустити бота «%1$s»</string>
     <string name="bot_stop_description">Зупинити бота «%1$s»</string>
     <string name="timer_activity_label">Таймери</string>
-    <string name="app_name">"Пелюстка"</string>
-    <string name="accessibility_service_name">"Пелюстка — керування грою"</string>
+    <string name="app_name">"PackMate"</string>
+    <string name="accessibility_service_name">"PackMate — керування грою"</string>
     <string name="accessibility_service_description">"Після запуску вибраного модуля читає його ігрове поле та виконує свайпи. Доступні «Рюкзак-Бліц» і «Злиття Божевілля». Знімки обробляються на пристрої та не зберігаються."</string>
-    <string name="header_tagline">"КЛІКЕРИ ТА НАГАДУВАННЯ"</string>
+    <string name="header_tagline">"ІГРОВИЙ ПОМІЧНИК"</string>
     <string name="section_clickers">"КЛІКЕРИ"</string>
     <string name="clickers_hint">"Натисни назву, щоб відкрити керування."</string>
     <string name="footer_local">" · Обробка на телефоні"</string>
@@ -20,7 +20,7 @@
     <string name="enable_access">"Увімкнути доступ"</string>
     <string name="app_settings">"Налаштування застосунку"</string>
     <string name="show_service_help">"Не бачиш сервіс у списку?  Показати інструкцію  ⌄"</string>
-    <string name="service_help">"На Android 13+ відкрий налаштування застосунку → ⋮ → «Дозволити обмежені налаштування». Потім повернись у Доступність → встановлені програми та ввімкни «Пелюстка — керування грою»."</string>
+    <string name="service_help">"На Android 13+ відкрий налаштування застосунку → ⋮ → «Дозволити обмежені налаштування». Потім повернись у Доступність → встановлені програми та ввімкни «PackMate — керування грою»."</string>
     <string name="wait_for_board">"Очікування зміни поля"</string>
     <string name="wait_for_board_hint">"Час до повтору свайпу без змін поля"</string>
     <string name="interval_default">"0,9 с"</string>
@@ -47,7 +47,7 @@
     <string name="configure_access">"Налаштувати доступ  →"</string>
     <string name="hide_service_help">"Сховати інструкцію  ⌃"</string>
     <string name="open_accessibility_toast">"Відкрий налаштування доступності Android"</string>
-    <string name="open_app_settings_toast">"Відкрий налаштування Пелюстки зі списку програм"</string>
+    <string name="open_app_settings_toast">"Відкрий налаштування PackMate зі списку програм"</string>
     <string name="return_after_access">"Повернись сюди після ввімкнення сервісу й відкрий панель ще раз"</string>
     <string name="panel_open_toast">"Панель відкрито — можна переходити до гри"</string>
     <string name="interval_seconds">"%.1f с"</string>
@@ -103,7 +103,7 @@
     <string name="exact_alarms_disabled_hint">"Для точного часу дозволь «Будильники й нагадування». Зараз Android може затримувати сповіщення."</string>
     <string name="exact_alarms_already_allowed">"Точні нагадування вже дозволені"</string>
     <string name="floating_menu">"Плаваюче меню"</string>
-    <string name="timer_accessibility_help">"Для вікна поверх гри ввімкни службу Пелюстки в налаштуваннях доступності. Звичайні таймери й сповіщення працюють окремо."</string>
+    <string name="timer_accessibility_help">"Для вікна поверх гри ввімкни службу PackMate в налаштуваннях доступності. Звичайні таймери й сповіщення працюють окремо."</string>
     <string name="later">"Пізніше"</string>
     <string name="open_settings">"Відкрити налаштування"</string>
     <string name="hours">"Години"</string>

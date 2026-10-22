@@ -1,19 +1,20 @@
-# 🌸 Pelyustka
+# 🎒 PackMate
 
-**An offline Android helper for Backpack Brawl.** Pelyustka recognizes the
-game board on your phone and automates moves in **Backpack Blitz** and
+**PackMate is an offline, unofficial Android companion for Backpack Brawl.**
+It recognizes the game board on your phone and automates moves in **Backpack Blitz** and
 **Merge Madness**. It also reminds you when timed game rewards are ready.
 
 <p align="center">
-  <a href="https://github.com/PacManNa/Backpack-Brawl-Helper/raw/refs/heads/main/downloads/Pelyustka-1.9.45.apk"><strong>⬇ Download APK 1.9.45</strong></a>
+  <a href="https://github.com/PacManNa/Backpack-Brawl-Helper/releases/download/v1.9.46/PackMate-1.9.46.apk"><strong>⬇ Download APK 1.9.46</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/USAGE.md">User guide</a>
   &nbsp;·&nbsp;
   <a href="docs/BUILDING.md">Build guide</a>
 </p>
 
-Download the [APK 1.9.45](https://github.com/PacManNa/Backpack-Brawl-Helper/raw/refs/heads/main/downloads/Pelyustka-1.9.45.apk) once and install it from your phone. **The APK installs
-offline, and the app does not request internet access.**
+Download the [APK 1.9.46](https://github.com/PacManNa/Backpack-Brawl-Helper/releases/download/v1.9.46/PackMate-1.9.46.apk) once and install it from your phone. **The APK installs offline, and the app does not request internet access.**
+
+> PackMate is an independent community project and is not affiliated with or endorsed by the game developers.
 
 ## 🎮 Game modes
 
@@ -57,8 +58,8 @@ when a countdown finishes.
 1. Download the APK from [GitHub Releases](https://github.com/PacManNa/Backpack-Brawl-Helper/releases/latest) to your Android phone.
 2. Open the downloaded APK. If Android asks, allow your browser or file manager
    to install unknown apps, then return to the installer.
-3. Install Pelyustka and open it. No network connection is needed for installation.
-4. In Pelyustka, tap **Android permission** and enable **Pelyustka — game
+3. Install PackMate and open it. No network connection is needed for installation.
+4. In PackMate, tap **Android permission** and enable **PackMate — game
    control** in Android Accessibility settings.
 5. Return to the app, expand a module, tap **Open panel**, open the matching
    minigame, and tap **Start** after the board settles.
@@ -95,7 +96,7 @@ the predicted next-tile spawn.
 - [Adding modules](docs/MODULES.md)
 - [Future clicker ideas](docs/ROADMAP.md)
 - [Merge Madness rank-15 strategy](docs/ALGORITHMS-LEVEL15.md)
-- [Localization](docs/LOCALIZATION-1.9.45.md)
+- [Localization](docs/LOCALIZATION-1.9.46.md)
 - [Build and signing guide](docs/BUILDING.md)
 
 The project has no license file, so code reuse terms are unspecified.

@@ -54,11 +54,11 @@ public final class TapAccessibilityService extends AccessibilityService {
     private static final long MIN_POST_SWIPE_SETTLE_MS = 120L;
     private static final long MIN_SCREENSHOT_INTERVAL_MS = 334L;
     private static final float COMPACT_CONTROL_HEIGHT_DP = 48f * 0.60f;
-    private static final int PLUM = Color.rgb(48, 32, 38);
-    private static final int ROSE = Color.rgb(218, 139, 147);
-    private static final int CREAM = Color.rgb(248, 236, 218);
-    private static final int GREEN = Color.rgb(126, 174, 116);
-    private static final int EMPTY_CELL = Color.rgb(56, 39, 45);
+    private static final int PLUM = Color.rgb(23, 29, 42);
+    private static final int ROSE = Color.rgb(240, 126, 140);
+    private static final int CREAM = Color.rgb(246, 244, 237);
+    private static final int GREEN = Color.rgb(108, 203, 151);
+    private static final int EMPTY_CELL = Color.rgb(35, 42, 55);
     private static final int[] GEM_COLORS = {
             EMPTY_CELL, 0xFFE74958, 0xFF45BD68, 0xFFF4C542, 0xFFBD5AD8, 0xFF3BBDE2,
             0xFF35C9C2, 0xFFEA853D, 0xFFE9A438, 0xFF484B58, 0xFF9A58D1
@@ -298,9 +298,9 @@ public final class TapAccessibilityService extends AccessibilityService {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(7), dp(5), dp(7), dp(6));
         GradientDrawable panelBackground = new GradientDrawable();
-        panelBackground.setColor(0xF52F2025);
+        panelBackground.setColor(0xF51D222D);
         panelBackground.setCornerRadius(dp(17));
-        panelBackground.setStroke(dp(1), 0xCC9E7078);
+        panelBackground.setStroke(dp(1), 0xCC53647B);
         root.setBackground(panelBackground);
         root.setElevation(dp(8));
 
@@ -330,14 +330,14 @@ public final class TapAccessibilityService extends AccessibilityService {
         TextView dragHint = smallInfoText(t(R.string.drag_handle));
         dragHint.setPadding(dp(5), dp(2), 0, 0);
         dragHint.setSingleLine(true);
-        dragHint.setTextColor(0xFFD4B7BF);
+        dragHint.setTextColor(0xFFAEB7C4);
         dragHandle.addView(dragHint, new LinearLayout.LayoutParams(-1, -2));
         titleRow.addView(dragHandle, new LinearLayout.LayoutParams(0, -2, 1f));
 
         TextView minimize = button(t(R.string.minimize), CREAM, 10);
         minimize.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
         minimize.setContentDescription(t(R.string.bot_minimize_description));
-        minimize.setBackground(round(0xFF49353C, 10));
+        minimize.setBackground(round(0xFF272D3A, 12));
         minimize.setOnClickListener(view -> setCollapsedToBubble(true));
         titleRow.addView(minimize, new LinearLayout.LayoutParams(dp(68), -2));
         TextView close = button("×", CREAM, 30);
@@ -349,7 +349,7 @@ public final class TapAccessibilityService extends AccessibilityService {
 
         stateChip = button(t(R.string.ready), CREAM, 10);
         stateChip.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        stateChip.setBackground(round(0xFF49353C, 10));
+        stateChip.setBackground(round(0xFF272D3A, 12));
         stateChip.setSingleLine(true);
         stateChip.setEllipsize(android.text.TextUtils.TruncateAt.END);
         stateChip.setClickable(false);
@@ -362,12 +362,12 @@ public final class TapAccessibilityService extends AccessibilityService {
         controlRow.setGravity(Gravity.CENTER_VERTICAL);
         detailsToggle = button(t(R.string.show_board), CREAM, 11);
         detailsToggle.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
-        detailsToggle.setBackground(round(0xFF49353C, 10));
+        detailsToggle.setBackground(round(0xFF272D3A, 12));
         detailsToggle.setOnClickListener(view -> setDiagnosticsExpanded(!diagnosticsExpanded));
         controlRow.addView(detailsToggle, new LinearLayout.LayoutParams(0, -2, 1f));
         playButton = button(t(R.string.start_short), CREAM, 11);
         playButton.setMinHeight(dp(COMPACT_CONTROL_HEIGHT_DP));
-        playButton.setBackground(round(0xFF526A4D, 10));
+        playButton.setBackground(round(0xFF347451, 12));
         playButton.setOnClickListener(view -> {
             if (autoPlaying) stopAutoPlay(t(R.string.stopped));
             else startAutoPlay();
@@ -386,12 +386,12 @@ public final class TapAccessibilityService extends AccessibilityService {
         blitzBoardGrid = new LinearLayout(this);
         blitzBoardGrid.setOrientation(LinearLayout.VERTICAL);
         blitzBoardGrid.setPadding(dp(2), dp(1), dp(2), dp(1));
-        blitzBoardGrid.setBackground(round(0xFF21171B, 9));
+        blitzBoardGrid.setBackground(round(0xFF141A24, 10));
         for (int row = 0; row < GameBoard.SIDE; row++) {
             LinearLayout boardRow = new LinearLayout(this);
             boardRow.setOrientation(LinearLayout.HORIZONTAL);
             for (int column = 0; column < GameBoard.SIDE; column++) {
-                TextView cell = button("·", 0xFF937D80, 7);
+                TextView cell = button("·", 0xFF8994A5, 7);
                 cell.setBackground(round(EMPTY_CELL, 3));
                 cell.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
                 boardCells[row][column] = cell;
@@ -407,12 +407,12 @@ public final class TapAccessibilityService extends AccessibilityService {
         mergeBoardGrid = new LinearLayout(this);
         mergeBoardGrid.setOrientation(LinearLayout.VERTICAL);
         mergeBoardGrid.setPadding(dp(2), dp(1), dp(2), dp(1));
-        mergeBoardGrid.setBackground(round(0xFF21171B, 9));
+        mergeBoardGrid.setBackground(round(0xFF141A24, 10));
         for (int row = 0; row < MergeMadnessBoard.SIDE; row++) {
             LinearLayout boardRow = new LinearLayout(this);
             boardRow.setOrientation(LinearLayout.HORIZONTAL);
             for (int column = 0; column < MergeMadnessBoard.SIDE; column++) {
-                TextView cell = button("·", 0xFF937D80, 10);
+                TextView cell = button("·", 0xFF8994A5, 10);
                 cell.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
                 cell.setBackground(round(EMPTY_CELL, 4));
                 mergeBoardCells[row][column] = cell;
@@ -681,7 +681,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 for (int column = 0; column < GameBoard.SIDE; column++) {
                     TextView cell = boardCells[row][column];
                     cell.setText("·");
-                    cell.setTextColor(0xFF937D80);
+                    cell.setTextColor(0xFF8994A5);
                     cell.setBackground(round(EMPTY_CELL, 5));
                     displayedBlitzColors[row * GameBoard.SIDE + column] = 0;
                 }
@@ -692,7 +692,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 for (int column = 0; column < MergeMadnessBoard.SIDE; column++) {
                     TextView cell = mergeBoardCells[row][column];
                     cell.setText("·");
-                    cell.setTextColor(0xFF937D80);
+                    cell.setTextColor(0xFF8994A5);
                     cell.setBackground(round(EMPTY_CELL, 4));
                 }
             }
@@ -1175,7 +1175,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 TextView cell = boardCells[row][column];
                 if (color == 0) {
                     cell.setText("·");
-                    cell.setTextColor(0xFF937D80);
+                    cell.setTextColor(0xFF8994A5);
                     cell.setBackground(round(EMPTY_CELL, 5));
                 } else {
                     cell.setText(GEM_LABELS[color]);
@@ -1205,7 +1205,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 TextView cell = mergeBoardCells[row][column];
                 if (rank == 0) {
                     cell.setText("·");
-                    cell.setTextColor(0xFF937D80);
+                    cell.setTextColor(0xFF8994A5);
                     cell.setBackground(round(EMPTY_CELL, 4));
                 } else {
                     occupied++;
@@ -1241,14 +1241,14 @@ public final class TapAccessibilityService extends AccessibilityService {
                 if (!result.recognizedCells[index]) {
                     cell.setText("?");
                     cell.setTextColor(0xFFFFD4BA);
-                    cell.setBackground(round(0xFF49343A, 4));
+                    cell.setBackground(round(0xFF49313B, 4));
                     continue;
                 }
                 known++;
                 int rank = result.partialRanks[index];
                 if (rank == 0) {
                     cell.setText("·");
-                    cell.setTextColor(0xFF937D80);
+                    cell.setTextColor(0xFF8994A5);
                     cell.setBackground(round(EMPTY_CELL, 4));
                 } else {
                     occupied++;
@@ -1279,7 +1279,7 @@ public final class TapAccessibilityService extends AccessibilityService {
                 for (TextView cell : row) {
                     cell.setText("?");
                     cell.setTextColor(0xFFFFD4BA);
-                    cell.setBackground(round(0xFF49343A, 4));
+                    cell.setBackground(round(0xFF49313B, 4));
                 }
             }
         }
@@ -1326,7 +1326,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (stateChip != null) stateChip.setText(t(R.string.state_prefix) + label);
         if (playButton != null) {
             playButton.setText(autoPlaying ? t(R.string.stop_short) : t(R.string.start_short));
-            playButton.setBackground(round(autoPlaying ? 0xFF78504E : 0xFF526A4D, 10));
+            playButton.setBackground(round(autoPlaying ? 0xFF71414D : 0xFF347451, 12));
             playButton.setContentDescription(t(autoPlaying ? R.string.bot_stop_description
                     : R.string.bot_start_description, t(ClickerCatalog.get(activeMode).nameRes)));
             playButton.setVisibility(View.VISIBLE);
@@ -1337,10 +1337,10 @@ public final class TapAccessibilityService extends AccessibilityService {
     private void updatePanelAppearance() {
         if (panel == null) return;
         ClickerModule module = ClickerCatalog.get(activeMode);
-        GradientDrawable background = round(0xF52F2025, collapsedToBubble ? 31 : 17);
-        background.setStroke(dp(1), autoPlaying ? 0xFF7EAE74 : module.theme.border);
+        GradientDrawable background = round(0xF51D222D, collapsedToBubble ? 31 : 20);
+        background.setStroke(dp(1), autoPlaying ? 0xFF6CCB97 : module.theme.border);
         panel.setBackground(background);
-        if (stateChip != null) stateChip.setBackground(round(autoPlaying ? 0xFF3D5540 : 0xFF49353C, 10));
+        if (stateChip != null) stateChip.setBackground(round(autoPlaying ? 0xFF1C382F : 0xFF272D3A, 12));
         if (bubbleButton != null) {
             bubbleButton.setContentDescription((t(module.nameRes)) + ". "
                     + (autoPlaying ? t(R.string.bot_running) : t(R.string.bot_stopped)) + t(R.string.expand_panel_hint_suffix));

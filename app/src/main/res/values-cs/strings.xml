@@ -3,10 +3,10 @@
     <string name="bot_start_description">Spustit bota „%1$s“</string>
     <string name="bot_stop_description">Zastavit bota „%1$s“</string>
     <string name="timer_activity_label">Časovače</string>
-    <string name="app_name">"Pelyustka"</string>
-    <string name="accessibility_service_name">"Pelyustka — ovládání hry"</string>
+    <string name="app_name">"PackMate"</string>
+    <string name="accessibility_service_name">"PackMate — ovládání hry"</string>
     <string name="accessibility_service_description">"Po spuštění vybraného modulu čte herní plochu a provádí tahy. K dispozici jsou Backpack Blitz a Merge Madness. Snímky se zpracovávají v zařízení a neukládají se."</string>
-    <string name="header_tagline">"KLIKERY A PŘIPOMÍNKY"</string>
+    <string name="header_tagline">"HERNÍ SPOLEČNÍK"</string>
     <string name="section_clickers">"KLIKERY"</string>
     <string name="clickers_hint">"Klepnutím na název otevřeš ovládání."</string>
     <string name="footer_local">" · Zpracování v telefonu"</string>
@@ -20,7 +20,7 @@
     <string name="enable_access">"Povolit přístup"</string>
     <string name="app_settings">"Nastavení aplikace"</string>
     <string name="show_service_help">"Služba není v seznamu?  Zobrazit návod  ⌄"</string>
-    <string name="service_help">"Na Androidu 13 a novějším otevři nastavení aplikace → ⋮ → „Povolit omezená nastavení“. Potom se vrať do Usnadnění → nainstalované aplikace a zapni „Pelyustka — ovládání hry“."</string>
+    <string name="service_help">"Na Androidu 13 a novějším otevři nastavení aplikace → ⋮ → „Povolit omezená nastavení“. Potom se vrať do Usnadnění → nainstalované aplikace a zapni „PackMate — ovládání hry“."</string>
     <string name="wait_for_board">"Čekání na změnu plochy"</string>
     <string name="wait_for_board_hint">"Prodleva před opakováním tahu beze změny plochy"</string>
     <string name="interval_default">"0,9 s"</string>
@@ -47,7 +47,7 @@
     <string name="configure_access">"Nastavit přístup  →"</string>
     <string name="hide_service_help">"Skrýt návod  ⌃"</string>
     <string name="open_accessibility_toast">"Otevři nastavení usnadnění Androidu"</string>
-    <string name="open_app_settings_toast">"Otevři nastavení Pelyustky v seznamu aplikací"</string>
+    <string name="open_app_settings_toast">"Otevři nastavení PackMate v seznamu aplikací"</string>
     <string name="return_after_access">"Po zapnutí služby se vrať sem a znovu otevři panel"</string>
     <string name="panel_open_toast">"Panel je otevřený — můžeš přejít do hry"</string>
     <string name="interval_seconds">"%.1f s"</string>
@@ -103,7 +103,7 @@
     <string name="exact_alarms_disabled_hint">"Pro přesný čas povol „Budíky a připomenutí“. Bez tohoto oprávnění může Android oznámení zpozdit."</string>
     <string name="exact_alarms_already_allowed">"Přesné připomínky už jsou povoleny"</string>
     <string name="floating_menu">"Plovoucí nabídka"</string>
-    <string name="timer_accessibility_help">"Pro okno nad hrou zapni službu Pelyustky v nastavení usnadnění. Běžné časovače a oznámení fungují samostatně."</string>
+    <string name="timer_accessibility_help">"Pro okno nad hrou zapni službu PackMate v nastavení usnadnění. Běžné časovače a oznámení fungují samostatně."</string>
     <string name="later">"Později"</string>
     <string name="open_settings">"Otevřít nastavení"</string>
     <string name="hours">"Hodiny"</string>

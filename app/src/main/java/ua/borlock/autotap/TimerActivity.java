@@ -31,9 +31,9 @@ import java.util.List;
 
 /** Reward timer definitions, countdown controls and notification setup. */
 public final class TimerActivity extends LocalizedActivity {
-    private static final int BG = 0xFF191519, CARD = 0xFF2B242B, SOFT = 0xFF372D35;
-    private static final int BORDER = 0xFF52404B, CREAM = 0xFFF8EFE4, MUTED = 0xFFBEB1B9;
-    private static final int ROSE = 0xFFE48F99, GOLD = 0xFFF4C27E, GREEN = 0xFF99CCA0;
+    private static final int BG = 0xFF12151E, CARD = 0xFF1D222D, SOFT = 0xFF272D3A;
+    private static final int BORDER = 0xFF37404F, CREAM = 0xFFF6F4ED, MUTED = 0xFFAEB7C4;
+    private static final int ROSE = 0xFFF07E8C, GOLD = 0xFFF6BE5B, GREEN = 0xFF6CCB97;
     private static final int NOTIFICATION_REQUEST = 91;
     private static final String[] EMOJIS = {
             "🎟️", "💎", "🪙", "🦴", "🎁", "📦", "⏱️", "🌱", "🌾", "🍄", "🐝", "🎃", "🌳"
@@ -108,13 +108,13 @@ public final class TimerActivity extends LocalizedActivity {
                 return insets;
             });
         }
-        content.addView(text(t(R.string.timer_screen_title), 23, CREAM, true));
+        content.addView(text(t(R.string.timer_screen_title), 25, CREAM, true));
         content.addView(text(t(R.string.timer_screen_hint),
-                13, MUTED, false), margin(-1, -2, 0, 9, 0, 14));
+                13, MUTED, false), margin(-1, -2, 0, 8, 0, 18));
 
         LinearLayout settings = column();
         settings.setPadding(dp(12), dp(12), dp(12), dp(12));
-        settings.setBackground(shape(CARD, BORDER, 14));
+        settings.setBackground(shape(CARD, BORDER, 20));
         TextView heading = text(t(R.string.timer_setup), 14, CREAM, true);
         settings.addView(heading);
         LinearLayout settingsBody = column();
@@ -137,7 +137,7 @@ public final class TimerActivity extends LocalizedActivity {
                     getSharedPreferences(TapAccessibilityService.PREFS, MODE_PRIVATE).edit()
                             .putBoolean("timer_setup_expanded", expanded).apply();
                 });
-        content.addView(settings, margin(-1, -2, 0, 0, 0, 12));
+        content.addView(settings, margin(-1, -2, 0, 0, 0, 16));
 
         LinearLayout actions = new LinearLayout(this);
         TextView add = action(t(R.string.add_timer), ROSE, BG, 13);

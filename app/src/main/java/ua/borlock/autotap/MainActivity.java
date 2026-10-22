@@ -17,6 +17,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -27,17 +28,18 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 
 public final class MainActivity extends LocalizedActivity {
-    private static final int BG = Color.rgb(25, 21, 25);
-    private static final int CARD = Color.rgb(43, 36, 43);
-    private static final int CARD_SOFT = Color.rgb(55, 45, 53);
-    private static final int BORDER = Color.rgb(82, 64, 75);
-    private static final int CREAM = Color.rgb(248, 239, 228);
-    private static final int MUTED = Color.rgb(190, 177, 185);
-    private static final int ROSE = Color.rgb(228, 143, 153);
-    private static final int GOLD = Color.rgb(244, 194, 126);
-    private static final int GREEN = Color.rgb(153, 204, 160);
+    private static final int BG = Color.rgb(18, 21, 30);
+    private static final int CARD = Color.rgb(29, 34, 45);
+    private static final int CARD_SOFT = Color.rgb(39, 45, 58);
+    private static final int BORDER = Color.rgb(55, 64, 79);
+    private static final int CREAM = Color.rgb(246, 244, 237);
+    private static final int MUTED = Color.rgb(174, 183, 196);
+    private static final int ROSE = Color.rgb(240, 126, 140);
+    private static final int GOLD = Color.rgb(246, 190, 91);
+    private static final int GREEN = Color.rgb(108, 203, 151);
 
     private TextView serviceState;
+    private TextView serviceIcon;
     private TextView serviceDetail;
     private TextView permissionButton;
     private TextView serviceHelp;
@@ -102,10 +104,10 @@ public final class MainActivity extends LocalizedActivity {
             });
         }
 
-        content.addView(buildHeader(), margin(-1, -2, 0, 4, 0, 14));
-        content.addView(buildBotsSection(), margin(-1, -2, 0, 0, 0, 12));
-        content.addView(buildTimerCard(), margin(-1, -2, 0, 0, 0, 12));
-        content.addView(buildPermissionCard(), margin(-1, -2, 0, 0, 0, 12));
+        content.addView(buildHeader(), margin(-1, -2, 0, 4, 0, 18));
+        content.addView(buildPermissionCard(), margin(-1, -2, 0, 0, 0, 18));
+        content.addView(buildBotsSection(), margin(-1, -2, 0, 0, 0, 18));
+        content.addView(buildTimerCard(), margin(-1, -2, 0, 0, 0, 18));
         content.addView(buildStepsCard(), margin(-1, -2, 0, 0, 0, 14));
         TextView footer = text("v" + versionName() + t(R.string.footer_local), 12, MUTED, false);
         footer.setGravity(Gravity.CENTER);
@@ -118,15 +120,16 @@ public final class MainActivity extends LocalizedActivity {
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView flower = text("✿", 27, GOLD, true);
-        flower.setGravity(Gravity.CENTER);
-        flower.setBackground(shape(CARD_SOFT, BORDER, 16));
-        row.addView(flower, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        ImageView mark = new ImageView(this);
+        mark.setImageResource(R.drawable.ic_packmate);
+        mark.setContentDescription(t(R.string.app_name));
+        mark.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        row.addView(mark, new LinearLayout.LayoutParams(dp(52), dp(52)));
 
         LinearLayout labels = column();
         labels.setPadding(dp(12), 0, 0, 0);
-        labels.addView(text(t(R.string.app_name), 22, CREAM, true));
-        labels.addView(text(t(R.string.header_tagline), 10, MUTED, true), margin(-1, -2, 0, 3, 0, 0));
+        labels.addView(text(t(R.string.app_name), 23, CREAM, true));
+        labels.addView(text(t(R.string.header_tagline), 10, MUTED, true), margin(-1, -2, 0, 4, 0, 0));
         row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
 
         TextView language = actionText(AppLanguage.buttonLabel(this), CARD_SOFT, CREAM, BORDER, 11);
@@ -137,7 +140,7 @@ public final class MainActivity extends LocalizedActivity {
             TimerNotificationReceiver.refreshLanguage(this);
             recreate();
         });
-        LinearLayout.LayoutParams languageParams = new LinearLayout.LayoutParams(dp(58), dp(36));
+        LinearLayout.LayoutParams languageParams = new LinearLayout.LayoutParams(dp(64), dp(40));
         languageParams.setMargins(dp(6), 0, dp(6), 0);
         row.addView(language, languageParams);
 
@@ -168,7 +171,7 @@ public final class MainActivity extends LocalizedActivity {
         int accent = theme.accent;
         int border = theme.border;
         LinearLayout card = column();
-        card.setPadding(dp(15), dp(14), dp(15), dp(13));
+        card.setPadding(dp(16), dp(16), dp(16), dp(15));
         card.setBackground(gradient(new int[]{theme.gradientStart, theme.gradientEnd},
                 border, 20));
 
@@ -229,14 +232,23 @@ public final class MainActivity extends LocalizedActivity {
 
     private View buildTimerCard() {
         LinearLayout card = column();
-        card.setPadding(dp(16), dp(15), dp(16), dp(15));
-        card.setBackground(shape(CARD, BORDER, 20));
-        card.addView(text(t(R.string.reminder_title), 17, CREAM, true));
-        TextView details = text(t(R.string.reminder_summary), 13, MUTED, false);
-        card.addView(details, margin(-1, -2, 0, 5, 0, 12));
-        TextView open = actionText(t(R.string.configure_timers), GOLD, BG, GOLD, 13);
+        card.setPadding(dp(18), dp(18), dp(18), dp(17));
+        card.setBackground(shape(CARD, BORDER, 22));
+        LinearLayout title = new LinearLayout(this);
+        title.setGravity(Gravity.CENTER_VERTICAL);
+        TextView icon = text("⏱", 23, GOLD, true);
+        icon.setGravity(Gravity.CENTER);
+        icon.setBackground(shape(CARD_SOFT, BORDER, 14));
+        title.addView(icon, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        LinearLayout labels = column();
+        labels.setPadding(dp(12), 0, 0, 0);
+        labels.addView(text(t(R.string.reminder_title), 17, CREAM, true));
+        labels.addView(text(t(R.string.reminder_summary), 12, MUTED, false), margin(-1, -2, 0, 3, 0, 0));
+        title.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+        card.addView(title, margin(-1, -2, 0, 0, 0, 14));
+        TextView open = actionText(t(R.string.configure_timers), GOLD, BG, GOLD, 15);
         open.setOnClickListener(v -> startActivity(new Intent(this, TimerActivity.class)));
-        card.addView(open, new LinearLayout.LayoutParams(-1, dp(44)));
+        card.addView(open, new LinearLayout.LayoutParams(-1, dp(48)));
         return card;
     }
 
@@ -247,10 +259,10 @@ public final class MainActivity extends LocalizedActivity {
 
         LinearLayout heading = new LinearLayout(this);
         heading.setGravity(Gravity.CENTER_VERTICAL);
-        TextView step = text("01", 12, GOLD, true);
-        step.setGravity(Gravity.CENTER);
-        step.setBackground(shape(CARD_SOFT, BORDER, 12));
-        heading.addView(step, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        serviceIcon = text("…", 18, GOLD, true);
+        serviceIcon.setGravity(Gravity.CENTER);
+        serviceIcon.setBackground(shape(CARD_SOFT, BORDER, 14));
+        heading.addView(serviceIcon, new LinearLayout.LayoutParams(dp(42), dp(42)));
         LinearLayout titles = column();
         titles.setPadding(dp(11), 0, 0, 0);
         titles.addView(text(t(R.string.android_permission), 16, CREAM, true));
@@ -394,7 +406,7 @@ public final class MainActivity extends LocalizedActivity {
     private View buildStepsCard() {
         LinearLayout card = column();
         card.setPadding(dp(16), dp(15), dp(16), dp(15));
-        card.setBackground(shape(CARD, BORDER, 20));
+        card.setBackground(shape(CARD, BORDER, 22));
         TextView heading = text(t(R.string.first_launch), 16, CREAM, true);
         heading.setGravity(Gravity.CENTER_VERTICAL);
         heading.setMinHeight(dp(48));
@@ -426,8 +438,12 @@ public final class MainActivity extends LocalizedActivity {
         for (TextView button : botLaunchButtons) {
             button.setText(enabled ? t(R.string.open_panel) : t(R.string.configure_access));
         }
-        permissionCard.setBackground(shape(enabled ? 0xFF252D28 : CARD,
-                enabled ? 0xFF526850 : BORDER, 20));
+        serviceIcon.setText(enabled ? "✓" : "! ");
+        serviceIcon.setTextColor(enabled ? GREEN : GOLD);
+        serviceIcon.setBackground(shape(enabled ? 0xFF1C382F : CARD_SOFT,
+                enabled ? 0xFF3A775D : BORDER, 14));
+        permissionCard.setBackground(shape(enabled ? 0xFF1B2B29 : CARD,
+                enabled ? 0xFF3A775D : BORDER, 22));
         updateHelpVisibility();
     }
 

@@ -3,10 +3,10 @@
     <string name="bot_start_description">Run bot "%1$s"</string>
     <string name="bot_stop_description">Stop bot "%1$s"</string>
     <string name="timer_activity_label">Timers</string>
-    <string name="app_name">"Pelyustka"</string>
-    <string name="accessibility_service_name">"Pelyustka — game control"</string>
+    <string name="app_name">"PackMate"</string>
+    <string name="accessibility_service_name">"PackMate — game control"</string>
     <string name="accessibility_service_description">"After starting the selected module, it reads its playing field and performs swipes. \"Backpack Blitz\" and \"Merge Madness\" are available. Snapshots are processed on the device and not saved."</string>
-    <string name="header_tagline">"CLICKERS AND REMINDERS"</string>
+    <string name="header_tagline">"GAME COMPANION"</string>
     <string name="section_clickers">"CLICKERS"</string>
     <string name="clickers_hint">"Tap a name to open its controls."</string>
     <string name="footer_local">" · On-device processing"</string>
@@ -20,7 +20,7 @@
     <string name="enable_access">"Enable access"</string>
     <string name="app_settings">"Application settings"</string>
     <string name="show_service_help">"Can't see the service in the list?  Show setup instructions  ⌄"</string>
-    <string name="service_help">"On Android 13 and later, open app settings → ⋮ → “Allow restricted settings”. Then return to Accessibility → installed apps and enable “Pelyustka — game control”."</string>
+    <string name="service_help">"On Android 13 and later, open app settings → ⋮ → “Allow restricted settings”. Then return to Accessibility → installed apps and enable “PackMate — game control”."</string>
     <string name="wait_for_board">"Waiting for field change"</string>
     <string name="wait_for_board_hint">"Time to swipe again without field changes"</string>
     <string name="interval_default">"0.9 s"</string>
@@ -47,7 +47,7 @@
     <string name="configure_access">"Configure access →"</string>
     <string name="hide_service_help">"Hide instructions ⌃"</string>
     <string name="open_accessibility_toast">"Open the Android accessibility settings"</string>
-    <string name="open_app_settings_toast">"Open Pelyustka settings from the app list"</string>
+    <string name="open_app_settings_toast">"Open PackMate settings from the app list"</string>
     <string name="return_after_access">"Come back here after enabling the service and open the panel again"</string>
     <string name="panel_open_toast">"Panel opened — you can switch to the game"</string>
     <string name="interval_seconds">"%.1f s"</string>
@@ -103,7 +103,7 @@
     <string name="exact_alarms_disabled_hint">"For the exact time, enable Alarms &amp; Reminders. Android can now delay notifications."</string>
     <string name="exact_alarms_already_allowed">"Exact alarms are already allowed"</string>
     <string name="floating_menu">"Floating menu"</string>
-    <string name="timer_accessibility_help">"To show a window over the game, enable Pelyustka’s accessibility service. Regular timers and notifications work independently."</string>
+    <string name="timer_accessibility_help">"To show a window over the game, enable PackMate’s accessibility service. Regular timers and notifications work independently."</string>
     <string name="later">"Later"</string>
     <string name="open_settings">"Open settings"</string>
     <string name="hours">"hours"</string>

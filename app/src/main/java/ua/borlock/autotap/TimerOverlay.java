@@ -26,7 +26,7 @@ import java.util.List;
 
 /** Independent timer window. Closing it never stops countdowns or the bot window. */
 final class TimerOverlay {
-    private static final int CREAM = 0xFFF8EFE4, MUTED = 0xFFC7B5BD, GOLD = 0xFFF4C27E, GREEN = 0xFF99CCA0;
+    private static final int CREAM = 0xFFF6F4ED, MUTED = 0xFFAEB7C4, GOLD = 0xFFF6BE5B, GREEN = 0xFF6CCB97;
     private final AccessibilityService service;
     private final WindowManager manager;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -113,7 +113,7 @@ final class TimerOverlay {
     private void createView() {
         root = column();
         root.setPadding(dp(7), dp(7), dp(7), dp(7));
-        root.setBackground(shape(0xF52F2025, 17));
+        root.setBackground(shape(0xF51D222D, 20));
         body = column();
         LinearLayout header = new LinearLayout(service);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -138,7 +138,7 @@ final class TimerOverlay {
         scroll.addView(list, new ScrollView.LayoutParams(-1, -2));
         body.addView(scroll, new LinearLayout.LayoutParams(-1, dp(276)));
         TextView manage = button(t(R.string.manage_timers), 11, GOLD);
-        manage.setBackground(shape(0xFF49353C, 9));
+        manage.setBackground(shape(0xFF272D3A, 12));
         manage.setOnClickListener(v -> {
             collapse(true);
             service.startActivity(new Intent(service, TimerActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -207,7 +207,7 @@ final class TimerOverlay {
         LinearLayout row = new LinearLayout(service);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(7), dp(6), dp(5), dp(6));
-        row.setBackground(shape(0xFF392B31, 10));
+        row.setBackground(shape(0xFF272D3A, 12));
         LinearLayout labels = column();
         TextView name = text(item.emoji + " " + AppLanguage.timerName(service, item), 11, CREAM);
         name.setMaxLines(2);
@@ -220,14 +220,14 @@ final class TimerOverlay {
         labels.addView(countdown, countdownParams);
         row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
         TextView start = button(item.isActive() ? t(R.string.restart_short) : t(R.string.start_short), 10, CREAM);
-        start.setBackground(shape(0xFF526A4D, 8));
+        start.setBackground(shape(0xFF347451, 10));
         start.setContentDescription((item.isActive() ? t(R.string.restart_prefix) : t(R.string.start_prefix)) + AppLanguage.timerName(service, item));
         start.setOnClickListener(v -> { TimerStore.restartTimer(service, item.id); refresh(); });
         LinearLayout.LayoutParams startParams = new LinearLayout.LayoutParams(dp(61), dp(34));
         startParams.leftMargin = dp(4);
         row.addView(start, startParams);
         TextView stop = button(t(R.string.stop_short), 10, CREAM);
-        stop.setBackground(shape(0xFF78504E, 8));
+        stop.setBackground(shape(0xFF713F4B, 10));
         stop.setContentDescription(t(R.string.stop_prefix) + AppLanguage.timerName(service, item));
         stop.setEnabled(item.isActive());
         stop.setAlpha(item.isActive() ? 1f : .35f);
@@ -247,7 +247,7 @@ final class TimerOverlay {
         collapsed = value;
         body.setVisibility(value ? View.GONE : View.VISIBLE);
         bubble.setVisibility(value ? View.VISIBLE : View.GONE);
-        root.setBackground(shape(0xF52F2025, value ? 24 : 17));
+        root.setBackground(shape(0xF51D222D, value ? 28 : 20));
         relayout();
         refresh();
     }
@@ -352,7 +352,7 @@ final class TimerOverlay {
     private GradientDrawable shape(int color, int radius) {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color); drawable.setCornerRadius(dp(radius));
-        drawable.setStroke(dp(1), 0xFF6F5563); return drawable;
+        drawable.setStroke(dp(1), 0xFF37404F); return drawable;
     }
     private int dp(float value) { return Math.round(value * service.getResources().getDisplayMetrics().density); }
     private static final class Row {

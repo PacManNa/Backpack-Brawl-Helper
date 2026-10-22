@@ -1,4 +1,4 @@
-# Ukrainian, Czech, and English localization — 1.9.45
+# Ukrainian, Czech, and English localization — 1.9.46
 
 ## Language switch
 

@@ -10,15 +10,15 @@ import java.util.Set;
 /** Single source for cards, names, icons and themes of installed modules. */
 final class ClickerCatalog {
     private static final List<ClickerModule> MODULES = Collections.unmodifiableList(Arrays.asList(
-            new ClickerModule(BotMode.BACKPACK_BLITZ, R.string.module_blitz_name, "✦",
+            new ClickerModule(BotMode.BACKPACK_BLITZ, R.string.module_blitz_name, "💎",
                     R.string.module_blitz_description, "8 × 8",
-                    new ClickerModule.Theme(0xFFE48F99, 0xFF70505D,
-                            0xFF48323F, 0xFF30252D, 0xFF372D35, 0xFF493339),
+                    new ClickerModule.Theme(0xFF53D2CC, 0xFF286D72,
+                            0xFF263D4B, 0xFF242A38, 0xFF203B48, 0xFF294C55),
                     ClickerModule.Setting.NO_CHANGE_TIMEOUT, ClickerModule.Setting.PANEL_WIDTH),
             new ClickerModule(BotMode.MERGE_MADNESS, R.string.module_merge_name, "🐀",
                     R.string.module_merge_description, "2048 · 4 × 4",
-                    new ClickerModule.Theme(0xFFF4C27E, 0xFF695842,
-                            0xFF3C3029, 0xFF2B2527, 0xFF4A3930, 0xFF5B4935),
+                    new ClickerModule.Theme(0xFFF6BE5B, 0xFF786034,
+                            0xFF3B3228, 0xFF252A38, 0xFF473923, 0xFF51402C),
                     ClickerModule.Setting.NO_CHANGE_TIMEOUT, ClickerModule.Setting.PANEL_WIDTH)));
     private static final EnumMap<BotMode, ClickerModule> BY_MODE = new EnumMap<>(BotMode.class);
 

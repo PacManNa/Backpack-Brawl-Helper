@@ -1,12 +1,12 @@
-# Using Pelyustka
+# Using PackMate
 
 ## First launch
 
 1. Install the APK on a device running Android 11 or later.
 2. Open the app, tap **Android permission**, then **Enable access**.
-3. In Android settings, open the **Pelyustka — game control** service and enable
+3. In Android settings, open the **PackMate — game control** service and enable
    it. Confirm Android's system warning about the service's capabilities.
-4. Return to **Pelyustka** and open the floating panel.
+4. Return to **PackMate** and open the floating panel.
 
 The service uses Android APIs for screenshots and gestures. It does not read the
 game's content from the accessibility view tree.
@@ -14,8 +14,9 @@ game's content from the accessibility view tree.
 ## Interface language
 
 The main-screen header has a language button before the module count. It shows
-the flag and code of the destination language: **🇨🇿 CZ** in Ukrainian or
-**🇺🇦 UA** in Czech. Tapping it switches the language. The choice is retained
+the flag and code of the destination language: **🇨🇿 CZ** in Ukrainian,
+**🇬🇧 EN** in Czech, or **🇺🇦 UA** in English. Tapping it switches the
+language. The choice is retained
 when the app closes and when an APK is updated.
 
 Settings, help, floating panels, timers, and notifications are translated too.

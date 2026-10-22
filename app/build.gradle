@@ -25,15 +25,15 @@ android {
         applicationId 'ua.borlock.autotap'
         minSdk 24
         targetSdk 35
-        versionCode 76
-        versionName '1.9.45'
+        versionCode 77
+        versionName '1.9.46'
     }
 
     buildTypes {
         debug {
             signingConfig signingConfigs.persistent
             applicationIdSuffix '.newkey'
-            resValue 'string', 'app_name', 'Пелюстка (нова)'
+            resValue 'string', 'app_name', 'PackMate (test)'
         }
         release {
             signingConfig signingConfigs.persistent

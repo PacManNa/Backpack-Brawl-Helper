@@ -4,8 +4,8 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ic_pelyustka"
-        android:roundIcon="@drawable/ic_pelyustka"
+        android:icon="@drawable/ic_packmate"
+        android:roundIcon="@drawable/ic_packmate"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
