@@ -62,7 +62,7 @@ from the repository root.
 ## Current configuration
 
 - `applicationId`: `ua.borlock.autotap`.
-- App version: `1.9.44` (`versionCode` 75).
+- App version: `1.9.45` (`versionCode` 76).
 - `minSdk`: 24; AccessibilityService screenshots require Android 11 / API 30 or later.
 - `targetSdk` / `compileSdk`: 35.
 
@@ -112,6 +112,19 @@ algorithm checks in [ALGORITHMS-1.9.39.md](ALGORITHMS-1.9.39.md), Backpack
 Blitz autoplay goals in [BLITZ-AUTOPLAY-1.9.40.md](BLITZ-AUTOPLAY-1.9.40.md),
 search and cascade improvements in [BLITZ-AUTOPLAY-1.9.41.md](BLITZ-AUTOPLAY-1.9.41.md),
 reward timers and checks in [TIMERS-1.9.42.md](TIMERS-1.9.42.md), Ukrainian/Czech
-localization in [LOCALIZATION-1.9.43.md](LOCALIZATION-1.9.43.md), rank-15
+Ukrainian, Czech, and English localization in
+[LOCALIZATION-1.9.45.md](LOCALIZATION-1.9.45.md), rank-15
 testing in [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md), and future clicker
 ideas in [ROADMAP.md](ROADMAP.md).
+
+## Download and install offline
+
+The signed release APK is published on the GitHub
+[Releases page](https://github.com/PacManNa/Backpack-Brawl-Helper/releases).
+Download the APK to an Android device, open it, and allow the file manager or
+browser to install unknown apps if Android asks. The APK can be installed
+without a network connection. The app does not request internet access.
+
+The release APK is signed with the persistent project key. An update installs
+over an existing copy only when its application ID and signing certificate
+match. Keep using the official release APK to preserve update compatibility.

@@ -244,7 +244,7 @@
     <string name="bot_running">"Bot běží"</string>
     <string name="bot_stopped">"Bot je zastavený"</string>
     <string name="expand_panel_hint_suffix">". Klepnutím rozbalíš panel."</string>
-    <string name="language_switch">"Jazyk: čeština. Přepnout na ukrajinštinu."</string>
+    <string name="language_switch">"Jazyk: čeština. Přepnout na angličtinu."</string>
     <string name="timer_delete_question">"Smazat časovač „%1$s“?"</string>
     <string name="timer_days">"%1$d d %2$02d:%3$02d:%4$02d"</string>
     <string name="direction_left">"doleva"</string>

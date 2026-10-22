@@ -25,19 +25,25 @@ final class AppLanguage {
     static String language(Context context) {
         String saved = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
                 .getString(KEY_LANGUAGE, "uk");
-        return "cs".equals(saved) ? "cs" : "uk";
+        if ("cs".equals(saved) || "en".equals(saved)) return saved;
+        return "uk";
     }
 
     static Locale locale(Context context) { return Locale.forLanguageTag(language(context)); }
 
     static void toggle(Context context) {
-        String next = "uk".equals(language(context)) ? "cs" : "uk";
+        String current = language(context);
+        String next = "uk".equals(current) ? "cs" : "cs".equals(current) ? "en" : "uk";
         context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
                 .putString(KEY_LANGUAGE, next).apply();
     }
 
     static String buttonLabel(Context context) {
-        return "cs".equals(language(context)) ? "🇺🇦 UA" : "🇨🇿 CZ";
+        switch (language(context)) {
+            case "cs": return "🇬🇧 EN";
+            case "en": return "🇺🇦 UA";
+            default: return "🇨🇿 CZ";
+        }
     }
 
     private static Configuration configuration(Context context) {
