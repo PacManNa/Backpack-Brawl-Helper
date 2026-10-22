@@ -119,8 +119,9 @@ ideas in [ROADMAP.md](ROADMAP.md).
 
 ## Download and install offline
 
-The signed release APK is published on the GitHub
-[Releases page](https://github.com/PacManNa/Backpack-Brawl-Helper/releases).
+The signed release APK is available in the repository at
+[`downloads/Pelyustka-1.9.45.apk`](../downloads/Pelyustka-1.9.45.apk) and from
+the download link in the [README](../README.md).
 Download the APK to an Android device, open it, and allow the file manager or
 browser to install unknown apps if Android asks. The APK can be installed
 without a network connection. The app does not request internet access.
