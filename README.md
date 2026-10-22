@@ -5,14 +5,14 @@ It recognizes the game board on your phone and automates moves in **Backpack Bli
 **Merge Madness**. It also reminds you when timed game rewards are ready.
 
 <p align="center">
-  <a href="https://github.com/PacManNa/Backpack-Brawl-Helper/releases/download/v1.9.46/PackMate-1.9.46.apk"><strong>⬇ Download APK 1.9.46</strong></a>
+  <a href="https://github.com/PacManNa/Backpack-Brawl-Helper/raw/refs/heads/main/downloads/PackMate-1.9.46.apk"><strong>⬇ Download APK 1.9.46</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/USAGE.md">User guide</a>
   &nbsp;·&nbsp;
   <a href="docs/BUILDING.md">Build guide</a>
 </p>
 
-Download the [APK 1.9.46](https://github.com/PacManNa/Backpack-Brawl-Helper/releases/download/v1.9.46/PackMate-1.9.46.apk) once and install it from your phone. **The APK installs offline, and the app does not request internet access.**
+Download the [APK 1.9.46](https://github.com/PacManNa/Backpack-Brawl-Helper/raw/refs/heads/main/downloads/PackMate-1.9.46.apk) once and install it from your phone. **The APK installs offline, and the app does not request internet access.**
 
 > PackMate is an independent community project and is not affiliated with or endorsed by the game developers.
 
