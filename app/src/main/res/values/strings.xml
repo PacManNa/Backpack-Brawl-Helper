@@ -244,7 +244,7 @@
     <string name="bot_running">"Бот працює"</string>
     <string name="bot_stopped">"Бот зупинений"</string>
     <string name="expand_panel_hint_suffix">". Натисни, щоб розгорнути панель."</string>
-    <string name="language_switch">"Мова: українська. Перемкнути на чеську."</string>
+    <string name="language_switch">"Мова: українська. Натисни, щоб перемкнути на чеську."</string>
     <string name="timer_delete_question">"Видалити таймер «%1$s»?"</string>
     <string name="timer_days">"%1$dд %2$02d:%3$02d:%4$02d"</string>
     <string name="direction_left">"ліворуч"</string>

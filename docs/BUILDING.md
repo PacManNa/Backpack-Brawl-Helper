@@ -62,7 +62,7 @@ from the repository root.
 ## Current configuration
 
 - `applicationId`: `ua.borlock.autotap`.
-- App version: `1.9.46` (`versionCode` 77).
+- App version: `1.9.47` (`versionCode` 78).
 - `minSdk`: 24; AccessibilityService screenshots require Android 11 / API 30 or later.
 - `targetSdk` / `compileSdk`: 35.
 
@@ -112,7 +112,7 @@ algorithm checks in [ALGORITHMS-1.9.39.md](ALGORITHMS-1.9.39.md), Backpack
 Blitz autoplay goals in [BLITZ-AUTOPLAY-1.9.40.md](BLITZ-AUTOPLAY-1.9.40.md),
 search and cascade improvements in [BLITZ-AUTOPLAY-1.9.41.md](BLITZ-AUTOPLAY-1.9.41.md),
 reward timers and checks in [TIMERS-1.9.42.md](TIMERS-1.9.42.md), Ukrainian, Czech, and English localization in
-[LOCALIZATION-1.9.46.md](LOCALIZATION-1.9.46.md), rank-15 testing in
+[LOCALIZATION-1.9.47.md](LOCALIZATION-1.9.47.md), rank-15 testing in
 [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md), future clicker ideas in
 [ROADMAP.md](ROADMAP.md), and the PackMate visual refresh in
 [REDESIGN-1.9.46.md](REDESIGN-1.9.46.md).
@@ -120,7 +120,7 @@ reward timers and checks in [TIMERS-1.9.42.md](TIMERS-1.9.42.md), Ukrainian, Cze
 ## Download and install offline
 
 The signed release APK is available in the repository at
-[`downloads/PackMate-1.9.46.apk`](../downloads/PackMate-1.9.46.apk) and from
+[`downloads/PackMate-1.9.47.apk`](../downloads/PackMate-1.9.47.apk) and from
 the download link in the [README](../README.md).
 Download the APK to an Android device, open it, and allow the file manager or
 browser to install unknown apps if Android asks. The APK can be installed

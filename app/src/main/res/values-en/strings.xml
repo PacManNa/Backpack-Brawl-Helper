@@ -247,7 +247,7 @@ Unrecognized cells are marked “?”"</string>
     <string name="bot_running">"Bot is running"</string>
     <string name="bot_stopped">"Bot stopped"</string>
     <string name="expand_panel_hint_suffix">". Tap to expand the panel."</string>
-    <string name="language_switch">"Language: English. Switch to Ukrainian."</string>
+    <string name="language_switch">"Language: English. Tap to switch to Ukrainian."</string>
     <string name="timer_delete_question">"Delete timer \"%1$s\"?"</string>
     <string name="timer_days">"%1$d d %2$02d:%3$02d:%4$02d"</string>
     <string name="direction_left">"left"</string>

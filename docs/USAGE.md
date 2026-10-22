@@ -14,10 +14,9 @@ game's content from the accessibility view tree.
 ## Interface language
 
 The main-screen header has a language button before the module count. It shows
-the flag and code of the destination language: **🇨🇿 CZ** in Ukrainian,
-**🇬🇧 EN** in Czech, or **🇺🇦 UA** in English. Tapping it switches the
-language. The choice is retained
-when the app closes and when an APK is updated.
+the flag and code of the active language: **🇺🇦 UA** in Ukrainian,
+**🇨🇿 CZ** in Czech, or **🇬🇧 EN** in English. Tapping it cycles to the next
+language. The choice is retained when the app closes and when an APK is updated.
 
 Settings, help, floating panels, timers, and notifications are translated too.
 Custom and edited timer names remain as entered. Switching languages does not

@@ -40,9 +40,9 @@ final class AppLanguage {
 
     static String buttonLabel(Context context) {
         switch (language(context)) {
-            case "cs": return "🇬🇧 EN";
-            case "en": return "🇺🇦 UA";
-            default: return "🇨🇿 CZ";
+            case "cs": return "🇨🇿 CZ";
+            case "en": return "🇬🇧 EN";
+            default: return "🇺🇦 UA";
         }
     }
 
