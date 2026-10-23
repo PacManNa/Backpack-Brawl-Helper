@@ -5,14 +5,14 @@ It recognizes the game board on your phone and automates moves in **Backpack Bli
 **Merge Madness**. It also reminds you when timed game rewards are ready.
 
 <p align="center">
-  <a href="https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.50.apk"><strong>⬇ Download APK 1.9.50</strong></a>
+  <a href="https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.51.apk"><strong>⬇ Download APK 1.9.51</strong></a>
   &nbsp;·&nbsp;
   <a href="docs/USAGE.md">User guide</a>
   &nbsp;·&nbsp;
   <a href="docs/BUILDING.md">Build guide</a>
 </p>
 
-Download the [APK 1.9.50](https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.50.apk) once and install it from your phone. **The APK installs offline, and the app does not request internet access.**
+Download the [APK 1.9.51](https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.51.apk) once and install it from your phone. **The APK installs offline, and the app does not request internet access.**
 
 > PackMate is an independent community project and is not affiliated with or endorsed by the game developers.
 
@@ -97,7 +97,7 @@ the predicted next-tile spawn.
 - [Future clicker ideas](docs/ROADMAP.md)
 - [Merge Madness rank-15 strategy](docs/ALGORITHMS-LEVEL15.md)
 - [Localization](docs/LOCALIZATION-1.9.47.md)
-- [Compact timer screen](docs/INTERFACE-1.9.50.md)
+- [Compact timer screen](docs/INTERFACE-1.9.51.md)
 - [Build and signing guide](docs/BUILDING.md)
 
 The project has no license file, so code reuse terms are unspecified.

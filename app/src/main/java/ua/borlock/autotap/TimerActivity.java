@@ -22,6 +22,7 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -34,6 +35,7 @@ public final class TimerActivity extends LocalizedActivity {
     private static final int BG = 0xFF12151E, CARD = 0xFF1D222D, SOFT = 0xFF272D3A;
     private static final int BORDER = 0xFF37404F, CREAM = 0xFFF6F4ED, MUTED = 0xFFAEB7C4;
     private static final int ROSE = 0xFFF07E8C, GOLD = 0xFFF6BE5B, GREEN = 0xFF6CCB97;
+    private static final int STOP_ACTIVE = 0xFF68424C, STOP_DISABLED = 0xFF303745;
     private static final int NOTIFICATION_REQUEST = 91;
     private static final String[] EMOJIS = {
             "🎟️", "💎", "🪙", "🦴", "🎁", "📦", "⏱️", "🌱", "🌾", "🍄", "🐝", "🎃", "🌳"
@@ -108,18 +110,24 @@ public final class TimerActivity extends LocalizedActivity {
                 return insets;
             });
         }
-        content.addView(text(t(R.string.timer_screen_title), 22, CREAM, true));
-        content.addView(text(t(R.string.timer_screen_hint),
-                12, MUTED, false), margin(-1, -2, 0, 5, 0, 12));
+        TextView screenTitle = text(t(R.string.timer_screen_title), 22, CREAM, true);
+        screenTitle.setGravity(Gravity.CENTER);
+        content.addView(screenTitle, new LinearLayout.LayoutParams(-1, -2));
+        TextView screenHint = text(t(R.string.timer_screen_hint), 12, MUTED, false);
+        screenHint.setGravity(Gravity.CENTER);
+        content.addView(screenHint, margin(-1, -2, 0, 5, 0, 12));
 
         LinearLayout settings = column();
         settings.setPadding(dp(10), dp(10), dp(10), dp(10));
         settings.setBackground(shape(CARD, BORDER, 20));
-        TextView heading = text(t(R.string.timer_setup), 13, CREAM, true);
-        settings.addView(heading);
+        TextView heading = text(t(R.string.timer_setup), 14, CREAM, true);
+        heading.setGravity(Gravity.CENTER);
+        settings.addView(heading, new LinearLayout.LayoutParams(-1, -2));
         LinearLayout settingsBody = column();
         notificationHint = text("", 12, MUTED, false);
         precisionHint = text("", 12, MUTED, false);
+        notificationHint.setGravity(Gravity.CENTER);
+        precisionHint.setGravity(Gravity.CENTER);
         settingsBody.addView(notificationHint, margin(-1, -2, 0, 6, 0, 3));
         TextView notifications = action(t(R.string.timer_notifications_settings), SOFT, CREAM, 12);
         notifications.setOnClickListener(v -> openNotificationSettings());
@@ -142,18 +150,18 @@ public final class TimerActivity extends LocalizedActivity {
         LinearLayout actions = new LinearLayout(this);
         TextView add = action(t(R.string.add_timer), ROSE, BG, 13);
         add.setOnClickListener(v -> showEditor(null));
-        actions.addView(add, new LinearLayout.LayoutParams(0, dp(40), 1));
-        TextView floating = action(t(R.string.timer_floating_menu), SOFT, CREAM, 12);
+        actions.addView(add, new LinearLayout.LayoutParams(0, dp(44), 1));
+        TextView floating = action(t(R.string.timer_floating_menu), SOFT, CREAM, 13);
         floating.setOnClickListener(v -> openFloatingPanel());
-        LinearLayout.LayoutParams floatingParams = new LinearLayout.LayoutParams(0, dp(40), 1);
-        floatingParams.leftMargin = dp(6);
+        LinearLayout.LayoutParams floatingParams = new LinearLayout.LayoutParams(0, dp(44), 1);
+        floatingParams.leftMargin = dp(8);
         actions.addView(floating, floatingParams);
-        content.addView(actions, margin(-1, -2, 0, 0, 0, 10));
+        content.addView(actions, margin(-1, -2, 0, 0, 0, 12));
         list = column();
         content.addView(list);
         TextView back = action(t(R.string.back), SOFT, CREAM, 13);
         back.setOnClickListener(v -> finish());
-        content.addView(back, new LinearLayout.LayoutParams(-1, dp(40)));
+        content.addView(back, new LinearLayout.LayoutParams(-1, dp(44)));
         return screen;
     }
 
@@ -170,7 +178,7 @@ public final class TimerActivity extends LocalizedActivity {
         for (TimerItem item : timers) {
             TimerRow row = createTimerRow(item);
             rows.add(row);
-            list.addView(row.card, margin(-1, -2, 0, 0, 0, 7));
+            list.addView(row.card, margin(-1, -2, 0, 0, 0, 9));
             if (item.id.equals(focusTimerId)) {
                 row.card.post(() -> {
                     int[] card = new int[2], root = new int[2];
@@ -185,59 +193,75 @@ public final class TimerActivity extends LocalizedActivity {
 
     private TimerRow createTimerRow(TimerItem item) {
         LinearLayout card = column();
-        card.setPadding(dp(10), dp(7), dp(10), dp(7));
-        card.setBackground(shape(CARD, BORDER, 16));
-        LinearLayout header = new LinearLayout(this);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout labels = column();
+        card.setPadding(dp(12), dp(10), dp(12), dp(10));
+        card.setBackground(shape(CARD, BORDER, 18));
+
+        FrameLayout header = new FrameLayout(this);
         TextView name = text(item.emoji + " " + AppLanguage.timerName(this, item), 15, CREAM, true);
+        name.setGravity(Gravity.CENTER);
+        name.setPadding(dp(84), 0, dp(84), 0);
+        name.setMaxLines(2);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         name.setOnClickListener(v -> showEditor(item));
-        labels.addView(name);
-        LinearLayout details = new LinearLayout(this);
-        details.setGravity(Gravity.CENTER_VERTICAL);
-        TextView interval = text(t(R.string.timer_interval_prefix)
-                + AppLanguage.timerDuration(this, item.durationMs), 10, MUTED, false);
-        interval.setSingleLine(true);
-        interval.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        details.addView(interval, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView countdown = text(AppLanguage.timerStatus(TimerActivity.this, item,
-                SystemClock.elapsedRealtime()), 14, GOLD, true);
-        countdown.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        countdown.setSingleLine(true);
-        countdown.setMaxWidth(dp(190));
-        details.addView(countdown, new LinearLayout.LayoutParams(-2, -2));
-        labels.addView(details, margin(-1, -2, 0, 2, 0, 0));
-        header.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+        header.addView(name, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
+
+        LinearLayout headerActions = new LinearLayout(this);
+        headerActions.setGravity(Gravity.CENTER_VERTICAL);
         TextView edit = action("✎", SOFT, CREAM, 21);
         edit.setContentDescription(t(R.string.edit_timer_accessibility) + AppLanguage.timerName(this, item));
         edit.setOnClickListener(v -> showEditor(item));
-        header.addView(edit, new LinearLayout.LayoutParams(dp(36), dp(36)));
-        TextView more = action("⋮", CARD, MUTED, 23);
+        headerActions.addView(edit, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        TextView more = action("⋮", SOFT, CREAM, 23);
         more.setContentDescription(t(R.string.timer_more_actions) + AppLanguage.timerName(this, item));
         more.setOnClickListener(v -> new AlertDialog.Builder(this).setTitle(AppLanguage.timerName(this, item))
                 .setItems(new String[]{t(R.string.set_remaining), t(R.string.delete_timer)},
                         (dialog, index) -> { if (index == 0) showRemaining(item); else confirmDelete(item); })
                 .show());
-        header.addView(more, new LinearLayout.LayoutParams(dp(32), dp(36)));
+        LinearLayout.LayoutParams moreParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        moreParams.leftMargin = dp(8);
+        headerActions.addView(more, moreParams);
+        FrameLayout.LayoutParams headerActionsParams = new FrameLayout.LayoutParams(
+                -2, dp(40), Gravity.END | Gravity.CENTER_VERTICAL);
+        header.addView(headerActions, headerActionsParams);
         card.addView(header);
+
+        LinearLayout details = new LinearLayout(this);
+        details.setGravity(Gravity.CENTER);
+        TextView interval = text(t(R.string.timer_interval_prefix)
+                + AppLanguage.timerDuration(this, item.durationMs), 11, MUTED, false);
+        interval.setGravity(Gravity.CENTER);
+        interval.setSingleLine(true);
+        interval.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        details.addView(interval, new LinearLayout.LayoutParams(0, -2, 1));
+        View divider = new View(this);
+        divider.setBackgroundColor(BORDER);
+        details.addView(divider, new LinearLayout.LayoutParams(dp(1), dp(22)));
+        TextView countdown = text(AppLanguage.timerStatus(TimerActivity.this, item,
+                SystemClock.elapsedRealtime()), 15, GOLD, true);
+        countdown.setGravity(Gravity.CENTER);
+        countdown.setSingleLine(true);
+        countdown.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        details.addView(countdown, new LinearLayout.LayoutParams(0, -2, 1));
+        card.addView(details, margin(-1, -2, 0, 8, 0, 0));
+
         LinearLayout controls = new LinearLayout(this);
-        TextView start = action(item.isActive() ? t(R.string.restart_timer) : t(R.string.start_timer), 0xFF41533F, CREAM, 12);
+        TextView start = action(item.isActive() ? t(R.string.restart_timer) : t(R.string.start_timer), 0xFF41533F, CREAM, 13);
         start.setContentDescription((item.isActive() ? t(R.string.restart_prefix) : t(R.string.start_prefix)) + AppLanguage.timerName(this, item));
         start.setOnClickListener(v -> {
             TimerStore.restartTimer(this, item.id);
             refreshListIfNeeded();
             requestNotificationsOnce();
         });
-        controls.addView(start, new LinearLayout.LayoutParams(0, dp(40), 1));
-        TextView stop = action(t(R.string.stop_timer), SOFT, CREAM, 12);
+        controls.addView(start, new LinearLayout.LayoutParams(0, dp(44), 1));
+        TextView stop = action(t(R.string.stop_timer), item.isActive() ? STOP_ACTIVE : STOP_DISABLED,
+                item.isActive() ? CREAM : MUTED, 13);
         stop.setContentDescription(t(R.string.stop_prefix) + AppLanguage.timerName(this, item));
         stop.setEnabled(item.isActive());
-        stop.setAlpha(item.isActive() ? 1f : .4f);
         stop.setOnClickListener(v -> { TimerStore.stopTimer(this, item.id); refreshListIfNeeded(); });
-        LinearLayout.LayoutParams stopParams = new LinearLayout.LayoutParams(0, dp(40), 1);
-        stopParams.leftMargin = dp(6);
+        LinearLayout.LayoutParams stopParams = new LinearLayout.LayoutParams(0, dp(44), 1);
+        stopParams.leftMargin = dp(8);
         controls.addView(stop, stopParams);
-        card.addView(controls, margin(-1, -2, 0, 5, 0, 0));
+        card.addView(controls, margin(-1, -2, 0, 8, 0, 0));
         return new TimerRow(item, card, countdown);
     }
 
