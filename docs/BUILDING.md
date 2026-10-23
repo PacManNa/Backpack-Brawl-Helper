@@ -62,7 +62,7 @@ from the repository root.
 ## Current configuration
 
 - `applicationId`: `ua.borlock.autotap`.
-- App version: `1.9.47` (`versionCode` 78).
+- App version: `1.9.48` (`versionCode` 79).
 - `minSdk`: 24; AccessibilityService screenshots require Android 11 / API 30 or later.
 - `targetSdk` / `compileSdk`: 35.
 
@@ -115,12 +115,13 @@ reward timers and checks in [TIMERS-1.9.42.md](TIMERS-1.9.42.md), Ukrainian, Cze
 [LOCALIZATION-1.9.47.md](LOCALIZATION-1.9.47.md), rank-15 testing in
 [ALGORITHMS-LEVEL15.md](ALGORITHMS-LEVEL15.md), future clicker ideas in
 [ROADMAP.md](ROADMAP.md), and the PackMate visual refresh in
-[REDESIGN-1.9.46.md](REDESIGN-1.9.46.md).
+[REDESIGN-1.9.46.md](REDESIGN-1.9.46.md), and the compact timer screen in
+[INTERFACE-1.9.48.md](INTERFACE-1.9.48.md).
 
 ## Download and install offline
 
 The signed release APK is available in the repository at
-[`downloads/PackMate-1.9.47.apk`](../downloads/PackMate-1.9.47.apk) and from
+[`downloads/PackMate-1.9.48.apk`](../downloads/PackMate-1.9.48.apk) and from
 the download link in the [README](../README.md).
 Download the APK to an Android device, open it, and allow the file manager or
 browser to install unknown apps if Android asks. The APK can be installed
