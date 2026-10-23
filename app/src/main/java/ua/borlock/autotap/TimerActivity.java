@@ -191,7 +191,7 @@ public final class TimerActivity extends LocalizedActivity {
 
     private TimerRow createTimerRow(TimerItem item) {
         LinearLayout card = column();
-        card.setPadding(dp(10), dp(9), dp(10), dp(9));
+        card.setPadding(dp(10), dp(7), dp(10), dp(7));
         card.setBackground(shape(CARD, BORDER, 16));
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -199,8 +199,20 @@ public final class TimerActivity extends LocalizedActivity {
         TextView name = text(item.emoji + " " + AppLanguage.timerName(this, item), 15, CREAM, true);
         name.setOnClickListener(v -> showEditor(item));
         labels.addView(name);
-        labels.addView(text(t(R.string.timer_interval_prefix) + AppLanguage.timerDuration(this, item.durationMs), 11, MUTED, false),
-                margin(-1, -2, 0, 2, 0, 0));
+        LinearLayout details = new LinearLayout(this);
+        details.setGravity(Gravity.CENTER_VERTICAL);
+        TextView interval = text(t(R.string.timer_interval_prefix)
+                + AppLanguage.timerDuration(this, item.durationMs), 10, MUTED, false);
+        interval.setSingleLine(true);
+        interval.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        details.addView(interval, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView countdown = text(AppLanguage.timerStatus(TimerActivity.this, item,
+                SystemClock.elapsedRealtime()), 14, GOLD, true);
+        countdown.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        countdown.setSingleLine(true);
+        countdown.setMaxWidth(dp(190));
+        details.addView(countdown, new LinearLayout.LayoutParams(-2, -2));
+        labels.addView(details, margin(-1, -2, 0, 2, 0, 0));
         header.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
         TextView edit = action("✎", SOFT, CREAM, 21);
         edit.setContentDescription(t(R.string.edit_timer_accessibility) + AppLanguage.timerName(this, item));
@@ -214,8 +226,6 @@ public final class TimerActivity extends LocalizedActivity {
                 .show());
         header.addView(more, new LinearLayout.LayoutParams(dp(32), dp(36)));
         card.addView(header);
-        TextView countdown = text(AppLanguage.timerStatus(TimerActivity.this, item, SystemClock.elapsedRealtime()), 16, GOLD, true);
-        card.addView(countdown, margin(-1, -2, 0, 6, 0, 6));
         LinearLayout controls = new LinearLayout(this);
         TextView start = action(item.isActive() ? t(R.string.restart_timer) : t(R.string.start_timer), 0xFF41533F, CREAM, 12);
         start.setContentDescription((item.isActive() ? t(R.string.restart_prefix) : t(R.string.start_prefix)) + AppLanguage.timerName(this, item));
@@ -233,7 +243,7 @@ public final class TimerActivity extends LocalizedActivity {
         LinearLayout.LayoutParams stopParams = new LinearLayout.LayoutParams(0, dp(40), 1);
         stopParams.leftMargin = dp(6);
         controls.addView(stop, stopParams);
-        card.addView(controls);
+        card.addView(controls, margin(-1, -2, 0, 5, 0, 0));
         return new TimerRow(item, card, countdown);
     }
 
