@@ -14,8 +14,8 @@ Intervals follow the requested schedule and can be edited.
 Coins and gems are independent because the supplied screenshot showed different
 remaining times. Presets are added stopped. Existing timers, names, intervals,
 and running countdowns are retained; matching an ID or known previous name does
-not create a duplicate. A deleted preset does not reappear automatically; use
-**Add missing game timers** to restore it.
+not create a duplicate. A deleted preset does not reappear automatically;
+recreate it with **Add timer** if needed.
 
 ## Controls
 

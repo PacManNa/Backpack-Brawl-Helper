@@ -64,9 +64,8 @@
     <string name="timer_precision_settings">"Nastavit přesný čas připomínek"</string>
     <string name="add_timer">"＋ Přidat časovač"</string>
     <string name="timer_floating_menu">"⏱ Plovoucí nabídka"</string>
-    <string name="restore_timer_presets">"＋ Doplnit herní časovače"</string>
     <string name="back">"← Zpět"</string>
-    <string name="timers_empty_hint">"Přidej vlastní časovač nebo obnov herní časovače."</string>
+    <string name="timers_empty_hint">"Přidej vlastní časovač."</string>
     <string name="timer_interval_prefix">"Interval · "</string>
     <string name="edit_timer_accessibility">"Upravit časovač "</string>
     <string name="timer_more_actions">"Další akce časovače "</string>

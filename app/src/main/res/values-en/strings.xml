@@ -64,9 +64,8 @@
     <string name="timer_precision_settings">"Set the exact time of reminders"</string>
     <string name="add_timer">"＋ Add timer"</string>
     <string name="timer_floating_menu">"⏱ Floating menu"</string>
-    <string name="restore_timer_presets">"＋ Add missing game timers"</string>
     <string name="back">"← Back"</string>
-    <string name="timers_empty_hint">"Add a custom timer or restore the game timer presets."</string>
+    <string name="timers_empty_hint">"Add a custom timer."</string>
     <string name="timer_interval_prefix">"Interval · "</string>
     <string name="edit_timer_accessibility">"Edit timer "</string>
     <string name="timer_more_actions">"Other actions with a timer "</string>

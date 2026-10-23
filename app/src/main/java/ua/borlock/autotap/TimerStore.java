@@ -66,12 +66,6 @@ final class TimerStore {
         return preferences(context).getLong(KEY_REVISION, 0);
     }
 
-    static synchronized void addMissingPresets(Context context) {
-        List<TimerItem> timers = getTimers(context);
-        List<TimerItem> merged = TimerPresets.mergeMissing(timers);
-        if (merged.size() != timers.size()) save(context, merged);
-    }
-
     static synchronized boolean addTimer(Context context, String name, String emoji,
                                           long durationMs, boolean start) {
         if (!validDefinition(name, durationMs)) return false;

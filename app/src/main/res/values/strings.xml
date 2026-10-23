@@ -64,9 +64,8 @@
     <string name="timer_precision_settings">"Налаштувати точний час нагадувань"</string>
     <string name="add_timer">"＋ Додати таймер"</string>
     <string name="timer_floating_menu">"⏱ Плаваюче меню"</string>
-    <string name="restore_timer_presets">"＋ Додати відсутні таймери гри"</string>
     <string name="back">"← Назад"</string>
-    <string name="timers_empty_hint">"Додай власний таймер або віднови готові таймери гри."</string>
+    <string name="timers_empty_hint">"Додай власний таймер."</string>
     <string name="timer_interval_prefix">"Інтервал · "</string>
     <string name="edit_timer_accessibility">"Редагувати таймер "</string>
     <string name="timer_more_actions">"Інші дії з таймером "</string>

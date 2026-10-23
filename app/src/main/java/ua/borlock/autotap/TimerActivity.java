@@ -151,12 +151,6 @@ public final class TimerActivity extends LocalizedActivity {
         content.addView(actions, margin(-1, -2, 0, 0, 0, 10));
         list = column();
         content.addView(list);
-        TextView presets = action(t(R.string.restore_timer_presets), SOFT, GOLD, 12);
-        presets.setOnClickListener(v -> {
-            TimerStore.addMissingPresets(this);
-            refreshListIfNeeded();
-        });
-        content.addView(presets, margin(-1, 36, 0, 8, 0, 10));
         TextView back = action(t(R.string.back), SOFT, CREAM, 13);
         back.setOnClickListener(v -> finish());
         content.addView(back, new LinearLayout.LayoutParams(-1, dp(40)));

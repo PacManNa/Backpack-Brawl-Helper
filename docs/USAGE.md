@@ -106,8 +106,8 @@ automatically; restart them after actually claiming a reward.
 **✎** edits the name, emoji, and interval. The current countdown continues;
 choose **Save and restart countdown** to apply the new interval immediately.
 **Add timer** creates a custom reminder from 1 second to 365 days; **Start now**
-is optional. **⋮ → Delete timer** asks for confirmation. **Add missing game
-timers** restores deleted presets without overwriting edited ones.
+is optional. **⋮ → Delete timer** asks for confirmation. Deleted preset timers
+can be recreated with **Add timer**.
 
 Countdowns and settings are stored locally and restored after a phone reboot or
 APK update. Regular timers and notifications do not require the accessibility
