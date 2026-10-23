@@ -60,7 +60,8 @@ final class TimerOverlay {
         collapsed = false;
         renderedRevision = -1;
         createView();
-        params = new WindowManager.LayoutParams(dp(304), WindowManager.LayoutParams.WRAP_CONTENT,
+        params = new WindowManager.LayoutParams(dp(ClickerPreferences.COMPACT_TIMER_PANEL_WIDTH_DP),
+                WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT);
@@ -136,7 +137,7 @@ final class TimerOverlay {
         scroll.setFillViewport(false);
         list = column();
         scroll.addView(list, new ScrollView.LayoutParams(-1, -2));
-        body.addView(scroll, new LinearLayout.LayoutParams(-1, dp(276)));
+        body.addView(scroll, new LinearLayout.LayoutParams(-1, -2));
         TextView manage = button(t(R.string.manage_timers), 11, GOLD);
         manage.setBackground(shape(0xFF272D3A, 12));
         manage.setOnClickListener(v -> {
@@ -259,7 +260,7 @@ final class TimerOverlay {
                 ? "landscape" : "portrait";
         float scale = Math.max(1f, service.getResources().getConfiguration().fontScale);
         params.width = Math.min(area.width(), dp(collapsed ? 94 * scale
-                : Math.max(304, ClickerPreferences.panelWidthDp(service, ClickerPreferences.TIMERS_PROFILE))));
+                : ClickerPreferences.COMPACT_TIMER_PANEL_WIDTH_DP * scale));
         restorePending = true;
         resizeList();
         updateWindow();
@@ -267,11 +268,16 @@ final class TimerOverlay {
     }
 
     private void resizeList() {
-        if (scroll == null) return;
-        int perRow = dp(68 * Math.max(1f, service.getResources().getConfiguration().fontScale));
-        scroll.getLayoutParams().height = Math.min(Math.max(dp(52), Math.max(1, rows.size()) * perRow),
-                Math.max(dp(52), Math.min(dp(340), area.height() - dp(100))));
+        if (scroll == null || list == null) return;
+        int width = params == null ? root.getWidth()
+                : params.width - root.getPaddingLeft() - root.getPaddingRight();
+        if (width <= 0) return;
+        list.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int availableHeight = Math.max(dp(48), Math.min(dp(340), area.height() - dp(100)));
+        scroll.getLayoutParams().height = Math.max(dp(48), Math.min(list.getMeasuredHeight(), availableHeight));
         scroll.requestLayout();
+        if (root != null) root.requestLayout();
     }
 
     private String profile() { return collapsed ? "timers_bubble" : ClickerPreferences.TIMERS_PROFILE; }

@@ -39,13 +39,9 @@ import java.util.List;
 /** Runs the board bot and hosts an independent reward timer window. */
 public final class TapAccessibilityService extends AccessibilityService {
     static final String PREFS = "pelyustka_settings";
-    static final String KEY_NO_CHANGE_TIMEOUT = "move_delay_ms";
     static final String KEY_SWIPE_CELLS_TENTHS = "swipe_cells_tenths";
     static final String KEY_SWIPE_DURATION_MS = "swipe_duration_ms";
-    private static final long DEFAULT_NO_CHANGE_TIMEOUT_MS = 900L;
-    static final long MIN_NO_CHANGE_TIMEOUT_MS = 400L;
-    static final long MAX_NO_CHANGE_TIMEOUT_MS = 4_000L;
-    static final long NO_CHANGE_TIMEOUT_STEP_MS = 100L;
+    private static final long NO_CHANGE_RETRY_DELAY_MS = 400L;
     private static final long DEFAULT_SWIPE_DURATION_MS = 120L;
     private static final long MIN_SWIPE_DURATION_MS = 100L;
     private static final long MAX_SWIPE_DURATION_MS = 350L;
@@ -203,12 +199,6 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
     }
 
-    static long getNoChangeTimeoutMs(Context context) {
-        long value = context.getSharedPreferences(PREFS, MODE_PRIVATE)
-                .getLong(KEY_NO_CHANGE_TIMEOUT, DEFAULT_NO_CHANGE_TIMEOUT_MS);
-        return Math.max(MIN_NO_CHANGE_TIMEOUT_MS, Math.min(MAX_NO_CHANGE_TIMEOUT_MS, value));
-    }
-
     static long getSwipeDurationMs(Context context) {
         long value = context.getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getLong(KEY_SWIPE_DURATION_MS, DEFAULT_SWIPE_DURATION_MS);
@@ -225,7 +215,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         }
         panel = createPanel();
         panelParams = new WindowManager.LayoutParams(
-                dp(ClickerPreferences.panelWidthDp(this, panelProfile)),
+                dp(ClickerPreferences.COMPACT_PANEL_WIDTH_DP),
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
@@ -539,7 +529,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         panelOrientation = getResources().getConfiguration().orientation
                 == Configuration.ORIENTATION_LANDSCAPE ? "landscape" : "portrait";
         int width = collapsedToBubble ? dp(78 * Math.max(1f, getResources().getConfiguration().fontScale))
-                : dp(ClickerPreferences.panelWidthDp(this, panelProfile));
+                : dp(ClickerPreferences.COMPACT_PANEL_WIDTH_DP);
         panelParams.width = Math.min(panelArea.width(), width);
         restorePlacementPending = true;
         updatePanelWindow();
@@ -921,7 +911,7 @@ public final class TapAccessibilityService extends AccessibilityService {
             }
             long elapsedSinceSwipe = SystemClock.uptimeMillis() - lastSwipeCompletedAtMs;
             if (lastSwipeCompletedAtMs > 0L
-                    && elapsedSinceSwipe < ClickerPreferences.timeoutMs(this, activeMode)) {
+                    && elapsedSinceSwipe < NO_CHANGE_RETRY_DELAY_MS) {
                 updatePanel(t(R.string.waiting_board_change));
                 updateDiagnosticMessage(t(R.string.wait_cell_movement));
                 handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());
@@ -952,7 +942,7 @@ public final class TapAccessibilityService extends AccessibilityService {
         if (result.board.equals(previousMergeBoard)) {
             long elapsedSinceSwipe = SystemClock.uptimeMillis() - lastSwipeCompletedAtMs;
             if (lastSwipeCompletedAtMs > 0L
-                    && elapsedSinceSwipe < ClickerPreferences.timeoutMs(this, activeMode)) {
+                    && elapsedSinceSwipe < NO_CHANGE_RETRY_DELAY_MS) {
                 updatePanel(t(R.string.waiting_board_change));
                 updateDiagnosticMessage(t(R.string.wait_tiles_slide));
                 handler.postDelayed(() -> readBoardAndMove(currentRun), timeUntilNextScreenshotMs());

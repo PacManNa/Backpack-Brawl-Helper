@@ -3,50 +3,17 @@ package ua.borlock.autotap;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-/** Per-module settings and presentation state, isolated from recognition data and timers. */
+/** Floating-panel presentation state, isolated from recognition data and timers. */
 final class ClickerPreferences {
     private static final String FILE = "pelyustka_modules";
-    static final int MIN_PANEL_WIDTH_DP = 224;
-    static final int MAX_PANEL_WIDTH_DP = 360;
-    static final int PANEL_WIDTH_STEP_DP = 8;
-    private static final int DEFAULT_PANEL_WIDTH_DP = 272;
+    static final int COMPACT_PANEL_WIDTH_DP = 224;
+    static final int COMPACT_TIMER_PANEL_WIDTH_DP = 256;
     static final String TIMERS_PROFILE = "timers";
 
     private ClickerPreferences() { }
 
     private static SharedPreferences store(Context context) {
         return context.getSharedPreferences(FILE, Context.MODE_PRIVATE);
-    }
-
-    static long timeoutMs(Context context, BotMode mode) {
-        SharedPreferences preferences = store(context);
-        String key = "module." + mode.id + ".timeout_ms";
-        if (!preferences.contains(key)) {
-            // Each module inherits the previous shared setting once, including upgrades
-            // that open the floating panel before the main activity is created.
-            long previous = TapAccessibilityService.getNoChangeTimeoutMs(context);
-            preferences.edit().putLong(key, previous).apply();
-        }
-        return clampTimeout(preferences.getLong(key, 900L));
-    }
-
-    static void setTimeoutMs(Context context, BotMode mode, long value) {
-        store(context).edit().putLong("module." + mode.id + ".timeout_ms", clampTimeout(value)).apply();
-    }
-
-    private static long clampTimeout(long value) {
-        return Math.max(TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS,
-                Math.min(TapAccessibilityService.MAX_NO_CHANGE_TIMEOUT_MS, value));
-    }
-
-    static int panelWidthDp(Context context, String profile) {
-        return Math.max(MIN_PANEL_WIDTH_DP, Math.min(MAX_PANEL_WIDTH_DP,
-                store(context).getInt("panel." + profile + ".width_dp", DEFAULT_PANEL_WIDTH_DP)));
-    }
-
-    static void setPanelWidthDp(Context context, BotMode mode, int value) {
-        int width = Math.max(MIN_PANEL_WIDTH_DP, Math.min(MAX_PANEL_WIDTH_DP, value));
-        store(context).edit().putInt("panel." + mode.id + ".width_dp", width).apply();
     }
 
     static boolean diagnosticsExpanded(Context context, String profile) {

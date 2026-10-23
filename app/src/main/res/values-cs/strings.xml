@@ -21,17 +21,6 @@
     <string name="app_settings">"Nastavení aplikace"</string>
     <string name="show_service_help">"Služba není v seznamu?  Zobrazit návod  ⌄"</string>
     <string name="service_help">"Na Androidu 13 a novějším otevři nastavení aplikace → ⋮ → „Povolit omezená nastavení“. Potom se vrať do Usnadnění → nainstalované aplikace a zapni „PackMate — ovládání hry“."</string>
-    <string name="wait_for_board">"Čekání na změnu plochy"</string>
-    <string name="wait_for_board_hint">"Prodleva před opakováním tahu beze změny plochy"</string>
-    <string name="interval_default">"0,9 s"</string>
-    <string name="interval_fast">"0,4 s"</string>
-    <string name="interval_slow">"4,0 s"</string>
-    <string name="wait_for_board_prefix">"Čekání na změnu plochy: "</string>
-    <string name="wait_for_board_explanation">"Nastavení tohoto modulu. Pokud se plocha nezmění, bot počká a tah jednou zopakuje. Po úspěšném tahu se tato prodleva nepřidává."</string>
-    <string name="floating_panel">"Plovoucí panel"</string>
-    <string name="panel_width_prefix">"Šířka: "</string>
-    <string name="panel_width_accessibility">"Šířka plovoucího panelu: "</string>
-    <string name="panel_help">"Panel přesuneš tažením za název s popiskem „Přesunout“. Tlačítko „Zobrazit plochu“ otevře diagnostiku, „Do ikony“ sbalí nabídku."</string>
     <string name="first_launch">"První spuštění"</string>
     <string name="step_permission_title">"Povol přístup"</string>
     <string name="step_permission_body">"Klepni na „Oprávnění Androidu“ a zapni službu usnadnění."</string>
@@ -50,7 +39,6 @@
     <string name="open_app_settings_toast">"Otevři nastavení PackMate v seznamu aplikací"</string>
     <string name="return_after_access">"Po zapnutí služby se vrať sem a znovu otevři panel"</string>
     <string name="panel_open_toast">"Panel je otevřený — můžeš přejít do hry"</string>
-    <string name="interval_seconds">"%.1f s"</string>
     <string name="expanded">"Rozbaleno"</string>
     <string name="collapsed">"Sbaleno"</string>
     <string name="module_blitz_name">"Backpack Blitz"</string>

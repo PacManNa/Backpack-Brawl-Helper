@@ -21,17 +21,6 @@
     <string name="app_settings">"Налаштування застосунку"</string>
     <string name="show_service_help">"Не бачиш сервіс у списку?  Показати інструкцію  ⌄"</string>
     <string name="service_help">"На Android 13+ відкрий налаштування застосунку → ⋮ → «Дозволити обмежені налаштування». Потім повернись у Доступність → встановлені програми та ввімкни «PackMate — керування грою»."</string>
-    <string name="wait_for_board">"Очікування зміни поля"</string>
-    <string name="wait_for_board_hint">"Час до повтору свайпу без змін поля"</string>
-    <string name="interval_default">"0,9 с"</string>
-    <string name="interval_fast">"0,4 с"</string>
-    <string name="interval_slow">"4,0 с"</string>
-    <string name="wait_for_board_prefix">"Очікування зміни поля: "</string>
-    <string name="wait_for_board_explanation">"Налаштування цього модуля. Якщо поле не змінилося, бот зачекає й повторить свайп один раз. Після успішного ходу це очікування не додається."</string>
-    <string name="floating_panel">"Плаваюча панель"</string>
-    <string name="panel_width_prefix">"Ширина: "</string>
-    <string name="panel_width_accessibility">"Ширина плаваючої панелі: "</string>
-    <string name="panel_help">"Перетягуй за назву з підписом «Перетягнути». Кнопка «Показати поле» відкриває діагностику, «В іконку» згортає меню."</string>
     <string name="first_launch">"Перший запуск"</string>
     <string name="step_permission_title">"Увімкни дозвіл"</string>
     <string name="step_permission_body">"Натисни «Дозвіл Android» та ввімкни службу доступності."</string>
@@ -50,7 +39,6 @@
     <string name="open_app_settings_toast">"Відкрий налаштування PackMate зі списку програм"</string>
     <string name="return_after_access">"Повернись сюди після ввімкнення сервісу й відкрий панель ще раз"</string>
     <string name="panel_open_toast">"Панель відкрито — можна переходити до гри"</string>
-    <string name="interval_seconds">"%.1f с"</string>
     <string name="expanded">"Розгорнуто"</string>
     <string name="collapsed">"Згорнуто"</string>
     <string name="module_blitz_name">"Рюкзак-Бліц"</string>

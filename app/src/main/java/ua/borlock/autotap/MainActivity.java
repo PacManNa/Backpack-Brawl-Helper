@@ -19,7 +19,6 @@ import android.view.WindowInsets;
 import android.widget.LinearLayout;
 import android.widget.ImageView;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -212,15 +211,6 @@ public final class MainActivity extends LocalizedActivity {
         launch.setOnClickListener(view -> openFloatingPanel(mode));
         botLaunchButtons.add(launch);
         details.addView(launch, new LinearLayout.LayoutParams(-1, dp(46)));
-        for (ClickerModule.Setting setting : module.settings) {
-            View control;
-            switch (setting) {
-                case NO_CHANGE_TIMEOUT: control = buildIntervalCard(module); break;
-                case PANEL_WIDTH: control = buildPanelSettings(module); break;
-                default: throw new IllegalStateException("Unsupported setting: " + setting);
-            }
-            details.addView(control, margin(-1, -2, 0, 12, 0, 0));
-        }
         card.addView(details, new LinearLayout.LayoutParams(-1, -2));
 
         ExpandableSection.bind(heading, details, t(module.nameRes), expandedBots.contains(mode), expanded -> {
@@ -303,103 +293,6 @@ public final class MainActivity extends LocalizedActivity {
         ExpandableSection.bind(heading, body, t(R.string.android_permission), permissionExpanded,
                 expanded -> permissionExpanded = expanded);
         permissionCard = card;
-        return card;
-    }
-
-    private View buildIntervalCard(ClickerModule module) {
-        LinearLayout card = column();
-        card.setPadding(dp(12), dp(12), dp(12), dp(12));
-        card.setBackground(shape(CARD_SOFT, 0, 12));
-
-        LinearLayout titleRow = new LinearLayout(this);
-        titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout labels = column();
-        labels.addView(text(t(R.string.wait_for_board), 14, CREAM, true));
-        labels.addView(text(t(R.string.wait_for_board_hint), 12, MUTED, false), margin(-1, -2, 0, 3, 0, 0));
-        titleRow.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
-
-        TextView intervalValue = text(t(R.string.interval_default), 14, GOLD, true);
-        intervalValue.setGravity(Gravity.CENTER);
-        intervalValue.setPadding(dp(9), dp(6), dp(9), dp(6));
-        intervalValue.setBackground(shape(0x334A3540, 0, 12));
-        titleRow.addView(intervalValue);
-        card.addView(titleRow);
-
-        SeekBar intervalSlider = new SeekBar(this);
-        int timeoutSteps = (int) ((TapAccessibilityService.MAX_NO_CHANGE_TIMEOUT_MS
-                - TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS)
-                / TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS);
-        intervalSlider.setMax(timeoutSteps);
-        if (Build.VERSION.SDK_INT >= 21) {
-            intervalSlider.setProgressTintList(ColorStateList.valueOf(module.theme.accent));
-            intervalSlider.setThumbTintList(ColorStateList.valueOf(module.theme.accent));
-            intervalSlider.setProgressBackgroundTintList(ColorStateList.valueOf(BORDER));
-        }
-        long initial = ClickerPreferences.timeoutMs(this, module.mode);
-        int progress = Math.max(0, Math.min(timeoutSteps, Math.round(
-                (initial - TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS)
-                / (float) TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS)));
-        intervalSlider.setProgress(progress);
-        intervalSlider.setContentDescription(t(R.string.wait_for_board_prefix) + t(module.nameRes));
-        updateIntervalLabel(intervalValue, progress);
-        intervalSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
-                if (!fromUser) return;
-                updateIntervalLabel(intervalValue, value);
-                ClickerPreferences.setTimeoutMs(MainActivity.this, module.mode,
-                        TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS
-                                + value * TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS);
-            }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
-            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
-        });
-        card.addView(intervalSlider, margin(-1, -2, -8, 4, -8, 0));
-
-        LinearLayout range = new LinearLayout(this);
-        TextView fast = text(t(R.string.interval_fast), 10, MUTED, true);
-        TextView slow = text(t(R.string.interval_slow), 10, MUTED, true);
-        range.addView(fast, new LinearLayout.LayoutParams(0, -2, 1));
-        slow.setGravity(Gravity.RIGHT);
-        range.addView(slow, new LinearLayout.LayoutParams(0, -2, 1));
-        card.addView(range);
-        card.addView(text(t(R.string.wait_for_board_explanation), 11, MUTED, false),
-                margin(-1, -2, 0, 7, 0, 0));
-        return card;
-    }
-
-    private View buildPanelSettings(ClickerModule module) {
-        LinearLayout card = column();
-        card.setPadding(dp(12), dp(12), dp(12), dp(12));
-        card.setBackground(shape(CARD_SOFT, 0, 12));
-        card.addView(text(t(R.string.floating_panel), 14, CREAM, true));
-        TextView widthLabel = text("", 12, MUTED, false);
-        card.addView(widthLabel, margin(-1, -2, 0, 6, 0, 0));
-        SeekBar widthSlider = new SeekBar(this);
-        widthSlider.setMax((ClickerPreferences.MAX_PANEL_WIDTH_DP
-                - ClickerPreferences.MIN_PANEL_WIDTH_DP) / ClickerPreferences.PANEL_WIDTH_STEP_DP);
-        int width = ClickerPreferences.panelWidthDp(this, module.id);
-        widthSlider.setProgress((width - ClickerPreferences.MIN_PANEL_WIDTH_DP)
-                / ClickerPreferences.PANEL_WIDTH_STEP_DP);
-        widthLabel.setText(t(R.string.panel_width_prefix) + width);
-        widthSlider.setContentDescription(t(R.string.panel_width_accessibility) + t(module.nameRes));
-        widthSlider.setProgressTintList(ColorStateList.valueOf(module.theme.accent));
-        widthSlider.setThumbTintList(ColorStateList.valueOf(module.theme.accent));
-        widthSlider.setProgressBackgroundTintList(ColorStateList.valueOf(BORDER));
-        widthSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (!fromUser) return;
-                int widthDp = ClickerPreferences.MIN_PANEL_WIDTH_DP
-                        + progress * ClickerPreferences.PANEL_WIDTH_STEP_DP;
-                widthLabel.setText(t(R.string.panel_width_prefix) + widthDp);
-                ClickerPreferences.setPanelWidthDp(MainActivity.this, module.mode, widthDp);
-                TapAccessibilityService.refreshModulePanel(module.mode);
-            }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
-            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
-        });
-        card.addView(widthSlider, margin(-1, -2, -8, 4, -8, 0));
-        card.addView(text(t(R.string.panel_help),
-                11, MUTED, false), margin(-1, -2, 0, 7, 0, 0));
         return card;
     }
 
@@ -497,13 +390,6 @@ public final class MainActivity extends LocalizedActivity {
             return;
         }
         Toast.makeText(this, t(R.string.panel_open_toast), Toast.LENGTH_SHORT).show();
-    }
-
-    private void updateIntervalLabel(TextView value, int progress) {
-        long ms = TapAccessibilityService.MIN_NO_CHANGE_TIMEOUT_MS
-                + progress * TapAccessibilityService.NO_CHANGE_TIMEOUT_STEP_MS;
-        String label = String.format(AppLanguage.locale(this), t(R.string.interval_seconds), ms / 1000f);
-        value.setText(label);
     }
 
     private String versionName() {

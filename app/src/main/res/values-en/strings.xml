@@ -21,17 +21,6 @@
     <string name="app_settings">"Application settings"</string>
     <string name="show_service_help">"Can't see the service in the list?  Show setup instructions  ⌄"</string>
     <string name="service_help">"On Android 13 and later, open app settings → ⋮ → “Allow restricted settings”. Then return to Accessibility → installed apps and enable “PackMate — game control”."</string>
-    <string name="wait_for_board">"Waiting for field change"</string>
-    <string name="wait_for_board_hint">"Time to swipe again without field changes"</string>
-    <string name="interval_default">"0.9 s"</string>
-    <string name="interval_fast">"0.4 s"</string>
-    <string name="interval_slow">"4.0 s"</string>
-    <string name="wait_for_board_prefix">"Waiting for field change: "</string>
-    <string name="wait_for_board_explanation">"Setting up this module. If the field has not changed, the bot will wait and repeat the swipe once. After a successful turn, this wait is not added."</string>
-    <string name="floating_panel">"Floating panel"</string>
-    <string name="panel_width_prefix">"Width: "</string>
-    <string name="panel_width_accessibility">"Width of floating panel: "</string>
-    <string name="panel_help">"Drag for the name labeled \"Drag\". The \"Show field\" button opens diagnostics, \"In icon\" collapses the menu."</string>
     <string name="first_launch">"First launch"</string>
     <string name="step_permission_title">"Enable permission"</string>
     <string name="step_permission_body">"Click \"Allow Android\" and enable the accessibility service."</string>
@@ -50,7 +39,6 @@
     <string name="open_app_settings_toast">"Open PackMate settings from the app list"</string>
     <string name="return_after_access">"Come back here after enabling the service and open the panel again"</string>
     <string name="panel_open_toast">"Panel opened — you can switch to the game"</string>
-    <string name="interval_seconds">"%.1f s"</string>
     <string name="expanded">"Expanded"</string>
     <string name="collapsed">"Collapsed"</string>
     <string name="module_blitz_name">"Backpack Blitz"</string>

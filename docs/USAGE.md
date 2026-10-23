@@ -22,25 +22,18 @@ Settings, help, floating panels, timers, and notifications are translated too.
 Custom and edited timer names remain as entered. Switching languages does not
 restart countdowns or stop a bot.
 
-## Wait for board changes
+## Automation pace
 
-Tap a bot's name on the main screen. Its expanded card contains a description,
-an **Open panel** button, and a **Wait for board change** slider. Tap the name
-again to collapse the card to its icon and name. Cards are collapsed on a fresh
-launch; rotation preserves expanded cards.
-
-The slider sets the retry delay if the board did not change. Each module has its
-own value. After upgrading from 1.9.36, both modules inherit the previous shared
-value and can then be configured independently. The range is 0.4–4.0 seconds in
-0.1-second steps. This timeout is not added after a successful move: the bot
-continues as soon as it confirms the board state. Existing settings survive an
-update; move the slider left to reduce the retry delay.
+Clicker modules no longer expose speed controls. When a swipe does not change
+the board, the bot waits the fixed minimum of 0.4 seconds before its retry.
+Successful moves do not receive this extra delay. Normal pacing depends on game
+animations and Android screenshot capture; the current capture method has a
+minimum interval of 334 ms.
 
 Version 1.9.35 reduced board-boundary search and move-computation time. Search
 depth, move evaluation, and swipe-result checks are retained. Further pace
 depends on game animations and Android screenshots: the current capture method
-has a minimum interval of 334 ms. A 0.4-second slider setting only shortens the
-retry delay when a previous swipe did not change the board.
+has a minimum interval of 334 ms.
 
 ## Floating panel
 
@@ -57,8 +50,8 @@ retry delay when a previous swipe did not change the board.
 - The name and status do not expand the menu when tapped. Use the labeled controls.
 - In 1.9.39, **Start / Stop**, **Show / Hide board**, and **To icon** have a
   minimum height reduced by 40%: about 29 instead of 48 dp.
-- Set width with the **Floating panel** slider in the expanded module card.
-  Width is saved per clicker; height depends on diagnostics.
+- The panel uses a fixed compact width. **To icon** remains available whenever
+  you want to collapse it; the timer window uses the same compact layout rule.
 
 Only one clicker runs at a time. Opening another module stops the previous one.
 The timer window can remain open alongside a clicker and stores its position

@@ -13,13 +13,11 @@ final class ClickerCatalog {
             new ClickerModule(BotMode.BACKPACK_BLITZ, R.string.module_blitz_name, "💎",
                     R.string.module_blitz_description, "8 × 8",
                     new ClickerModule.Theme(0xFF53D2CC, 0xFF286D72,
-                            0xFF263D4B, 0xFF242A38, 0xFF203B48, 0xFF294C55),
-                    ClickerModule.Setting.NO_CHANGE_TIMEOUT, ClickerModule.Setting.PANEL_WIDTH),
+                            0xFF263D4B, 0xFF242A38, 0xFF203B48, 0xFF294C55)),
             new ClickerModule(BotMode.MERGE_MADNESS, R.string.module_merge_name, "🐀",
                     R.string.module_merge_description, "2048 · 4 × 4",
                     new ClickerModule.Theme(0xFFF6BE5B, 0xFF786034,
-                            0xFF3B3228, 0xFF252A38, 0xFF473923, 0xFF51402C),
-                    ClickerModule.Setting.NO_CHANGE_TIMEOUT, ClickerModule.Setting.PANEL_WIDTH)));
+                            0xFF3B3228, 0xFF252A38, 0xFF473923, 0xFF51402C))));
     private static final EnumMap<BotMode, ClickerModule> BY_MODE = new EnumMap<>(BotMode.class);
 
     static {
