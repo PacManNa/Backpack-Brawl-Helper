@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="46" viewBox="0 0 260 46" role="img" aria-labelledby="title">
+  <title id="title">Read the user guide</title>
+  <rect x="0.75" y="0.75" width="258.5" height="44.5" rx="12" fill="#272d3a" stroke="#465166" stroke-width="1.5"/>
+  <path d="M15 15c4-2 8-1 11 1v15c-3-2-7-3-11-1zm22 0c-4-2-8-1-11 1v15c3-2 7-3 11-1z" fill="none" stroke="#f6be5b" stroke-width="2" stroke-linejoin="round"/>
+  <text x="145" y="28" fill="#f6f4ed" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle">Read the user guide</text>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="46" viewBox="0 0 260 46" role="img" aria-labelledby="title">
+  <title id="title">Latest GitHub release</title>
+  <rect x="0.75" y="0.75" width="258.5" height="44.5" rx="12" fill="#272d3a" stroke="#465166" stroke-width="1.5"/>
+  <path d="M16 16h13l5 7-5 7H16z" fill="none" stroke="#f6be5b" stroke-width="2.2" stroke-linejoin="round"/>
+  <circle cx="21" cy="23" r="1.5" fill="#f6be5b"/>
+  <text x="145" y="28" fill="#f6f4ed" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle">Latest GitHub release</text>
+</svg>

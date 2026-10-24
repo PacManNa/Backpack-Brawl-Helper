@@ -1,14 +1,16 @@
 <div align="center">
 
-# 🎒 PackMate
+<h1>🎒 PackMate</h1>
 
-**An offline, unofficial Android companion for Backpack Brawl minigames.**
+<p><strong>An offline, unofficial Android companion for Backpack Brawl minigames.</strong></p>
 
-<a href="https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.53.apk"><img src="https://img.shields.io/badge/Download-APK%201.9.53-2f9e72?style=for-the-badge" alt="Download PackMate 1.9.53 APK"></a>
-<a href="https://github.com/PacManNa/PackMate/releases/latest"><img src="https://img.shields.io/github/v/release/PacManNa/PackMate?display_name=tag&amp;color=5661a8&amp;style=for-the-badge" alt="Latest GitHub release"></a>
-<a href="docs/USAGE.md"><img src="https://img.shields.io/badge/Quick%20start-User%20guide-3b7890?style=for-the-badge" alt="Read the user guide"></a>
+<p align="center">
+  <a href="https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.53.apk"><img src="docs/images/readme-download.svg" width="260" height="46" alt="Download PackMate 1.9.53 APK"></a>
+  <a href="https://github.com/PacManNa/PackMate/releases/latest"><img src="docs/images/readme-release.svg" width="260" height="46" alt="Latest GitHub release"></a>
+  <a href="docs/USAGE.md"><img src="docs/images/readme-guide.svg" width="260" height="46" alt="Read the user guide"></a>
+</p>
 
-*On-device board recognition · Compact floating controls · Reward reminders*
+<p><em>On-device board recognition · Compact floating controls · Reward reminders</em></p>
 
 </div>
 
