@@ -1,103 +1,78 @@
+<div align="center">
+
 # 🎒 PackMate
 
-**PackMate is an offline, unofficial Android companion for Backpack Brawl.**
-It recognizes the game board on your phone and automates moves in **Backpack Blitz** and
-**Merge Madness**. It also reminds you when timed game rewards are ready.
+**An offline, unofficial Android companion for Backpack Brawl minigames.**
 
-<p align="center">
-  <a href="https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.53.apk"><strong>⬇ Download APK 1.9.53</strong></a>
-  &nbsp;·&nbsp;
-  <a href="docs/USAGE.md">User guide</a>
-  &nbsp;·&nbsp;
-  <a href="docs/BUILDING.md">Build guide</a>
-</p>
+<a href="https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.53.apk"><img src="https://img.shields.io/badge/Download-APK%201.9.53-2f9e72?style=for-the-badge" alt="Download PackMate 1.9.53 APK"></a>
+<a href="https://github.com/PacManNa/PackMate/releases/latest"><img src="https://img.shields.io/github/v/release/PacManNa/PackMate?display_name=tag&color=5661a8" alt="Latest GitHub release"></a>
+<a href="docs/USAGE.md"><img src="https://img.shields.io/badge/Quick%20start-User%20guide-3b7890?style=for-the-badge" alt="Read the user guide"></a>
 
-Download the [APK 1.9.53](https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.53.apk) once and install it from your phone. **The APK installs offline, and the app does not request internet access.**
+*On-device board recognition · Compact floating controls · Reward reminders*
 
-> PackMate is an independent community project and is not affiliated with or endorsed by the game developers.
+</div>
 
-## 🎮 Game modes
+> PackMate is an independent community project. It is not affiliated with or endorsed by the game developers.
 
-| Mode | What it does |
+## 🎮 What it does
+
+| Module | Capabilities |
 | --- | --- |
-| **Backpack Blitz** | Reads the 8×8 gem board, evaluates adjacent swaps, special gems, and possible cascades. |
-| **Merge Madness** | Reads the 4×4 board and hint chain, then models merges and the next tile spawn. |
+| **Backpack Blitz** | Reads the 8×8 gem board, ranks adjacent swaps, and considers special gems and possible cascades. |
+| **Merge Madness** | Reads the 4×4 board and hint chain, simulates four swipe directions, and predicts the next tile. |
+| **Reward timers** | Reminds you about event tickets, shop gems and coins, bone bags, and custom timers. |
 
 ### Backpack Blitz
 
 - Recognizes seven gem colors, rockets, bombs, and portal specials.
-- Evaluates up to 112 adjacent swaps per move and favors larger clears.
-- Uses special gems and estimated cascades to rank otherwise similar moves.
+- Evaluates up to 112 neighboring swaps per move.
+- Uses estimated cascades and special gems to rank promising moves.
 
 ### Merge Madness
 
-- Locates the grid and matches tile images to the rank sequence shown below it.
-- Simulates four swipe directions, equal-rank merges, and the next tile spawn.
-- Waits for a clear frame when a cell is uncertain or an animation is in progress.
-- Supports the game's 15-rank progression; late-game artwork still needs more
-  real screenshots for full recognition coverage.
+- Matches tiles to the rank sequence shown below the board.
+- Models equal-rank merges and the next tile spawn across four swipe directions.
+- Supports the game's 15-rank progression. Recognition of late-game artwork still needs more real screenshots.
 
-## 🔔 Reward timers
+### Reward timers
 
-Built-in timers cover event tickets (4 hours), shop gems (1 hour), shop coins
-(1 hour), and the event bone bag (3 hours). Start, restart, or stop them from a
-separate floating menu. You can add and edit custom timers, with notifications
-when a countdown finishes.
+Start, restart, or stop timers from a separate floating menu. Add and edit your own timers, and receive a notification when a countdown finishes. Timers continue if the menu is closed or the bot is running.
 
-## ✨ Interface and privacy
+## ⬇️ Install
 
-- Ukrainian 🇺🇦, Czech 🇨🇿, and English 🇬🇧. The language button shows the flag
-  and code of the **next** language; tap it to cycle through all three.
-- Expandable module cards keep the main screen compact.
-- Floating controls can be moved and collapsed while the bot continues running.
-- Board recognition runs on the device. Screenshots are processed in memory
-  and are not saved by the app. The app does not request internet access.
+1. [Download PackMate 1.9.53](https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.53.apk) to your Android phone. The APK can be installed offline.
+2. Open the downloaded file. If Android asks, allow your browser or file manager to install unknown apps, then return to the installer.
+3. For automated gameplay, enable **PackMate — game control** in Android Accessibility settings. Screenshot-based gameplay requires Android 11 or later.
+4. Return to PackMate, expand a game module, tap **Open panel**, open the matching minigame, and tap **Start** after the board settles.
 
-## 📱 Install the APK offline
+An update installs over an existing copy when the package ID and signing key match. The release APK uses the project's persistent signing key, so Android retains the app's data and permissions during a compatible update.
 
-1. Download the APK from [GitHub Releases](https://github.com/PacManNa/PackMate/releases/latest) to your Android phone.
-2. Open the downloaded APK. If Android asks, allow your browser or file manager
-   to install unknown apps, then return to the installer.
-3. Install PackMate and open it. No network connection is needed for installation.
-4. In PackMate, tap **Android permission** and enable **PackMate — game
-   control** in Android Accessibility settings.
-5. Return to the app, expand a module, tap **Open panel**, open the matching
-   minigame, and tap **Start** after the board settles.
+## 🎛️ Interface
 
-An update can be installed over an existing copy when it has the same package
-ID and signing key. The APK in the official release is signed with this
-project's persistent release key. Android keeps the app's data and granted
-permissions during a compatible update.
+- Ukrainian 🇺🇦, Czech 🇨🇿, and English 🇬🇧. The language control shows the active flag and code; tap it to cycle through all three.
+- Expandable game cards keep the main screen compact.
+- Floating menus can be moved or collapsed to an icon while the bot continues running.
+- Timer controls use a compact panel that grows to fit its timers and scrolls when needed.
 
-For reward reminders, open **Set up timers** and start a timer after claiming a
-reward. See the [timer guide](docs/TIMERS-1.9.42.md) for details.
+## 🔒 Privacy and limits
 
-## 🧠 Move selection
+Board recognition runs on the phone. Screenshots are processed in memory and are not saved by the app. PackMate does not request internet access.
 
-Backpack Blitz ranks possible swaps using matches, special gems, and estimated
-cascades. Its base estimate uses 50 points per cleared gem at a ×1 multiplier,
-based on observed in-game messages for 4, 5, and 10 gems; this does not
-guarantee the final score. Merge Madness compares four swipe simulations and
-the predicted next-tile spawn.
-
-## ⚠️ Known limitations
-
-- Game layout, theme, or version changes can reduce recognition accuracy.
-- An obscured hint chain or unfamiliar late-game artwork can prevent rank detection.
-- Rocket stripe direction is not read from the screenshot and is modeled randomly.
-- Android limits screenshot frequency; the service interval is about 334 ms at
-  minimum, plus game animation time.
-- Cascade estimates use random simulation and cannot predict the future board exactly.
+Recognition can be affected by game updates, themes, animations, or an obscured hint chain. Android limits screenshot frequency to about one capture every 334 ms at minimum, in addition to game animation time. An unchanged board triggers a 0.4-second retry wait; successful moves get no extra delay. Cascade estimates cannot guarantee a final score, and rocket stripe direction is modeled randomly.
 
 ## 📚 Documentation
 
-- [User guide](docs/USAGE.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Adding modules](docs/MODULES.md)
-- [Future clicker ideas](docs/ROADMAP.md)
-- [Merge Madness rank-15 strategy](docs/ALGORITHMS-LEVEL15.md)
-- [Localization](docs/LOCALIZATION-1.9.47.md)
-- [Compact timer screen](docs/INTERFACE-1.9.53.md)
-- [Build and signing guide](docs/BUILDING.md)
+| Guide | Contents |
+| --- | --- |
+| [User guide](docs/USAGE.md) | Setup, floating controls, languages, and timers |
+| [Build and signing](docs/BUILDING.md) | Build an APK and signing requirements |
+| [Architecture](docs/ARCHITECTURE.md) | App structure and board recognition |
+| [Clicker modules](docs/MODULES.md) | Existing modules and how to add one |
+| [Future ideas](docs/ROADMAP.md) | Potential clicker modules |
+| [Backpack Blitz autoplay](docs/BLITZ-AUTOPLAY-1.9.41.md) | Move selection and cascade estimates |
+| [Merge Madness strategy](docs/ALGORITHMS-LEVEL15.md) | Rank-15 strategy and known limits |
+| [Localization](docs/LOCALIZATION-1.9.47.md) | Ukrainian, Czech, and English support |
 
-The project has no license file, so code reuse terms are unspecified.
+## 📄 License
+
+No license file is included, so reuse terms are currently unspecified.
