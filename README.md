@@ -5,7 +5,7 @@
 **An offline, unofficial Android companion for Backpack Brawl minigames.**
 
 <a href="https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.53.apk"><img src="https://img.shields.io/badge/Download-APK%201.9.53-2f9e72?style=for-the-badge" alt="Download PackMate 1.9.53 APK"></a>
-<a href="https://github.com/PacManNa/PackMate/releases/latest"><img src="https://img.shields.io/github/v/release/PacManNa/PackMate?display_name=tag&color=5661a8" alt="Latest GitHub release"></a>
+<a href="https://github.com/PacManNa/PackMate/releases/latest"><img src="https://img.shields.io/github/v/release/PacManNa/PackMate?display_name=tag&amp;color=5661a8&amp;style=for-the-badge" alt="Latest GitHub release"></a>
 <a href="docs/USAGE.md"><img src="https://img.shields.io/badge/Quick%20start-User%20guide-3b7890?style=for-the-badge" alt="Read the user guide"></a>
 
 *On-device board recognition · Compact floating controls · Reward reminders*
@@ -13,6 +13,23 @@
 </div>
 
 > PackMate is an independent community project. It is not affiliated with or endorsed by the game developers.
+
+<details>
+<summary>View app screenshots</summary>
+
+<p><em>Preview captures from version 1.9.51; the timer cards and floating timer panel have since been made more compact.</em></p>
+
+<table>
+<tr>
+<td align="center"><strong>Main screen</strong><br><img src="docs/images/home-screen.jpg" width="220" alt="PackMate main screen"></td>
+<td align="center"><strong>Action reminders</strong><br><img src="docs/images/timer-screen.jpg" width="220" alt="Reward timer screen"></td>
+</tr>
+<tr>
+<td align="center"><strong>Timer floating menu</strong><br><img src="docs/images/timer-floating-menu.jpg" width="260" alt="Floating reward timer menu"></td>
+<td align="center"><strong>Clicker floating menu</strong><br><img src="docs/images/clicker-floating-menu.jpg" width="260" alt="Floating game clicker menu"></td>
+</tr>
+</table>
+</details>
 
 ## 🎮 What it does
 
