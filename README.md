@@ -6,7 +6,9 @@
 
 <p align="center">
   <a href="https://github.com/PacManNa/PackMate/raw/refs/heads/main/downloads/PackMate-1.9.53.apk"><img src="docs/images/readme-download.svg" width="260" height="46" alt="Download PackMate 1.9.53 APK"></a>
+  <br>
   <a href="https://github.com/PacManNa/PackMate/releases/latest"><img src="docs/images/readme-release.svg" width="260" height="46" alt="Latest GitHub release"></a>
+  <br>
   <a href="docs/USAGE.md"><img src="docs/images/readme-guide.svg" width="260" height="46" alt="Read the user guide"></a>
 </p>
 
